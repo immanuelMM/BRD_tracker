@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --sidebar-w: 240px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f1f5f9;
+  transition: background-color 0.2s ease;
+}
+
+body.dark {
+  background-color: #020617;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Recharts dark mode */
+.dark .recharts-cartesian-grid-horizontal line,
+.dark .recharts-cartesian-grid-vertical line {
+  stroke: #1e293b;
+}
+.dark .recharts-text { fill: #94a3b8; }
+.dark .recharts-legend-item-text { color: #94a3b8 !important; }
+.dark .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+.dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+/* Transitions */
+.transition-theme {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}

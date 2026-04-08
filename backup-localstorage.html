@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BRD Tracker – LocalStorage Backup</title>
+  <style>
+    body { font-family: sans-serif; max-width: 500px; margin: 60px auto; text-align: center; }
+    button { padding: 12px 28px; font-size: 16px; cursor: pointer; border-radius: 6px; border: none;
+             background: #2563eb; color: #fff; margin: 8px; }
+    button:hover { background: #1d4ed8; }
+    #status { margin-top: 20px; font-size: 14px; color: #555; white-space: pre-wrap; text-align: left;
+              background: #f3f4f6; padding: 12px; border-radius: 6px; display: none; }
+  </style>
+</head>
+<body>
+  <h2>BRD Tracker – LocalStorage Backup</h2>
+  <p>Open this file in the <strong>same browser</strong> you use for the BRD Tracker app.</p>
+
+  <button onclick="downloadBackup()">Download Backup (JSON)</button>
+  <button onclick="showContents()">Preview Data</button>
+
+  <div id="status"></div>
+
+  <script>
+    const KEY = 'brd_tracker_db';
+    const MIGRATE_KEY = 'brd_tracker_migrated_mssql';
+
+    function getData() {
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+
+    function downloadBackup() {
+      const data = getData();
+      const status = document.getElementById('status');
+      status.style.display = 'block';
+
+      if (!data) {
+        status.textContent = 'No brd_tracker_db key found in localStorage.\n\n' +
+          (localStorage.getItem(MIGRATE_KEY)
+            ? 'Data was already migrated to SQL Server. Use the app\'s export feature instead.'
+            : 'No data found. Make sure you open this file in the same browser as the app.');
+        return;
+      }
+
+      const brds = (data.brds || []).length;
+      const bugs = (data.bugs || []).length;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `brd-tracker-backup-${timestamp}.json`;
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      status.textContent = `Backup downloaded: ${filename}\nBRDs: ${brds}  |  Bugs: ${bugs}`;
+    }
+
+    function showContents() {
+      const data = getData();
+      const status = document.getElementById('status');
+      status.style.display = 'block';
+
+      if (!data) {
+        status.textContent = 'No brd_tracker_db key found in localStorage.';
+        return;
+      }
+
+      const brds = data.brds || [];
+      const bugs = data.bugs || [];
+      status.textContent =
+        `Found ${brds.length} BRD(s) and ${bugs.length} bug(s).\n\n` +
+        brds.map(b => `• ${b.title || '(untitled)'} [${b.status || '?'}]`).join('\n');
+    }
+  </script>
+</body>
+</html>

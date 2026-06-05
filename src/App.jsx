@@ -10,12 +10,15 @@ import BAPage from './components/BAPage';
 import QuarterView from './components/QuarterView';
 import WorkflowPage from './components/WorkflowPage';
 import PMNotesPage from './components/PMNotesPage';
-import { getAllBRDs, getAllBugs, createBRD, updateBRD, deleteBRD, exportDB, importDB, seedSampleData, initDB, getAllCriteria, createCriteria, updateCriteria, deleteCriteria, getAllTeamLeads, createTeamLead, updateTeamLead, deleteTeamLead, getAllBRDTechLeads, getTeamLeadsForBRD, addBRDTechLead, updateBRDTechLead, deleteBRDTechLead, reorderBRDTechLeads, getAllTShirtSizes, createTShirtSize, updateTShirtSize, deleteTShirtSize, getAllPMNotes, createPMNote, updatePMNote, deletePMNote, getAllDevMembers, createDevMember, updateDevMember, deleteDevMember } from './utils/db';
+import { getAllBRDs, getAllBugs, createBRD, updateBRD, deleteBRD, exportDB, importDB, seedSampleData, initDB, getAllCriteria, createCriteria, updateCriteria, deleteCriteria, getAllTeamLeads, createTeamLead, updateTeamLead, deleteTeamLead, getAllBRDTechLeads, getTeamLeadsForBRD, addBRDTechLead, updateBRDTechLead, deleteBRDTechLead, reorderBRDTechLeads, getAllTShirtSizes, createTShirtSize, updateTShirtSize, deleteTShirtSize, getAllPMNotes, createPMNote, updatePMNote, deletePMNote, getAllDevMembers, createDevMember, updateDevMember, deleteDevMember, getAllKBEntries, createKBEntry, updateKBEntry, deleteKBEntry, syncLocalBackup } from './utils/db';
 import { BUG_CRITERIA as DEFAULT_CRITERIA, TSHIRT_SIZES as DEFAULT_TSHIRT_SIZES } from './utils/constants';
 import CriteriaSettings from './components/CriteriaSettings';
 import TeamLeadSettings from './components/TeamLeadSettings';
 import TShirtSizeSettings from './components/TShirtSizeSettings';
 import DevMemberSettings from './components/DevMemberSettings';
+import KnowledgeBasePage from './components/KnowledgeBasePage';
+import AnalyseAffectedModule from './components/AnalyseAffectedModule';
+import GoogleSettings from './components/GoogleSettings';
 
 export const ThemeContext = createContext({ dark: false, toggle: () => {} });
 export const useTheme = () => useContext(ThemeContext);
@@ -86,6 +89,49 @@ const NAV = [
     ),
   },
   {
+    id: 'ai_analyzer', label: 'AI Analyzer',
+    isGroup: true,
+    icon: (
+      <div className="relative w-5 h-5 flex-shrink-0 flex items-center justify-center">
+        {/* Slow-spinning dashed orbit ring */}
+        <svg
+          className="absolute inset-0 w-5 h-5"
+          style={{ animation: 'spin 4s linear infinite' }}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <circle cx="12" cy="12" r="10" strokeWidth="1.5" strokeDasharray="3 3" strokeOpacity="0.5"/>
+        </svg>
+        {/* Pulsing outer glow ring */}
+        <span className="absolute w-4 h-4 rounded-full border border-current opacity-25 animate-ping" style={{ animationDuration: '2s' }}/>
+        {/* Static brain/chip core */}
+        <svg className="relative w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+        </svg>
+        {/* Bright center dot — animate-pulse */}
+        <span className="absolute w-1 h-1 rounded-full bg-current animate-pulse" style={{ animationDuration: '1.5s' }}/>
+      </div>
+    ),
+    children: [
+      {
+        id: 'kb', label: 'AI Knowledge Base',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+        ),
+      },
+      {
+        id: 'affected_module', label: 'Analyse Affected',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
     id: 'sql', label: 'SQL Explorer',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,7 +151,8 @@ const NAV = [
   },
 ];
 
-const PAGE_TITLES = { dashboard: 'Dashboard', brds: 'BRD Tracker', report: 'Reports', tshirt: 'T-Shirt Sizes', quarters: 'Quarter View', ba: 'BA View', pmnotes: 'PM Notes', workflow: 'Workflow', sql: 'SQL Explorer', settings: 'Settings' };
+const PAGE_TITLES = { dashboard: 'Dashboard', brds: 'BRD Tracker', report: 'Reports', tshirt: 'T-Shirt Sizes', quarters: 'Quarter View', ba: 'BA View', pmnotes: 'PM Notes', workflow: 'Workflow', kb: 'AI Knowledge Base', affected_module: 'Analyse Affected Module', sql: 'SQL Explorer', settings: 'Settings' };
+
 
 function Notification({ msg, type }) {
   return (
@@ -132,11 +179,25 @@ export default function App() {
   const [pmNotes, setPMNotes] = useState([]);
   const [brdTechLeads, setBRDTechLeads] = useState([]);
   const [devMembers, setDevMembers] = useState([]);
+  const [kbEntries, setKBEntries]   = useState([]);
   const [selectedBRDId, setSelectedBRDId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingBRD, setEditingBRD] = useState(null);
   const [notification, setNotification] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [aiSection, setAiSection] = useState('kb'); // open section inside AI Analyzer tab
+
+  // Handle Google OAuth redirect-back (?google=connected)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('google') === 'connected') {
+      const email = params.get('email');
+      setActiveTab('settings');
+      notify('Google Docs connected' + (email ? ` as ${email}` : ''));
+      // Clean the query string without a page reload
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
@@ -154,7 +215,7 @@ export default function App() {
     initDB().then(async (ok) => {
       setDbEngine(ok ? 'SQL Server' : 'Offline');
       const migrated = await seedSampleData();
-      const [, fetchedCriteria, fetchedTeamLeads, fetchedSizes, fetchedNotes, fetchedBRDTechLeads, fetchedDevMembers] = await Promise.all([
+      const [, fetchedCriteria, fetchedTeamLeads, fetchedSizes, fetchedNotes, fetchedBRDTechLeads, fetchedDevMembers, fetchedKB] = await Promise.all([
         refresh(),
         getAllCriteria(),
         getAllTeamLeads(),
@@ -162,6 +223,7 @@ export default function App() {
         getAllPMNotes(),
         getAllBRDTechLeads(),
         getAllDevMembers(),
+        getAllKBEntries(),
       ]);
       if (Array.isArray(fetchedCriteria) && fetchedCriteria.length > 0) {
         setCriteria(fetchedCriteria);
@@ -181,6 +243,9 @@ export default function App() {
       if (Array.isArray(fetchedDevMembers)) {
         setDevMembers(fetchedDevMembers);
       }
+      if (Array.isArray(fetchedKB)) {
+        setKBEntries(fetchedKB);
+      }
       setDbReady(true);
       if (migrated && (migrated.brds > 0 || migrated.bugs > 0)) {
         notify(`Migrated ${migrated.brds} BRDs + ${migrated.bugs} bugs → SQL Server`);
@@ -199,6 +264,8 @@ export default function App() {
     setShowForm(false);
     setEditingBRD(null);
     setSidebarOpen(false);
+    // Auto-expand the AI Analyzer group when navigating to a child tab
+    if (tab === 'kb' || tab === 'affected_module') setAiSection('ai_analyzer');
   };
 
   const refreshCriteria = useCallback(async () => {
@@ -226,19 +293,30 @@ export default function App() {
     if (Array.isArray(fetched)) setDevMembers(fetched);
   }, []);
 
+  const refreshKB = useCallback(async () => {
+    const fetched = await getAllKBEntries();
+    if (Array.isArray(fetched)) setKBEntries(fetched);
+  }, []);
+
   const handleSaveBRD = async (data) => {
-    if (editingBRD) { await updateBRD(editingBRD.id, data); notify('BRD updated'); }
-    else { await createBRD(data); notify('BRD created'); }
+    const isEdit = !!editingBRD;
+    if (isEdit) { await updateBRD(editingBRD.id, data); }
+    else        { await createBRD(data); }
     setShowForm(false);
     setEditingBRD(null);
     refresh();
+    // Silently update the local backup file on the server
+    syncLocalBackup().catch(() => {});
+    notify(isEdit ? 'BRD updated' : 'BRD created');
   };
 
   const handleDeleteBRD = async (id) => {
     await deleteBRD(id);
-    notify('BRD deleted', 'error');
     if (selectedBRDId === id) setSelectedBRDId(null);
     refresh();
+    // Silently update the local backup file on the server
+    syncLocalBackup().catch(() => {});
+    notify('BRD deleted', 'error');
   };
 
   const handleExport = async () => {
@@ -285,9 +363,23 @@ export default function App() {
     if (activeTab === 'ba') return <BAPage brds={brds} bugs={bugs} onSelectBRD={(id) => { setSelectedBRDId(id); setActiveTab('brds'); }} />;
     if (activeTab === 'pmnotes') return <PMNotesPage notes={pmNotes} brds={brds} onCreate={createPMNote} onUpdate={updatePMNote} onDelete={deletePMNote} onRefresh={refreshPMNotes} notify={notify} onSelectBRD={(id) => { setSelectedBRDId(id); setActiveTab('brds'); }} />;
     if (activeTab === 'workflow') return <WorkflowPage brds={brds} bugs={bugs} onSelectBRD={(id) => { setSelectedBRDId(id); setActiveTab('brds'); }} />;
+    if (activeTab === 'kb') return (
+      <KnowledgeBasePage
+        brds={brds} bugs={bugs} brdTechLeads={brdTechLeads} kbEntries={kbEntries}
+        onRefreshKB={refreshKB} onCreateKB={createKBEntry} onUpdateKB={updateKBEntry}
+        onDeleteKB={deleteKBEntry} notify={notify}
+      />
+    );
+    if (activeTab === 'affected_module') return (
+      <AnalyseAffectedModule
+        brds={brds} bugs={bugs} brdTechLeads={brdTechLeads} kbEntries={kbEntries}
+        devMembers={devMembers} notify={notify}
+      />
+    );
     if (activeTab === 'sql') return <SQLExplorer />;
     if (activeTab === 'settings') return (
       <div className="space-y-8">
+        <GoogleSettings notify={notify} />
         <TeamLeadSettings
           teamLeads={teamLeads}
           onRefresh={refreshTeamLeads}
@@ -366,15 +458,55 @@ export default function App() {
 
           {/* Nav */}
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {NAV.map((item) => (
-              <button key={item.id} onClick={() => navigate(item.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${activeTab === item.id ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'}`}>
-                {item.icon}
-                {item.label}
-                {item.id === 'brds' && brds.length > 0 && (
-                  <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-md font-semibold ${activeTab === item.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>{brds.length}</span>
-                )}
-              </button>
-            ))}
+            {NAV.map((item) => {
+              if (item.isGroup) {
+                const childActive = item.children.some(c => c.id === activeTab);
+                const open = aiSection === item.id || childActive;
+                return (
+                  <div key={item.id}>
+                    {/* Group header */}
+                    <button
+                      onClick={() => setAiSection(s => s === item.id ? null : item.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer
+                        ${childActive ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'}`}
+                    >
+                      {item.icon}
+                      <span className="flex-1 text-left">{item.label}</span>
+                      <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
+                      </svg>
+                    </button>
+
+                    {/* Sub-items */}
+                    {open && (
+                      <div className="mt-0.5 ml-3 pl-3 border-l-2 border-slate-200 dark:border-slate-800 space-y-0.5">
+                        {item.children.map(child => (
+                          <button
+                            key={child.id}
+                            onClick={() => navigate(child.id)}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer
+                              ${activeTab === child.id ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'}`}
+                          >
+                            {child.icon}
+                            {child.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <button key={item.id} onClick={() => navigate(item.id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer ${activeTab === item.id ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'}`}>
+                  {item.icon}
+                  {item.label}
+                  {item.id === 'brds' && brds.length > 0 && (
+                    <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-md font-semibold ${activeTab === item.id ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>{brds.length}</span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Sidebar footer */}

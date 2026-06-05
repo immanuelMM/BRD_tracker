@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { QUARTERS, YEARS, QUARTER_MONTHS, STATUS_OPTIONS, MIN_BUG_THRESHOLD, getSprintLabel, getTShirtSize } from '../utils/constants';
+import { fmtTitle } from '../utils/db';
 import StatusBadge from './StatusBadge';
 import { exportQuarterViewToExcel } from '../utils/excelExport';
 
@@ -107,10 +108,10 @@ export default function QuarterView({ brds, bugs, onSelectBRD }) {
 
                           <div className="flex items-start gap-2 mb-2">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${isSuccess ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' : 'bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400'}`}>
-                              {brd.title.charAt(0).toUpperCase()}
+                              {fmtTitle(brd.title).charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <h3 className="font-semibold text-sm text-slate-900 dark:text-white truncate">{brd.title}</h3>
+                              <h3 className="font-semibold text-sm text-slate-900 dark:text-white truncate">{fmtTitle(brd.title)}</h3>
                               {brd.baName && <p className="text-xs text-slate-400">BA: {brd.baName}</p>}
                             </div>
                           </div>
@@ -165,10 +166,10 @@ export default function QuarterView({ brds, bugs, onSelectBRD }) {
               {unscheduled.map((brd) => (
                 <div key={brd.id} onClick={() => onSelectBRD(brd.id)} className="flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-indigo-900 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
                   <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    {brd.title.charAt(0).toUpperCase()}
+                    {fmtTitle(brd.title).charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{brd.title}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{fmtTitle(brd.title)}</p>
                     {brd.baName && <p className="text-xs text-slate-400">{brd.baName}</p>}
                   </div>
                   <span className="text-xs text-indigo-400 flex-shrink-0">No schedule</span>

@@ -1,5 +1,9 @@
 const API = '/api';
 
+// Strip leading "BRD_", "BRD ", "RD_", "RD " prefixes from titles for display
+export const fmtTitle = (title) =>
+  (title || '').replace(/^(BRD|RD)[_ ]+/i, '').trim();
+
 const call = async (method, path, body) => {
   const res = await fetch(`${API}${path}`, {
     method,
@@ -77,6 +81,17 @@ export const getAllTShirtSizes  = ()         => call('GET',    '/tshirt-sizes');
 export const createTShirtSize   = (data)     => call('POST',   '/tshirt-sizes', data);
 export const updateTShirtSize   = (id, data) => call('PUT',    `/tshirt-sizes/${id}`, data);
 export const deleteTShirtSize   = (id)       => call('DELETE', `/tshirt-sizes/${id}`);
+
+// ─── Knowledge Base ────────────────────────────────────────────────────────────
+export const getAllKBEntries   = ()         => call('GET',    '/knowledge-base');
+export const createKBEntry     = (data)     => call('POST',   '/knowledge-base', data);
+export const updateKBEntry     = (id, data) => call('PUT',    `/knowledge-base/${id}`, data);
+export const deleteKBEntry     = (id)       => call('DELETE', `/knowledge-base/${id}`);
+export const analyzeWithAI          = (data) => call('POST', '/ai/analyze', data);
+export const analyzeAffectedModules = (data) => call('POST', '/ai/analyze-affected-modules', data);
+
+// Silently refresh brd-local-backup.json on the server — no browser download
+export const syncLocalBackup = () => call('POST', '/brd-backup/sync');
 
 // ─── Dev Members ───────────────────────────────────────────────────────────────
 export const getAllDevMembers  = ()         => call('GET',    '/dev-members');

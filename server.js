@@ -3,7 +3,86 @@ import cors from 'cors';
 import sql from 'mssql';
 import { randomUUID } from 'crypto';
 import { config as dotenv } from 'dotenv';
-dotenv();
+import Anthropic from '@anthropic-ai/sdk';
+import { readFileSync, existsSync, writeFileSync } from 'fs';
+import { join, resolve } from 'path';
+
+dotenv(); // must run before any process.env reads below
+
+const LOCAL_BACKUP_PATH   = resolve('./brd-local-backup.json');
+const GOOGLE_TOKENS_PATH  = resolve('./google-tokens.json');
+
+// ─── Google OAuth2 ─────────────────────────────────────────────────────────────
+const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || '';
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+const GOOGLE_REDIRECT_URI  = `http://localhost:${process.env.PORT || 3001}/api/google/callback`;
+const GOOGLE_SCOPE         = 'openid email https://www.googleapis.com/auth/drive.readonly';
+
+let googleTokens = null;
+
+function loadGoogleTokens() {
+  try {
+    if (existsSync(GOOGLE_TOKENS_PATH)) {
+      googleTokens = JSON.parse(readFileSync(GOOGLE_TOKENS_PATH, 'utf-8'));
+    }
+  } catch { googleTokens = null; }
+}
+
+function saveGoogleTokens(tokens) {
+  googleTokens = tokens;
+  try { writeFileSync(GOOGLE_TOKENS_PATH, JSON.stringify(tokens, null, 2), 'utf-8'); } catch {}
+}
+
+function clearGoogleTokens() {
+  googleTokens = null;
+  try { if (existsSync(GOOGLE_TOKENS_PATH)) require('fs').unlinkSync(GOOGLE_TOKENS_PATH); } catch {}
+}
+
+async function refreshGoogleAccessToken() {
+  if (!googleTokens?.refresh_token) return null;
+  try {
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        refresh_token: googleTokens.refresh_token,
+        grant_type: 'refresh_token',
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.access_token) return null;
+    saveGoogleTokens({
+      ...googleTokens,
+      access_token: data.access_token,
+      expiry_date: Date.now() + (data.expires_in || 3600) * 1000,
+    });
+    return data.access_token;
+  } catch { return null; }
+}
+
+async function getGoogleAccessToken() {
+  if (!googleTokens) return null;
+  const expired = !googleTokens.expiry_date || Date.now() > googleTokens.expiry_date - 60_000;
+  if (expired) return await refreshGoogleAccessToken();
+  return googleTokens.access_token || null;
+}
+
+loadGoogleTokens(); // load any stored tokens on startup
+
+// ─── Customizer Repo ──────────────────────────────────────────────────────────
+const CUSTOMIZER_REPO = (process.env.CUSTOMIZER_REPO_PATH ||
+  'C:/Users/merin/laravel-docker/core/src/customizer-core').replace(/\\/g, '/');
+
+function readRepoFile(relPath, maxChars = 3000) {
+  try {
+    const full = join(CUSTOMIZER_REPO, relPath);
+    if (!existsSync(full)) return null;
+    return readFileSync(full, 'utf-8').slice(0, maxChars);
+  } catch { return null; }
+}
 
 const app = express();
 app.use(cors());
@@ -16,6 +95,15 @@ const DB_PASS    = process.env.DB_PASSWORD || '';
 const DB_NAME    = process.env.DB_NAME     || 'brd_tracker';
 const DB_TRUSTED = process.env.DB_TRUSTED  === 'true';
 const PORT       = parseInt(process.env.PORT) || 3001;
+const AI_PROVIDER = (process.env.AI_PROVIDER || 'anthropic').trim().toLowerCase();
+
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const ANTHROPIC_MODEL   = process.env.ANTHROPIC_MODEL || 'claude-opus-4-6';
+const OPENAI_API_KEY    = process.env.OPENAI_API_KEY || '';
+const OPENAI_MODEL      = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const GEMINI_API_KEY    = process.env.GEMINI_API_KEY || '';
+const GEMINI_MODEL      = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
 
 // Named instance support — split "HOSTNAME\INSTANCE" into separate fields
 // mssql requires server and instanceName to be separate; when instanceName is set,
@@ -337,6 +425,20 @@ async function init() {
     }
   }
 
+  // Create knowledge_base table
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'knowledge_base')
+    CREATE TABLE knowledge_base (
+      id        NVARCHAR(36)  PRIMARY KEY,
+      title     NVARCHAR(255) NOT NULL,
+      category  NVARCHAR(100) NOT NULL DEFAULT 'General',
+      content   NVARCHAR(MAX) NOT NULL,
+      sortOrder INT           NOT NULL DEFAULT 0,
+      createdAt BIGINT,
+      updatedAt BIGINT
+    )
+  `);
+
   // Create pm_notes table
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'pm_notes')
@@ -362,6 +464,9 @@ async function init() {
     )
     ALTER TABLE pm_notes ALTER COLUMN brdId NVARCHAR(MAX)
   `);
+
+  // Write initial local backup (non-blocking)
+  writeBRDLocalBackup();
 
   // Seed if empty
   const { recordset: [{ cnt }] } = await pool.request()
@@ -472,6 +577,7 @@ app.post('/api/brds', async (req, res) => {
     const id = randomUUID();
     await _insertBRD({ id, ...req.body, createdAt: now, updatedAt: now });
     res.json({ id, ...req.body, createdAt: now, updatedAt: now });
+    writeBRDLocalBackup(); // fire-and-forget: update local backup file
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -512,6 +618,7 @@ app.put('/api/brds/:id', async (req, res) => {
         updatedAt=@updatedAt
         WHERE id=@id`);
     res.json({ id: req.params.id, ...b, updatedAt: now });
+    writeBRDLocalBackup(); // fire-and-forget: update local backup file
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -520,6 +627,7 @@ app.delete('/api/brds/:id', async (req, res) => {
     await pool.request().input('id', NV(36), req.params.id)
       .query('DELETE FROM brds WHERE id = @id');
     res.json({ ok: true });
+    writeBRDLocalBackup(); // fire-and-forget: update local backup file
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1084,13 +1192,1530 @@ app.post('/api/migrate', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── Knowledge Base ────────────────────────────────────────────────────────────
+app.get('/api/knowledge-base', async (_req, res) => {
+  try {
+    const { recordset } = await pool.request()
+      .query('SELECT * FROM knowledge_base ORDER BY category ASC, sortOrder ASC, createdAt ASC');
+    res.json(recordset);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/knowledge-base', async (req, res) => {
+  try {
+    const { title, category, content, sortOrder } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'title and content are required' });
+    const id = randomUUID();
+    const now = Date.now();
+    await pool.request()
+      .input('id',        NV(36),  id)
+      .input('title',     NV(255), title)
+      .input('category',  NV(100), category || 'General')
+      .input('content',   NV(),    content)
+      .input('sortOrder', INT,     sortOrder ?? 99)
+      .input('createdAt', BIG,     now)
+      .input('updatedAt', BIG,     now)
+      .query(`INSERT INTO knowledge_base (id,title,category,content,sortOrder,createdAt,updatedAt)
+              VALUES (@id,@title,@category,@content,@sortOrder,@createdAt,@updatedAt)`);
+    res.json({ id, title, category: category || 'General', content, sortOrder, createdAt: now, updatedAt: now });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/knowledge-base/:id', async (req, res) => {
+  try {
+    const { title, category, content, sortOrder } = req.body;
+    const now = Date.now();
+    await pool.request()
+      .input('id',        NV(36),  req.params.id)
+      .input('title',     NV(255), title || '')
+      .input('category',  NV(100), category || 'General')
+      .input('content',   NV(),    content || '')
+      .input('sortOrder', INT,     sortOrder ?? 0)
+      .input('updatedAt', BIG,     now)
+      .query(`UPDATE knowledge_base SET title=@title, category=@category, content=@content,
+              sortOrder=@sortOrder, updatedAt=@updatedAt WHERE id=@id`);
+    res.json({ id: req.params.id, ...req.body, updatedAt: now });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/knowledge-base/:id', async (req, res) => {
+  try {
+    await pool.request()
+      .input('id', NV(36), req.params.id)
+      .query('DELETE FROM knowledge_base WHERE id = @id');
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Google Docs fetcher ───────────────────────────────────────────────────────
+async function fetchGoogleDocText(url) {
+  try {
+    const match = url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
+    if (!match) return { text: null, error: 'Could not extract document ID from URL.' };
+    const docId = match[1];
+
+    // ── Try OAuth2 first (reads private docs the user owns / has access to) ──
+    const accessToken    = await getGoogleAccessToken();
+    const connectedEmail = googleTokens?.email || null;
+    let driveDenied      = false;   // true when Drive said 403/404 for this account
+
+    if (accessToken) {
+      try {
+        const oauthRes = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${docId}/export?mimeType=text/plain`,
+          { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(12000) }
+        );
+        if (oauthRes.ok) {
+          const text = (await oauthRes.text())?.trim();
+          return { text: text || null, error: text ? null : 'Document appears to be empty.', via: 'oauth' };
+        }
+
+        // Capture the real Drive reason for a precise message
+        let reason = '';
+        try {
+          const body = await oauthRes.json();
+          reason = body?.error?.errors?.[0]?.reason || body?.error?.status || '';
+        } catch { /* ignore */ }
+
+        if (oauthRes.status === 403 || oauthRes.status === 404) {
+          driveDenied = true; // file exists but this account can't open it — try public next
+        } else if (oauthRes.status === 401) {
+          return { text: null, error: 'Google session expired. Reconnect your Google account in Settings → Google Docs.' };
+        } else {
+          return { text: null, error: `Google Drive API error (${oauthRes.status})${reason ? ` — ${reason}` : ''}.` };
+        }
+      } catch { /* network/timeout — fall through to public URL */ }
+    }
+
+    // ── Fall back to public export URL ─────────────────────────────────────
+    const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
+    const res = await fetch(exportUrl, { signal: AbortSignal.timeout(12000) });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        let hint;
+        if (accessToken && driveDenied) {
+          // Connected, but the document isn't shared with THIS account
+          hint = connectedEmail
+            ? `This document is not shared with the connected Google account (${connectedEmail}). Open the doc → Share → add ${connectedEmail} (Viewer), or sign in to Settings → Google Docs with the account that owns this document.`
+            : 'This document is not shared with the connected Google account. Share it with that account (Viewer), or set the document to "Anyone with the link can view".';
+        } else if (accessToken) {
+          hint = connectedEmail
+            ? `Could not read the document with the connected account (${connectedEmail}). Make sure it is shared with that account, or set it to "Anyone with the link can view".`
+            : 'Could not read the document with the connected account. Make sure it is shared with that account.';
+        } else {
+          hint = 'Document is not publicly shared. Connect your Google account in Settings → Google Docs to read private documents, or set it to "Anyone with the link can view".';
+        }
+        return { text: null, error: hint };
+      }
+      return { text: null, error: `Failed to fetch document (HTTP ${res.status}).` };
+    }
+    const text = (await res.text())?.trim();
+    return { text: text || null, error: text ? null : 'Document appears to be empty.', via: accessToken ? 'public (account lacked access)' : 'public' };
+  } catch (e) {
+    return { text: null, error: e.name === 'TimeoutError' ? 'Request timed out fetching the Google Doc.' : e.message };
+  }
+}
+
+// ─── Local (no-API-key) BRD analysis ──────────────────────────────────────────
+function localAnalyzeBRD({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, docError }) {
+  const lines = [];
+  const push  = (s) => lines.push(s);
+
+  // ── 1. Quality Score ────────────────────────────────────────────────────────
+  const checks = [
+    { label: 'Title',           ok: !!brd.title?.trim(),        pts: 10 },
+    { label: 'Description',     ok: !!brd.description?.trim(),  pts: 10 },
+    { label: 'BA assigned',     ok: !!brd.baName,               pts: 10 },
+    { label: 'Quarter/Year',    ok: !!brd.quarter && !!brd.year,pts: 10 },
+    { label: 'Sprint assigned', ok: !!brd.sprintStart,          pts: 10 },
+    { label: 'T-Shirt size',    ok: !!brd.tshirtSize,           pts: 10 },
+    { label: 'Tech Lead(s)',    ok: techLeads.length > 0,        pts: 10 },
+    { label: 'Dev Assignee(s)', ok: devAssignees.length > 0,    pts: 10 },
+    { label: 'Jira link',       ok: !!brd.jiraLink,             pts: 5  },
+    { label: 'Google Docs',     ok: !!brd.googleDocsLink,       pts: 5  },
+  ];
+  const score   = checks.filter((c) => c.ok).reduce((s, c) => s + c.pts, 0);
+  const missing = checks.filter((c) => !c.ok);
+
+  push(`## 1. BRD Quality Score`);
+  push(`**Score: ${score}/100**`);
+  push(`${score >= 80 ? '✅ Good quality BRD.' : score >= 50 ? '⚠️ Moderate quality — several gaps to address.' : '❌ Low quality — significant information is missing.'}`);
+  push('');
+
+  // ── 2. Completeness Check ───────────────────────────────────────────────────
+  push(`## 2. Completeness Check`);
+  if (missing.length === 0) {
+    push('- All key fields are filled in.');
+  } else {
+    missing.forEach((m) => push(`- ❌ Missing: **${m.label}** (−${m.pts} pts)`));
+  }
+  push('');
+
+  // ── 3. Risk Assessment ──────────────────────────────────────────────────────
+  push(`## 3. Risk Assessment`);
+  const highBugs   = bugs.filter((b) => b.severity === 'high'   && !['resolved','closed'].includes(b.status));
+  const openBugs   = bugs.filter((b) => !['resolved','closed'].includes(b.status));
+  const sizeRisk   = { XS:'Very Low', S:'Low', M:'Medium', L:'Moderate', XL:'High', XXL:'Very High' }[brd.tshirtSize] || 'Unknown';
+  const bugRisk    = openBugs.length === 0 ? 'Low' : openBugs.length <= 3 ? 'Medium' : 'High';
+  const scopeRisk  = !brd.sprintStart ? 'High (no sprint assigned)' : 'Low';
+
+  push(`- **Technical risk:** ${sizeRisk}${brd.tshirtSize ? ` (size ${brd.tshirtSize})` : ' (no size set)'}`);
+  push(`- **Delivery risk:** ${scopeRisk}`);
+  push(`- **Bug risk:** ${bugRisk} — ${openBugs.length} open bug(s), ${highBugs.length} high-severity`);
+  push('');
+
+  // ── 4. Knowledge Base Alignment ─────────────────────────────────────────────
+  push(`## 4. Alignment with Knowledge Base`);
+  if (!knowledgeBase.length) {
+    push('- No knowledge base entries found. Add entries to get alignment insights.');
+  } else {
+    const brdText = `${brd.title} ${brd.description || ''}`.toLowerCase();
+    const matched = knowledgeBase.filter((kb) => {
+      const words = kb.content.toLowerCase().split(/\W+/).filter((w) => w.length > 4);
+      return words.some((w) => brdText.includes(w));
+    });
+    if (matched.length) {
+      push(`${matched.length} knowledge base ${matched.length === 1 ? 'entry matches' : 'entries match'} this BRD:`);
+      matched.forEach((kb) => push(`- ✅ **${kb.title}** (${kb.category})`));
+    } else {
+      push('- ⚠️ No direct keyword matches found in the knowledge base against the BRD title/description.');
+      push('- Consider reviewing KB entries or expanding the BRD description.');
+    }
+    const unmatched = knowledgeBase.filter((kb) => !matched.includes(kb));
+    if (unmatched.length) {
+      push(`- ${unmatched.length} KB ${unmatched.length === 1 ? 'entry does' : 'entries do'} not appear relevant to this BRD.`);
+    }
+  }
+  push('');
+
+  // ── 5. Sprint & Sizing Validation ───────────────────────────────────────────
+  push(`## 5. Sprint & Sizing Validation`);
+  const sprintNums = [brd.sprintStart, brd.sprintEnd]
+    .filter(Boolean)
+    .map((s) => parseInt(String(s).replace(/\D/g, ''), 10))
+    .filter((n) => !isNaN(n));
+  const sprintSpan = sprintNums.length === 2 ? Math.abs(sprintNums[1] - sprintNums[0]) + 1 : (sprintNums.length === 1 ? 1 : 0);
+  const sizeSprintMap = { XS: [1,1], S: [1,2], M: [2,3], L: [3,4], XL: [4,6], XXL: [6, 99] };
+  const expectedRange = sizeSprintMap[brd.tshirtSize];
+
+  if (!brd.sprintStart) {
+    push('- ⚠️ No sprint assigned — planning or backlog item.');
+  } else if (expectedRange && sprintSpan) {
+    if (sprintSpan < expectedRange[0]) {
+      push(`- ⚠️ Sprint span (${sprintSpan}) may be **too short** for a ${brd.tshirtSize} item (expected ${expectedRange[0]}–${expectedRange[1]} sprints).`);
+    } else if (sprintSpan > expectedRange[1]) {
+      push(`- ⚠️ Sprint span (${sprintSpan}) may be **too long** for a ${brd.tshirtSize} item (expected ${expectedRange[0]}–${expectedRange[1]} sprints).`);
+    } else {
+      push(`- ✅ Sprint span (${sprintSpan}) is appropriate for a ${brd.tshirtSize} item.`);
+    }
+  } else {
+    push(`- Sprint: ${brd.sprintStart}${brd.sprintEnd && brd.sprintEnd !== brd.sprintStart ? ' – ' + brd.sprintEnd : ''}`);
+  }
+  if (!brd.tshirtSize) push('- ⚠️ T-shirt size not set — sizing review recommended.');
+  push('');
+
+  // ── 6. Bug Pattern Insights ─────────────────────────────────────────────────
+  push(`## 6. Bug Pattern Insights`);
+  if (!bugs.length) {
+    push('- No bugs logged for this BRD.');
+  } else {
+    const bySeverity = bugs.reduce((acc, b) => { acc[b.severity] = (acc[b.severity] || 0) + 1; return acc; }, {});
+    const byStatus   = bugs.reduce((acc, b) => { acc[b.status]   = (acc[b.status]   || 0) + 1; return acc; }, {});
+    push(`- Total bugs: **${bugs.length}** — ${Object.entries(bySeverity).map(([k,v]) => `${v} ${k}`).join(', ')}`);
+    push(`- By status: ${Object.entries(byStatus).map(([k,v]) => `${v} ${k}`).join(', ')}`);
+    if (highBugs.length) push(`- ⚠️ ${highBugs.length} unresolved high-severity bug(s) — requires attention before launch.`);
+    const storyBugs = bugs.filter((b) => b.storyTicket);
+    if (storyBugs.length) push(`- ${storyBugs.length} item(s) are story/enhancement tickets (not real defects).`);
+  }
+  push('');
+
+  // ── 7. Recommendations ──────────────────────────────────────────────────────
+  push(`## 7. Recommendations`);
+  const recs = [];
+  if (!brd.description?.trim())   recs.push('Add a clear description to the BRD to improve understanding and alignment.');
+  if (!brd.sprintStart)            recs.push('Assign a sprint to this BRD to move it out of the backlog.');
+  if (!brd.tshirtSize)             recs.push('Size the BRD with a T-shirt estimate for better sprint planning.');
+  if (techLeads.length === 0)      recs.push('Assign at least one tech lead to ensure technical oversight.');
+  if (devAssignees.length === 0)   recs.push('Assign developer(s) so ownership is clear.');
+  if (!brd.jiraLink)               recs.push('Link a Jira ticket for end-to-end traceability.');
+  if (highBugs.length > 0)         recs.push(`Resolve ${highBugs.length} open high-severity bug(s) before proceeding.`);
+  if (knowledgeBase.length === 0)  recs.push('Populate the knowledge base so future analyses have richer context.');
+  if (recs.length === 0) recs.push('BRD looks well-formed. Perform a final stakeholder review before launch.');
+  recs.slice(0, 5).forEach((r, i) => push(`${i + 1}. ${r}`));
+  push('');
+
+  // ── 8. Document Content Insights ────────────────────────────────────────────
+  push(`## 8. Document Content Insights`);
+  if (!docContent) {
+    if (!brd.googleDocsLink) {
+      push('- No document attached. Upload a local .txt / .md / .docx file, or attach a public Google Docs link to get document-level insights.');
+    } else {
+      push(`- ⚠️ Google Doc could not be read — ${docError || 'ensure it is publicly shared. You can also download the doc locally and upload it.'}`)
+    }
+  } else {
+    const words      = docContent.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+    const wordCount  = words.length;
+    const lineCount  = docContent.split('\n').filter((l) => l.trim()).length;
+    push(`- ✅ Document read successfully — **${wordCount} words**, ${lineCount} lines.`);
+
+    // Check KB keyword coverage inside the doc
+    const kbMatches = knowledgeBase.filter((kb) => {
+      const kbWords = kb.content.toLowerCase().split(/\W+/).filter((w) => w.length > 4);
+      return kbWords.some((w) => docContent.toLowerCase().includes(w));
+    });
+    if (kbMatches.length) {
+      push(`- ${kbMatches.length} knowledge base ${kbMatches.length === 1 ? 'entry matches' : 'entries match'} content in the document:`);
+      kbMatches.forEach((kb) => push(`  - ✅ **${kb.title}** (${kb.category})`));
+    } else {
+      push('- ⚠️ No knowledge base keywords found in the document — consider enriching the KB or the doc.');
+    }
+
+    // Surface heading structure
+    const headings = docContent.split('\n').filter((l) => /^#{1,3}\s/.test(l) || /^[A-Z][A-Z\s]{4,}$/.test(l.trim()));
+    if (headings.length) {
+      push(`- Document sections detected: ${headings.slice(0, 5).map((h) => `"${h.replace(/^#+\s*/, '').trim()}"`).join(', ')}${headings.length > 5 ? ` (+${headings.length - 5} more)` : ''}`);
+    }
+  }
+  push('');
+
+  // ── 9. Overall Verdict ──────────────────────────────────────────────────────
+  push(`## 9. Overall Verdict`);
+  const statusLabel = { planning:'in planning', inprogress:'in progress', development:'in development', testing:'in testing', launched:'launched', onhold:'on hold' }[brd.status] || brd.status;
+  push(`This BRD ("**${brd.title}**") is currently **${statusLabel}** and scored **${score}/100** on the quality check. ` +
+    `${missing.length ? `Key gaps include: ${missing.map((m) => m.label).join(', ')}.` : 'All key fields are present.'} ` +
+    `${openBugs.length ? `There are ${openBugs.length} open bug(s) that need attention.` : 'No open bugs.'} ` +
+    `${docContent ? 'Document content was included in this analysis.' : 'No document content was available.'} ` +
+    `${knowledgeBase.length ? `${knowledgeBase.length} knowledge base ${knowledgeBase.length === 1 ? 'entry was' : 'entries were'} used for context.` : 'No knowledge base context was available.'}`
+  );
+
+  return lines.join('\n');
+}
+
+// ─── AI BRD Analysis ───────────────────────────────────────────────────────────
+const PLACEHOLDER_API_KEYS = new Set([
+  'your-api-key-here',
+  'your-openai-key-here',
+  'your-gemini-key-here',
+  'replace-with-real-key',
+]);
+
+const keyStatus = (value) => {
+  const key = (value || '').trim();
+  if (!key) return 'missing';
+  if (PLACEHOLDER_API_KEYS.has(key.toLowerCase())) return 'placeholder';
+  return 'ok';
+};
+
+const localReasonForProvider = (provider, status) => {
+  if (status === 'missing') return `missing_${provider}_api_key`;
+  if (status === 'placeholder') return `placeholder_${provider}_api_key`;
+  return 'provider_unavailable';
+};
+
+function resolveAIProvider() {
+  const providerOrder = ['anthropic', 'openai', 'gemini'];
+  const statuses = {
+    anthropic: keyStatus(ANTHROPIC_API_KEY),
+    openai: keyStatus(OPENAI_API_KEY),
+    gemini: keyStatus(GEMINI_API_KEY),
+  };
+
+  if (AI_PROVIDER === 'auto') {
+    const selected = providerOrder.find((p) => statuses[p] === 'ok');
+    if (selected) return { provider: selected, reason: null };
+    return { provider: null, reason: 'missing_all_ai_api_keys' };
+  }
+
+  if (!providerOrder.includes(AI_PROVIDER)) {
+    return { provider: null, reason: 'invalid_ai_provider' };
+  }
+
+  const status = statuses[AI_PROVIDER];
+  if (status === 'ok') return { provider: AI_PROVIDER, reason: null };
+  return { provider: null, reason: localReasonForProvider(AI_PROVIDER, status) };
+}
+
+// Ordered list of providers to try: the configured provider first, then every
+// other provider with a valid key — enables automatic fallback when the primary
+// one fails (e.g. Gemini 429 quota → OpenAI → Anthropic).
+function resolveProviderChain() {
+  const DEFAULT_ORDER = ['gemini', 'openai', 'anthropic'];
+  const keys = { gemini: GEMINI_API_KEY, openai: OPENAI_API_KEY, anthropic: ANTHROPIC_API_KEY };
+  const ok = (p) => keyStatus(keys[p]) === 'ok';
+
+  const chain = [];
+  if (AI_PROVIDER !== 'auto' && DEFAULT_ORDER.includes(AI_PROVIDER) && ok(AI_PROVIDER)) {
+    chain.push(AI_PROVIDER);
+  }
+  for (const p of DEFAULT_ORDER) {
+    if (ok(p) && !chain.includes(p)) chain.push(p);
+  }
+  return chain;
+}
+
+const callProvider = (provider, prompt) =>
+  provider === 'anthropic' ? analyzeWithAnthropic(prompt)
+  : provider === 'openai'  ? analyzeWithOpenAI(prompt)
+  : analyzeWithGemini(prompt);
+
+// Try each provider in the chain; on failure (quota/error) fall through to the
+// next. Returns { analysis, usage, provider } on success, or { provider: null }.
+async function runAnalysisWithFallback(prompt) {
+  const chain = resolveProviderChain();
+  if (!chain.length) return { provider: null, reason: 'missing_all_ai_api_keys', tried: [] };
+
+  const tried = [];
+  for (const provider of chain) {
+    try {
+      const result = await callProvider(provider, prompt);
+      if (tried.length) console.log(`[AI] fell back to ${provider} after: ${tried.map(t => t.provider).join(', ')}`);
+      return { ...result, provider, reason: null, tried };
+    } catch (e) {
+      const msg = (e?.message || String(e)).slice(0, 160);
+      console.warn(`[AI] ${provider} failed (${msg}) — trying next provider`);
+      tried.push({ provider, error: msg });
+    }
+  }
+  return { provider: null, reason: 'all_ai_providers_failed', tried };
+}
+
+const buildAnalysisPrompt = ({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, docError }) => {
+  const kbSections = knowledgeBase.length
+    ? knowledgeBase.map((k) => `### ${k.category}: ${k.title}\n${k.content}`).join('\n\n')
+    : 'No knowledge base entries provided.';
+
+  const bugSummary = bugs.length
+    ? bugs.map((b) => `- [${b.severity?.toUpperCase() || 'UNKNOWN'}] ${b.title} (${b.status}) - ${b.criteria || 'no criteria'}`).join('\n')
+    : 'No bugs logged.';
+
+  const docSection = docContent
+    ? `## DOCUMENT CONTENT\n${docContent.slice(0, 8000)}\n\n---\n\n`
+    : docError
+      ? `## DOCUMENT CONTENT\nCould not read document: ${docError}\n\n---\n\n`
+      : '';
+
+  return `You are a senior product analyst and software architect reviewing a Business Requirements Document (BRD).
+
+## SYSTEM KNOWLEDGE BASE
+${kbSections}
+
+---
+
+${docSection}## BRD DETAILS
+**Title:** ${brd.title}
+**Description:** ${brd.description || 'Not provided'}
+**Quarter:** ${brd.quarter} ${brd.year}
+**Sprint:** ${brd.sprintStart ? `${brd.sprintStart}${brd.sprintEnd && brd.sprintEnd !== brd.sprintStart ? ' - ' + brd.sprintEnd : ''}` : 'Not assigned'}
+**Status:** ${brd.status}
+**T-Shirt Size:** ${brd.tshirtSize || 'Not sized'}
+**BA / Author:** ${brd.baName || 'Not assigned'}
+**Tech Leads:** ${techLeads.length ? techLeads.map((t) => `${t.name}${t.expertise ? ' (' + t.expertise + ')' : ''}`).join(', ') : 'None assigned'}
+**Dev Assignees:** ${devAssignees.length ? devAssignees.join(', ') : 'None assigned'}
+**Jira Link:** ${brd.jiraLink || 'Not linked'}
+**Google Docs Link:** ${brd.googleDocsLink || 'Not linked'}
+
+**Logged Bugs (${bugs.length}):**
+${bugSummary}
+
+---
+
+Please analyze this BRD against the system knowledge base${docContent ? ' and the attached Google Docs content' : ''} and provide a structured report with these sections:
+
+1. **BRD Quality Score** (0-100) with a one-line justification
+2. **Completeness Check** - what key information is missing or incomplete
+3. **Risk Assessment** - technical, scope, and delivery risks (High/Medium/Low each)
+4. **Alignment with System Knowledge** - how well this BRD aligns with the known system context
+5. **Sprint & Sizing Validation** - is the T-shirt size and sprint range realistic?
+6. **Bug Pattern Insights** - what the logged bugs reveal about the BRD's quality or gaps
+7. **Recommendations** - top 3-5 actionable improvements
+${docContent ? '8. **Google Doc Insights** - key observations from reading the attached Google Doc\n9. **Overall Verdict** - one paragraph summary' : '8. **Overall Verdict** - one paragraph summary'}
+
+Be concise, specific, and use bullet points where appropriate.`;
+};
+
+async function analyzeWithAnthropic(prompt) {
+  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+  const message = await client.messages.create({
+    model: ANTHROPIC_MODEL,
+    max_tokens: 2048,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  const analysis = message.content.find((c) => c.type === 'text')?.text || '';
+  return { analysis, usage: message.usage || null };
+}
+
+async function analyzeWithOpenAI(prompt) {
+  const resp = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      input: prompt,
+      max_output_tokens: 2048,
+    }),
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`OpenAI API error (${resp.status}): ${body.slice(0, 400)}`);
+  }
+
+  const data = await resp.json();
+  const chunks = [];
+  if (Array.isArray(data.output)) {
+    for (const item of data.output) {
+      if (item?.type === 'message' && Array.isArray(item.content)) {
+        for (const part of item.content) {
+          if (part?.type === 'output_text' && typeof part.text === 'string') {
+            chunks.push(part.text);
+          }
+        }
+      }
+    }
+  }
+
+  const analysis = chunks.join('\n').trim() || (typeof data.output_text === 'string' ? data.output_text : '');
+  if (!analysis) throw new Error('OpenAI API returned no text response.');
+  return { analysis, usage: data.usage || null };
+}
+
+async function analyzeWithGemini(prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+    }),
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Gemini API error (${resp.status}): ${body.slice(0, 400)}`);
+  }
+
+  const data = await resp.json();
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const analysis = parts.map((p) => p?.text || '').join('\n').trim();
+  if (!analysis) throw new Error('Gemini API returned no text response.');
+  return { analysis, usage: data.usageMetadata || null };
+}
+
+// ─── AI 3D Uniform Render (Gemini "Nano Banana" image generation) ─────────────
+app.post('/api/ai/render-3d', async (req, res) => {
+  try {
+    const { imageBase64 } = req.body;
+    if (!imageBase64) return res.status(400).json({ error: 'imageBase64 is required' });
+    if (!GEMINI_API_KEY) return res.status(400).json({ error: 'GEMINI_API_KEY not configured' });
+
+    // Strip any data-URL prefix
+    const b64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+
+    const prompt = `Take this flat 2D sports uniform/jersey design and render it as a single, photorealistic 3D sports jersey worn on an invisible mannequin (ghost mannequin / hollow-man product photography style).
+- Keep the EXACT colors, patterns, logos, text, numbers and design layout from the input image.
+- Show a realistic fabric with natural folds, soft studio lighting, and subtle shadows.
+- Render only ONE jersey, front view, slightly angled three-quarter perspective.
+- Use a clean, seamless light-grey studio background.
+- High detail, e-commerce product photo quality.`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_IMAGE_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { text: prompt },
+          { inline_data: { mime_type: 'image/png', data: b64 } },
+        ] }],
+      }),
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) {
+      const msg = data?.error?.message || `HTTP ${resp.status}`;
+      const isQuota = resp.status === 429 || /quota|rate/i.test(msg);
+      return res.status(resp.status).json({
+        error: isQuota
+          ? 'Gemini image generation quota reached. The free tier allows a limited number of AI renders per day — try again later or use the geometry preview.'
+          : `AI render failed: ${msg.slice(0, 200)}`,
+        quota: isQuota,
+      });
+    }
+
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    const imgPart = parts.find(p => p.inlineData || p.inline_data);
+    if (!imgPart) {
+      const txt = parts.find(p => p.text)?.text;
+      return res.status(502).json({ error: txt ? `Model returned text instead of an image: ${txt.slice(0,150)}` : 'No image returned by the model.' });
+    }
+
+    const out = imgPart.inlineData || imgPart.inline_data;
+    return res.json({ image: `data:${out.mimeType || out.mime_type || 'image/png'};base64,${out.data}` });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/ai/analyze', async (req, res) => {
+  try {
+    const { brd, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent: uploadedDoc } = req.body;
+
+    let docContent = uploadedDoc || null;
+    let docError = null;
+    if (!docContent && brd.googleDocsLink) {
+      const result = await fetchGoogleDocText(brd.googleDocsLink);
+      docContent = result.text;
+      docError = result.error;
+    }
+
+    const prompt = buildAnalysisPrompt({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, docError });
+
+    // Try the configured provider, then fall back to the others; only drop to
+    // the local rule-based analyzer if every AI provider fails.
+    const r = await runAnalysisWithFallback(prompt);
+    if (!r.provider) {
+      const analysis = localAnalyzeBRD({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, docError });
+      return res.json({
+        analysis,
+        mode: 'local',
+        provider: 'local',
+        modeReason: r.reason,
+        docFetched: !!docContent,
+      });
+    }
+
+    return res.json({
+      analysis: r.analysis,
+      mode: 'ai',
+      provider: r.provider,
+      modeReason: r.tried.length ? `fell_back_from_${r.tried.map(t => t.provider).join('_')}` : null,
+      usage: r.usage,
+      docFetched: !!docContent,
+    });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── Style-Specific Feature Registry (from KB: Style-Specific Requirements) ───
+// Each entry maps a named builder feature to keywords for BRD keyword-scanning.
+const STYLE_FEATURES = [
+  // Options Tab — Fabric
+  { feature: 'No Default Fabric',           tab: 'Options Tab',      status: 'new',     keywords: ['no default fabric','default fabric','fabric required','no fabric selected','without fabric','cart without fabric'] },
+  { feature: 'Fabric Flow (Upgrade)',        tab: 'Options Tab',      status: 'stable',  keywords: ['fabric upgrade','upgrade fee','upgrade flow','fabric flow upgrade','primary material','upgrade price'] },
+  { feature: 'Fabric Selection',            tab: 'Options Tab',      status: 'stable',  keywords: ['fabric selection','select fabric','fabric picker','choose fabric','fabric group','material selection'] },
+  { feature: 'Fabric Flow (Downgrade)',      tab: 'Options Tab',      status: 'ongoing', keywords: ['fabric downgrade','downgrade flow','fabric flow downgrade','downgrade fabric'] },
+  { feature: 'Fabric Style Part (Twill)',    tab: 'Options Tab',      status: 'assessment', keywords: ['fabric twill','twill style','twill fabric','tackle twill fabric part','hybrid fabric'] },
+
+  // Customize Tab — Trims & Brand Logo
+  { feature: 'Trims Functionality',         tab: 'Customize Tab',    status: 'stable',  keywords: ['trim','trims','trim functionality','brand trim','multiple trim','trim color'] },
+  { feature: 'Locker Tag',                  tab: 'Customize Tab',    status: 'stable',  keywords: ['locker tag','lockertag','locker tag sublimated'] },
+  { feature: '3D Trim',                     tab: 'Customize Tab',    status: 'stable',  keywords: ['3d trim','3d embroidered','tackle twill trim','twill trim'] },
+  { feature: 'Brand Logo Color Rule',        tab: 'Customize Tab',    status: 'stable',  keywords: ['brand logo color','logo color rule','color rule','logo contrast','logo visibility','color conflict','logo brand color'] },
+  { feature: 'Brand Logo Intersecting Parts',tab: 'Customize Tab',    status: 'stable',  keywords: ['intersect','logo intersect','brand logo intersect','intersecting','logo across parts','logo overlap'] },
+  { feature: 'Reversible Color Combination', tab: 'Customize Tab',    status: 'ongoing', keywords: ['reversible color','color combination','reversible combination','reversible binding','reversible uniform','color binding'] },
+
+  // Customize Tab — Body Parts & Application Hover
+  { feature: 'Color Combination Functionality', tab: 'Customize Tab', status: 'stable', keywords: ['color combination','combo color','color zone','color group combination','body color','sleeve color'] },
+  { feature: 'Color Indexing',              tab: 'Customize Tab',    status: 'stable',  keywords: ['color index','indexing','color indexing','color order','index color'] },
+  { feature: 'Pattern Functionality',       tab: 'Customize Tab',    status: 'stable',  keywords: ['pattern','fabric pattern','pattern color','pattern position','pattern flow','sublimated pattern'] },
+
+  // Applications Tab
+  { feature: 'Application Soft/Hard Limits',tab: 'Applications Tab', status: 'stable',  keywords: ['soft limit','hard limit','application limit','app limit','application count','limit application'] },
+  { feature: 'Vectorsoft Integration',       tab: 'Applications Tab', status: 'stable',  keywords: ['vectorsoft','vector soft','pds','vectorsoft pds','vector art','logo digitizing'] },
+  { feature: 'Text Application Customization',tab:'Applications Tab', status: 'stable',  keywords: ['text application','text customization','pixi text','custom text','player name','player number','team name','font','text stroke'] },
+  { feature: 'Application Layer Draggable', tab: 'Applications Tab', status: 'stable',  keywords: ['drag','draggable','application layer drag','drag drop','layer drag','drag application'] },
+  { feature: 'Cowl Functionality',           tab: 'Applications Tab', status: 'stable',  keywords: ['cowl','cowl functionality','cowl neck','cowl design'] },
+  { feature: 'View Perspective Application', tab: 'Applications Tab', status: 'new',     keywords: ['view perspective','perspective application','left view','right view','back view','front view','perspective add'] },
+  { feature: 'Text Application Custom Stroke',tab:'Applications Tab', status: 'stable',  keywords: ['text stroke','custom stroke','stroke color','text outline','stroke text'] },
+
+  // Roster Tab
+  { feature: 'Copy Roster',                 tab: 'Roster Tab',       status: 'stable',  keywords: ['copy roster','roster copy','top-to-top','bottom-to-bottom','roster duplicate'] },
+  { feature: 'Upload Roster',               tab: 'Roster Tab',       status: 'stable',  keywords: ['upload roster','roster upload','bulk upload','roster file','import roster'] },
+  { feature: 'Roster Error Notification',   tab: 'Roster Tab',       status: 'stable',  keywords: ['roster error','application error notification','roster notification','roster alert'] },
+  { feature: 'Football Pant Thigh Pad Pocket',tab:'Roster Tab',      status: 'stable',  keywords: ['thigh pad','pocket','football pant','pant pocket','thigh pad pocket'] },
+  { feature: 'Roster Football Hemline',     tab: 'Roster Tab',       status: 'new',     keywords: ['hemline','hem line','same hemline','football hemline','pant size hemline'] },
+
+  // Stock Items
+  { feature: 'Brand-Specific Stock Check (GM1/Alli/PL)', tab: 'Stock Items', status: 'stable', keywords: ['gm1','alli','prolook','pl brand','brand specific','brand check','brand stock','brand item'] },
+  { feature: 'Twill Stock Items',           tab: 'Stock Items',      status: 'stable',  keywords: ['twill','tackle twill','twill item','twill stock'] },
+  { feature: 'Reversible Stock Items',      tab: 'Stock Items',      status: 'stable',  keywords: ['reversible stock','reversible item','reversible uniform','reversible garment'] },
+
+  // Custom Pro
+  { feature: 'Custom Pro / Manual Order',   tab: 'Custom Pro',       status: 'stable',  keywords: ['custom pro','manual order','bags','master style','web ga','customizer web'] },
+
+  // Pricing
+  { feature: 'Pricing Toggle (MOQ by item)',tab: 'Pricing',          status: 'stable',  keywords: ['pricing toggle','moq','add-on price','pricing item','minimum order','price item'] },
+  { feature: 'Fabric Upgrade Pricing',      tab: 'Pricing',          status: 'stable',  keywords: ['fabric upgrade price','upgrade fee','fabric price','upgrade pricing','material upgrade fee'] },
+
+  // Notifications
+  { feature: 'Builder Auto-Update Notification', tab: 'System',     status: 'new',     keywords: ['notification','auto update','back to builder','design update','builder notification'] },
+  { feature: 'Issue and Logs from Rejection',tab: 'System',          status: 'new',     keywords: ['rejection','issue log','rejection log','rejection issue','log from rejection'] },
+];
+
+// ─── Customizer-Core Full Module Registry ─────────────────────────────────────
+// Covers all domains: Color, Fabric, Canvas/Stage, Text, Logo, Embellishment,
+// Pattern, Pricing/Cart, Approval, Roster, API, Composables, Stores.
+const CUSTOMIZER_MODULES = [
+  // ── CORE STORES ───────────────────────────────────────────────────────────
+  { name: 'customizer.js', path: 'resources/js/stores/customizer.js', domain: 'Core Store',
+    role: 'Primary Pinia store: uniform state, team colors, fabric groups, pricing, textures, history.',
+    keyExports: ['useCustomizerStore','setTeamColors','setupFabricGroup','renderUniform','setColorsByActiveFabric','setPulloverTexture','setAgnosticTrimColor'],
+    keywords: ['store','pinia','state','upgrade fee','setteamcolors','setupfabricgroup','pullover','heathered','heather','zipper','twill','sublimation','sublimated','reversible','uniform state','activeuniform'] },
+
+  { name: 'colors.js (store)', path: 'resources/js/stores/colors.js', domain: 'Color',
+    role: 'Pinia store for team color data and filtering.',
+    keyExports: ['useColorsStore'],
+    keywords: ['team color','brand color','color list','color filter','palette','color store'] },
+
+  { name: 'fabric.js (store)', path: 'resources/js/stores/fabric.js', domain: 'Fabric',
+    role: 'Pinia store tracking selected fabric groups and fabric state.',
+    keyExports: ['useFabricStore'],
+    keywords: ['fabric store','fabric group','material group','fabric state'] },
+
+  { name: 'approval.js (store)', path: 'resources/js/stores/approval.js', domain: 'Approval',
+    role: 'Pinia store for design approval workflow state.',
+    keyExports: ['useApprovalStore','isEmbellishment','isMascot','isPlayerName','isPlayerNumber','isTeamName'],
+    keywords: ['approval','approve','review','sign off','customer approval','ask for changes','rejection'] },
+
+  { name: 'logos.js (store)', path: 'resources/js/stores/logos.js', domain: 'Logo',
+    role: 'Pinia store for saved logos, filtering, and logo upload management.',
+    keyExports: ['useLogosStore'],
+    keywords: ['logo','brand logo','saved logo','logo library','logo upload','logo store'] },
+
+  { name: 'tailsweep.js (store)', path: 'resources/js/stores/tailsweep.js', domain: 'Embellishment',
+    role: 'Pinia store for tailsweep embellishment configuration.',
+    keyExports: ['useTailsweepStore'],
+    keywords: ['tailsweep','tail sweep','embellishment','decoration'] },
+
+  { name: 'text-shapes.ts (store)', path: 'resources/js/stores/text-shapes.ts', domain: 'Text',
+    role: 'Pinia store for text shape objects (curved/shaped text).',
+    keyExports: ['useTextShapesStore'],
+    keywords: ['text shape','curved text','shaped text','text object'] },
+
+  { name: 'roster.js (store)', path: 'resources/js/stores/roster.js', domain: 'Roster',
+    role: 'Pinia store for team roster data (player names, numbers).',
+    keyExports: ['useRosterStore'],
+    keywords: ['roster','player name','player number','team roster','bulk upload'] },
+
+  { name: 'cart.js (store)', path: 'resources/js/stores/cart.js', domain: 'Pricing/Cart',
+    role: 'Pinia store for shopping cart state.',
+    keyExports: ['useCartStore'],
+    keywords: ['cart','shopping cart','add to cart','cart state','order'] },
+
+  { name: 'saved-designs.js (store)', path: 'resources/js/stores/saved-designs.js', domain: 'Design',
+    role: 'Pinia store for managing saved uniform designs.',
+    keyExports: ['useSavedDesignsStore'],
+    keywords: ['saved design','save design','load design','design template'] },
+
+  { name: 'brand-info.js (store)', path: 'resources/js/stores/brand-info.js', domain: 'Brand',
+    role: 'Pinia store for brand settings and brand-specific config.',
+    keyExports: ['useBrandInfoStore'],
+    keywords: ['brand','brand info','brand settings','brand config','brand code'] },
+
+  { name: 'decorations.js (store)', path: 'resources/js/stores/decorations.js', domain: 'Embellishment',
+    role: 'Pinia store for decoration/embellishment data.',
+    keyExports: ['useDecorationsStore'],
+    keywords: ['decoration','embellishment','add-on','mascot','stock art'] },
+
+  { name: 'history.js (store)', path: 'resources/js/stores/history.js', domain: 'History',
+    role: 'Pinia store for undo/redo history.',
+    keyExports: ['useHistoryStore'],
+    keywords: ['undo','redo','history','revert','rollback'] },
+
+  { name: 'master-feature.js (store)', path: 'resources/js/stores/master-feature.js', domain: 'Feature Flags',
+    role: 'Pinia store for feature flags and feature toggles.',
+    keyExports: ['useMasterFeatureStore'],
+    keywords: ['feature flag','feature toggle','feature switch','rollout','enable feature'] },
+
+  // ── CORE CUSTOMIZER MODULES ──────────────────────────────────────────────
+  { name: 'color.ts', path: 'resources/js/core/customizer/color.ts', domain: 'Color / Canvas',
+    role: 'Core color engine: maps color arrays to garment parts, converts hex to PixiJS tints (remixColors).',
+    keyExports: ['remixColors','changeColorGroup','changeColorGroupBySide','changeMaterialColor','colorObjectsFromCodes','teamColorSettingCodes','mergeColors','rearrangeColors','updateOtherSideTrimColor'],
+    keywords: ['remix','tint','canvas','parsehexcode','remixcolors','canvas rendering','numeric tint','partobject','color zone','color mapping','hex to tint'] },
+
+  { name: 'fabric.ts', path: 'resources/js/core/customizer/fabric.ts', domain: 'Fabric',
+    role: 'Core fabric engine: persists fabric selections, triggers downstream color/texture updates.',
+    keyExports: ['changeFabric','setSelected','isSelected','initializeFabricSelectionProperty','hasColorConflict'],
+    keywords: ['changefabric','fabric selection','material selection','texture update','fabric conflict','fabric rule'] },
+
+  { name: 'application.ts', path: 'resources/js/core/customizer/application.ts', domain: 'Canvas / Applications',
+    role: 'Core application engine: renders logos, text, mascots; manages placement, scale, rotation on canvas.',
+    keyExports: ['renderApplication','createTextApplication','renderStockMascot','setApplicationOpacity','setApplicationScale','setApplicationPosition','setApplicationAngle','deleteApplication','changeApplicationType','getApplicationLocations','findLogoApplicationByLocation','findTextApplicationByLocationAndType'],
+    keywords: ['application','render','logo placement','text placement','mascot','emblem','opacity','scale','rotate','canvas object','placement','location','application layer'] },
+
+  { name: 'text-shape.ts', path: 'resources/js/core/customizer/text-shape.ts', domain: 'Text',
+    role: 'Core text-shape engine: creates curved/shaped text objects and handles S3 upload for embellishments.',
+    keyExports: ['createTextShape','reloadTextShape','s3UploadEmbellishments'],
+    keywords: ['text shape','curved text','arc text','shaped text','s3 upload','embellishment upload'] },
+
+  { name: 'pattern.ts', path: 'resources/js/core/customizer/pattern.ts', domain: 'Pattern',
+    role: 'Core pattern engine: assigns/removes patterns, handles position and color on parts.',
+    keyExports: ['setPattern','setPatternColor','setPatternPosition','setPatternStatus','removePattern','createApplicationPattern','changeApplicationPatternPosition'],
+    keywords: ['pattern','fabric pattern','background pattern','pattern color','pattern position','camouflage','sublimated pattern'] },
+
+  { name: 'piping.ts', path: 'resources/js/core/customizer/piping.ts', domain: 'Embellishment / Piping',
+    role: 'Core piping engine: creates, configures, and deletes piping/trim on uniform seams.',
+    keyExports: ['createPiping','setPipingStatus','changePipingColor','changePipingSize','deletePiping'],
+    keywords: ['piping','trim','seam','accent','border','piping color','piping size','collar','cuff'] },
+
+  { name: 'tailsweep.ts', path: 'resources/js/core/customizer/tailsweep.ts', domain: 'Embellishment',
+    role: 'Core tailsweep engine: creates tailsweep embellishments, handles color and dimension sync.',
+    keyExports: ['createTailsweep','changeTailsweepColor','syncDimension'],
+    keywords: ['tailsweep','tail sweep','jersey tail','tail embellishment'] },
+
+  { name: 'brand-logo.ts', path: 'resources/js/core/customizer/brand-logo.ts', domain: 'Logo',
+    role: 'Core brand logo renderer: places brand logo onto the garment canvas.',
+    keyExports: ['renderBrandLogo','updateBrandLogo'],
+    keywords: ['brand logo','logo render','chest logo','logo layer','brand mark'] },
+
+  { name: 'uniform.ts', path: 'resources/js/core/customizer/uniform.ts', domain: 'Canvas / Stage',
+    role: 'Core uniform renderer: loads uniform, highlights parts, manages builder customization properties.',
+    keyExports: ['createUniform','loadUniform','renderUniform','highlightParts','resetHighLights','highlightLogo','highlightText','setBuilderCustomizationProperty'],
+    keywords: ['load uniform','render uniform','highlight','builder customization','uniform loading','active uniform','uniform initialization'] },
+
+  { name: 'perspective.ts', path: 'resources/js/core/customizer/perspective.ts', domain: 'Canvas / Stage',
+    role: 'Manages front/back/left/right view switching and reversible uniform logic.',
+    keyExports: ['changeActiveView','getPrimaryViews','isReversible'],
+    keywords: ['view','perspective','front view','back view','reversible','side view','active view','switch view'] },
+
+  { name: 'thumbnails.ts', path: 'resources/js/core/customizer/thumbnails.ts', domain: 'Rendering',
+    role: 'Generates and refreshes uniform design thumbnails for all views.',
+    keyExports: ['generateThumbnail','generateAllThumbnail','generateReversibleThumbnails','generateAllReversibleThumbnail'],
+    keywords: ['thumbnail','preview image','design preview','generate image','snapshot'] },
+
+  { name: 'stage.ts', path: 'resources/js/core/stage/stage.ts', domain: 'Canvas / Stage',
+    role: 'PixiJS Application manager: creates/resizes the PIXI renderer canvas, controls visibility and scale.',
+    keyExports: ['createStage','setStage','setStageVisibility','setPosition','setScale','resizeRenderer','disableStageInteractive','enableStageInteractive'],
+    keywords: ['stage','pixi','canvas','renderer','webgl','stage resize','canvas size','stage scale','stage visibility'] },
+
+  { name: 'stageEvents.js', path: 'resources/js/core/stage/stageEvents.js', domain: 'Canvas / Stage',
+    role: 'PixiJS stage interaction: mouse/touch events, zone hit-testing, part highlighting on hover/click.',
+    keyExports: ['initializeStageEvents','destroyStageEvents','defaultScale'],
+    keywords: ['stage event','mouse event','touch event','hit test','hover','click zone','interactive','point in polygon'] },
+
+  { name: 'add-ons.ts', path: 'resources/js/core/customizer/add-ons.ts', domain: 'Embellishment',
+    role: 'Core add-on engine: renders and manages add-on decorative embellishments.',
+    keyExports: ['renderAddOn','updateAddOn'],
+    keywords: ['add-on','addon','decoration','stock mascot','custom mascot','art piece'] },
+
+  { name: 'brand-trims.ts', path: 'resources/js/core/customizer/brand-trims.ts', domain: 'Embellishment',
+    role: 'Manages brand-specific trim decorations on the garment.',
+    keyExports: ['renderBrandTrim','updateBrandTrim'],
+    keywords: ['brand trim','trim decoration','3d trim','tackle twill trim'] },
+
+  { name: 'block-pattern.ts', path: 'resources/js/core/customizer/block-pattern.ts', domain: 'Pattern',
+    role: 'Manages block pattern rules for sublimated/cut-and-sew garment layouts.',
+    keyExports: ['applyBlockPattern','getBlockPatternRule'],
+    keywords: ['block pattern','cut and sew','sublimated layout','block rule','panel layout'] },
+
+  { name: 'cart-items.ts', path: 'resources/js/core/customizer/cart-items.ts', domain: 'Pricing/Cart',
+    role: 'Maps customization data to cart line items including upgrade fees.',
+    keyExports: ['buildCartItem','mapUpgradeFees'],
+    keywords: ['cart item','line item','upgrade fee','pricing','cost calculation','cart mapping'] },
+
+  { name: 'color-selection.ts (composable)', path: 'resources/js/composables/color-selection.ts', domain: 'Color',
+    role: 'Reusable composable for color picker logic shared across color panels.',
+    keyExports: ['useColorSelection'],
+    keywords: ['color selection','color picker','pick color','select color','composable color'] },
+
+  // ── BUILDER COMPONENTS ────────────────────────────────────────────────────
+  { name: 'ColorGroupPanel.vue', path: 'resources/js/Components/Builder/Colors/ColorGroupPanel.vue', domain: 'Color / UI',
+    role: 'Zone-by-zone color assignment panel; shows body/sleeve/piping accordions and team color swatches.',
+    keyExports: ['ColorGroupPanel'],
+    keywords: ['color group','zone color','body color','sleeve color','piping accordion','color panel','team color picker','manual order color','twill color','hybrid color'] },
+
+  { name: 'ColorSelection.vue', path: 'resources/js/Components/Builder/Modals/ColorSelection.vue', domain: 'Color / UI',
+    role: 'Modal for selecting brand colors; checkbox-based picker that saves team color choices.',
+    keyExports: ['ColorSelection'],
+    keywords: ['color selection','brand color','color modal','color checkbox','save color','color picker modal'] },
+
+  { name: 'ColorConflictAlertModal.vue', path: 'resources/js/Components/Builder/Modals/ColorConflictAlertModal.vue', domain: 'Color / Validation',
+    role: 'Shows conflict warnings when brand logo visibility or color contrast rules are violated.',
+    keyExports: ['ColorConflictAlertModal'],
+    keywords: ['conflict','contrast','color conflict','logo visibility','brand contrast','warning','clash','alert modal'] },
+
+  { name: 'FabricPanel.vue', path: 'resources/js/Components/Builder/Fabric/FabricPanel.vue', domain: 'Fabric / UI',
+    role: 'Fabric selection accordion; shows fabric groups, recommended fabrics, and upgrade fees.',
+    keyExports: ['FabricPanel'],
+    keywords: ['fabric panel','fabric group','upgrade fee','material selection','fabric accordion','suggested fabric','fabric weight','composition'] },
+
+  { name: 'TwillSelectionColor.vue', path: 'resources/js/Components/Builder/Modals/TwillSelectionColor.vue', domain: 'Color / Twill',
+    role: 'Color selection modal for tackle twill and hybrid products (up to 15 colors).',
+    keyExports: ['TwillSelectionColor'],
+    keywords: ['twill','tackle twill','hybrid','15 colors','twill color','tackle color'] },
+
+  { name: 'TextPanel.vue', path: 'resources/js/Components/Builder/Text/TextPanel.vue', domain: 'Text / UI',
+    role: 'Main text customization panel: player names, numbers, team names, graduation year.',
+    keyExports: ['TextPanel'],
+    keywords: ['text','player name','player number','team name','graduation year','name panel','number panel','text customization'] },
+
+  { name: 'PlayerName.vue', path: 'resources/js/Components/Builder/Text/PlayerName.vue', domain: 'Text / UI',
+    role: 'Input component for individual player name application.',
+    keyExports: ['PlayerName'],
+    keywords: ['player name','name input','roster name','athlete name'] },
+
+  { name: 'PlayerNumber.vue', path: 'resources/js/Components/Builder/Text/PlayerNumber.vue', domain: 'Text / UI',
+    role: 'Input component for player number application.',
+    keyExports: ['PlayerNumber'],
+    keywords: ['player number','number input','jersey number','roster number'] },
+
+  { name: 'TeamName.vue', path: 'resources/js/Components/Builder/Text/TeamName.vue', domain: 'Text / UI',
+    role: 'Input component for team name text application on the garment.',
+    keyExports: ['TeamName'],
+    keywords: ['team name','school name','club name','organization name','text application'] },
+
+  { name: 'FontModal.vue', path: 'resources/js/Components/Builder/Modals/FontModal.vue', domain: 'Text / UI',
+    role: 'Font selection modal for text applications.',
+    keyExports: ['FontModal'],
+    keywords: ['font','typeface','font selection','font picker','font style','typography'] },
+
+  { name: 'LogoPanel.vue', path: 'resources/js/Components/Builder/Logo/LogoPanel.vue', domain: 'Logo / UI',
+    role: 'Logo selection and placement panel: saved logos, brand logos, logo locations.',
+    keyExports: ['LogoPanel'],
+    keywords: ['logo','logo panel','logo placement','logo location','logo library','brand logo','saved logo','logo upload'] },
+
+  { name: 'ArtPanel.vue', path: 'resources/js/Components/Builder/Art/ArtPanel.vue', domain: 'Logo / UI',
+    role: 'Art/logo upload panel: file upload, URL input, and load saved design options.',
+    keyExports: ['ArtPanel'],
+    keywords: ['art','upload art','logo upload','custom art','artwork','design upload','art panel'] },
+
+  { name: 'PatternGroupPanel.vue', path: 'resources/js/Components/Builder/Pattern/PatternGroupPanel.vue', domain: 'Pattern / UI',
+    role: 'Pattern selection panel for sublimated and fabric pattern application.',
+    keyExports: ['PatternGroupPanel'],
+    keywords: ['pattern','fabric pattern','background pattern','pattern panel','camouflage','design pattern'] },
+
+  { name: 'PipingPanel.vue', path: 'resources/js/Components/Builder/Piping/PipingPanel.vue', domain: 'Embellishment / UI',
+    role: 'Piping selection panel: adds/removes piping trim on seams and borders.',
+    keyExports: ['PipingPanel'],
+    keywords: ['piping','trim','seam trim','border trim','piping panel','piping color','piping size'] },
+
+  { name: 'AddOnsPanel.vue', path: 'resources/js/Components/Builder/AddOns/AddOnsPanel.vue', domain: 'Embellishment / UI',
+    role: 'Add-on embellishment selector panel: mascots, stock art, custom decorations.',
+    keyExports: ['AddOnsPanel'],
+    keywords: ['add-on','addon','mascot','stock art','custom mascot','embellishment panel','decoration'] },
+
+  { name: 'Application.vue', path: 'resources/js/Components/Builder/Application/Application.vue', domain: 'Applications / UI',
+    role: 'Application editor panel: adjusts position, size, rotation, opacity for placed applications.',
+    keyExports: ['Application'],
+    keywords: ['application editor','position','size','rotation','opacity','placement editor','application control'] },
+
+  { name: 'ApplicationColors.vue', path: 'resources/js/Components/Builder/Application/ApplicationColors.vue', domain: 'Applications / UI',
+    role: 'Color editor for individual applications (logos, text, emblems).',
+    keyExports: ['ApplicationColors'],
+    keywords: ['application color','logo color','text color','emblem color','application fill','application stroke'] },
+
+  { name: 'RosterPanel.vue', path: 'resources/js/Components/Builder/Roster/RosterPanel.vue', domain: 'Roster / UI',
+    role: 'Team roster upload and management panel: bulk name/number input.',
+    keyExports: ['RosterPanel'],
+    keywords: ['roster','player roster','team roster','bulk names','bulk numbers','roster upload','roster import'] },
+
+  { name: 'CartForm.vue', path: 'resources/js/Components/Builder/Cart/CartForm.vue', domain: 'Pricing/Cart / UI',
+    role: 'Cart form component: maps uniform design to cart line items and triggers checkout.',
+    keyExports: ['CartForm'],
+    keywords: ['cart form','add to cart','checkout','order form','cart submit','pricing form'] },
+
+  { name: 'SaveAndShare.vue', path: 'resources/js/Components/Builder/Modals/SaveAndShare.vue', domain: 'Design / UI',
+    role: 'Modal for saving the current design and generating a shareable link.',
+    keyExports: ['SaveAndShare'],
+    keywords: ['save design','share design','save link','design link','export design','share link'] },
+
+  // ── BUILDER RESKIN COMPONENTS ─────────────────────────────────────────────
+  { name: 'BuilderReskin.vue', path: 'resources/js/Components/BuilderReskin/BuilderReskin.vue', domain: 'Canvas / UI',
+    role: 'Modern redesigned builder layout: full canvas + sidebar tabs.',
+    keyExports: ['BuilderReskin'],
+    keywords: ['builder reskin','new builder','reskin','modern builder','builder layout'] },
+
+  { name: 'ApplicationEditor.vue', path: 'resources/js/Components/BuilderReskin/Applications/ApplicationEditor.vue', domain: 'Applications / UI',
+    role: 'Reskin application editor: controls for selected application in the new UI.',
+    keyExports: ['ApplicationEditor'],
+    keywords: ['application editor','reskin editor','application controls','edit application'] },
+
+  { name: 'ReskinPatternEditor.vue', path: 'resources/js/Components/BuilderReskin/Pattern/ReskinPatternEditor.vue', domain: 'Pattern / UI',
+    role: 'Reskin pattern editor: pattern color and position controls in the new UI.',
+    keyExports: ['ReskinPatternEditor'],
+    keywords: ['pattern editor','reskin pattern','pattern controls'] },
+
+  // ── APPROVAL COMPONENTS ───────────────────────────────────────────────────
+  { name: 'Approval/Index.vue', path: 'resources/js/Components/Approval/Index.vue', domain: 'Approval / UI',
+    role: 'Main approval view: displays design for customer review and approval.',
+    keyExports: ['ApprovalIndex'],
+    keywords: ['approval view','design review','customer approval','approve design','review page'] },
+
+  { name: 'AskForChanges/Index.vue', path: 'resources/js/Components/Approval/AskForChanges/Index.vue', domain: 'Approval / UI',
+    role: 'Ask-for-changes flow: allows customer to annotate and submit change requests.',
+    keyExports: ['AskForChanges'],
+    keywords: ['ask for changes','change request','revision request','feedback','annotation','design feedback'] },
+
+  // ── API LAYER ─────────────────────────────────────────────────────────────
+  { name: 'qx7.js (api)', path: 'resources/js/api/qx7.js', domain: 'Backend API',
+    role: 'QX7 backend API client: fetches brand styles, resources, fonts, patterns.',
+    keyExports: ['getBrandStylesResources','transformFonts','transformPatterns'],
+    keywords: ['qx7','brand style','api fetch','brand resources','api endpoint','backend api'] },
+
+  { name: 'colors.js (api)', path: 'resources/js/api/colors.js', domain: 'Color / API',
+    role: 'Color API: fetches brand colors, sublimated colors, QX7 colors.',
+    keyExports: ['fetchColors','fetchSublimatedColors','fetchQx7Colors'],
+    keywords: ['color api','fetch colors','brand colors api','sublimated colors','color endpoint'] },
+
+  { name: 'logos.js (api)', path: 'resources/js/api/logos.js', domain: 'Logo / API',
+    role: 'Logo management API: CRUD for saved logos, favoriting, archiving.',
+    keyExports: ['getSavedLogos','addLogo','updateLogo','archiveSavedLogo','deleteSavedLogo'],
+    keywords: ['logo api','saved logos','logo crud','logo endpoint','logo management api'] },
+
+  { name: 'carts.js (api)', path: 'resources/js/api/carts.js', domain: 'Pricing/Cart / API',
+    role: 'Cart management API: create, update, delete cart and cart items.',
+    keyExports: ['createCart','updateCart','deleteCart'],
+    keywords: ['cart api','cart endpoint','order api','add to cart api','cart management'] },
+
+  { name: 'saved-designs.js (api)', path: 'resources/js/api/saved-designs.js', domain: 'Design / API',
+    role: 'Saved designs API: persist and retrieve design configurations.',
+    keyExports: ['saveDesign','loadDesign','deleteDesign'],
+    keywords: ['saved design api','design persistence','design api','save design endpoint'] },
+
+  { name: 'pdf.js (api)', path: 'resources/js/api/pdf.js', domain: 'Export / API',
+    role: 'PDF generation API: builds payload and triggers PDF export of the design.',
+    keyExports: ['generatePdfPayload'],
+    keywords: ['pdf','export pdf','design pdf','order sheet','spec sheet','pdf generation'] },
+
+  { name: 'vectorsoft.js (api)', path: 'resources/js/api/vectorsoft.js', domain: 'Logo / API',
+    role: 'Vectorsoft integration API: logo digitizing and vector art services.',
+    keyExports: ['uploadToVectorsoft','getVectorsoftStatus'],
+    keywords: ['vectorsoft','vector art','logo digitizing','art digitizing','vector logo'] },
+];
+
+// ─── Live file snippet reader (top 12 most architecturally critical files) ───
+const CRITICAL_FILES = [
+  'resources/js/stores/customizer.js',
+  'resources/js/core/customizer/color.ts',
+  'resources/js/core/customizer/fabric.ts',
+  'resources/js/core/customizer/application.ts',
+  'resources/js/core/stage/stage.ts',
+  'resources/js/core/stage/stageEvents.js',
+  'resources/js/Components/Builder/Colors/ColorGroupPanel.vue',
+  'resources/js/Components/Builder/Fabric/FabricPanel.vue',
+  'resources/js/Components/Builder/Text/TextPanel.vue',
+  'resources/js/Components/Builder/Logo/LogoPanel.vue',
+  'resources/js/stores/approval.js',
+  'resources/js/stores/cart.js',
+];
+
+function buildCustomizerContext() {
+  const snippets = [];
+  for (const relPath of CRITICAL_FILES) {
+    const content = readRepoFile(relPath, 2000);
+    if (content) snippets.push({ path: relPath, snippet: content });
+  }
+  return { modules: CUSTOMIZER_MODULES, snippets };
+}
+
+// Build once at startup and cache
+const customizerContext = buildCustomizerContext();
+const repoAvailable = customizerContext.snippets.length > 0;
+
+// ─── Code-block extractor ──────────────────────────────────────────────────────
+// Reads a file from the customizer repo and extracts the code around a named symbol.
+// Returns { code, lineStart, lineEnd } or null if not found.
+function extractCodeBlock(relPath, symbolName, contextLines = 40) {
+  const content = readRepoFile(relPath, 999999); // read full file
+  if (!content) return null;
+
+  const lines = content.split('\n');
+  // Find the line containing the symbol definition
+  const patterns = [
+    new RegExp(`\\b(async\\s+)?function\\s+${symbolName}\\b`),
+    new RegExp(`\\b${symbolName}\\s*[:=]\\s*(async\\s+)?\\(`),
+    new RegExp(`\\b${symbolName}\\s*[:=]\\s*(async\\s+)?function`),
+    new RegExp(`\\b${symbolName}\\s*\\([^)]*\\)\\s*\\{`),
+    new RegExp(`'${symbolName}'`),
+    new RegExp(`"${symbolName}"`),
+  ];
+
+  let startIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (patterns.some(p => p.test(lines[i]))) { startIdx = i; break; }
+  }
+  if (startIdx === -1) return null;
+
+  // Walk forward to find the closing brace, up to contextLines
+  let braceDepth = 0, endIdx = startIdx;
+  for (let i = startIdx; i < Math.min(lines.length, startIdx + contextLines * 2); i++) {
+    braceDepth += (lines[i].match(/\{/g) || []).length;
+    braceDepth -= (lines[i].match(/\}/g) || []).length;
+    endIdx = i;
+    if (braceDepth <= 0 && i > startIdx) break;
+  }
+  // Cap at contextLines from start
+  const end = Math.min(endIdx, startIdx + contextLines - 1);
+
+  return {
+    lineStart: startIdx + 1,
+    lineEnd:   end + 1,
+    code:      lines.slice(startIdx, end + 1).join('\n'),
+  };
+}
+
+// Reads affected code blocks for a list of modules + function names
+function readAffectedCodeBlocks(affectedModules) {
+  const blocks = [];
+  for (const mod of affectedModules) {
+    const functions = mod.affectedFunctions || [];
+    // Always try at least the keyExports from the registry as a fallback
+    const registry = CUSTOMIZER_MODULES.find(m => m.name === mod.name || m.path === mod.path);
+    const candidates = functions.length > 0 ? functions : (registry?.keyExports?.slice(0, 4) || []);
+
+    const fileBlocks = [];
+    for (const fn of candidates) {
+      const block = extractCodeBlock(mod.path, fn);
+      if (block && block.code.trim().length > 10) {
+        fileBlocks.push({ functionName: fn, ...block });
+      }
+    }
+
+    if (fileBlocks.length > 0 || candidates.length > 0) {
+      blocks.push({
+        name:      mod.name,
+        path:      mod.path,
+        severity:  mod.severity,
+        reason:    mod.explanation || '',
+        functions: fileBlocks,
+        fileAvailable: fileBlocks.length > 0,
+      });
+    }
+  }
+  return blocks;
+}
+
+// ─── Affected Modules Local Scanner ───────────────────────────────────────────
+function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent }) {
+  // Build the fullest possible content corpus from every available BRD field
+  const bugContent = bugs.map(b =>
+    [b.title, b.description, b.criteria, b.rootCause].filter(Boolean).join(' ')
+  ).join(' ');
+
+  const contentToScan = [
+    brd.title,
+    brd.description,
+    brd.feTicket,
+    brd.beTicket,
+    brd.anciliaryTicket,
+    brd.rndTicket,
+    brd.baName,
+    bugContent,
+    docContent,
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  const affectedModules = [];
+  const affectedConcepts = new Set();
+  const recommendations = [];
+  let scorePoints = 10;
+
+  for (const mod of CUSTOMIZER_MODULES) {
+    const matchedKws = mod.keywords.filter(kw => contentToScan.includes(kw));
+    if (matchedKws.length === 0) continue;
+
+    const isCoreEngine = ['customizer.js','color.ts','application.ts','fabric.ts','uniform.ts','stage.ts'].includes(mod.name);
+    const severity = isCoreEngine ? 'High' : matchedKws.length >= 3 ? 'High' : 'Medium';
+    scorePoints += severity === 'High' ? 15 : 10;
+
+    affectedModules.push({
+      name: mod.name,
+      path: mod.path,
+      role: mod.role,
+      severity,
+      explanation: `Matched keywords: "${matchedKws.slice(0, 4).join('", "')}". This file is part of the ${mod.domain} domain and will need review for this BRD.`
+    });
+    affectedConcepts.add(mod.domain);
+  }
+
+  // Also check KB entries for extra coverage
+  for (const kb of knowledgeBase) {
+    const kbWords = kb.content.toLowerCase().split(/\W+/).filter(w => w.length > 4);
+    if (kbWords.some(w => contentToScan.includes(w))) {
+      affectedConcepts.add(kb.category);
+    }
+  }
+
+  // Fallback
+  if (affectedModules.length === 0) {
+    affectedModules.push({
+      name: 'customizer.js', path: 'resources/js/stores/customizer.js',
+      role: 'Primary Pinia store managing customizer state.',
+      severity: 'Low',
+      explanation: 'No specific domain keywords matched. General uniform changes typically start in the customizer store.'
+    });
+    affectedConcepts.add('Core Store');
+    recommendations.push('Audit customizer.js to register any new uniform properties in ActiveUniform.settings.');
+  }
+
+  // Concept-based recommendations
+  const concepts = [...affectedConcepts];
+  if (concepts.some(c => c.includes('Color')))     recommendations.push('Verify color zone mappings in color.ts remixColors() are updated for new zone definitions.');
+  if (concepts.some(c => c.includes('Fabric')))    recommendations.push('Ensure fabric upgrade fee triggers in customizer.js setupFabricGroup() handle new material rules.');
+  if (concepts.some(c => c.includes('Text')))      recommendations.push('Check font/layout constraints in TextPanel.vue and FontModal.vue for new text application rules.');
+  if (concepts.some(c => c.includes('Logo')))      recommendations.push('Validate logo placement hit areas in stageEvents.js and logo conflict checks in ColorConflictAlertModal.vue.');
+  if (concepts.some(c => c.includes('Embellishment'))) recommendations.push('Review embellishment layer order in application.ts and piping limits in piping.ts.');
+  if (concepts.some(c => c.includes('Canvas')))    recommendations.push('Test PixiJS stage rendering changes across all views (front/back/left/right) via perspective.ts.');
+  if (concepts.some(c => c.includes('Approval')))  recommendations.push('Update approval workflow in AskForChanges/Index.vue if new change-request fields are required.');
+  if (concepts.some(c => c.includes('Pricing')))   recommendations.push('Validate cart line item mapping in cart-items.ts and CartForm.vue for new pricing rules.');
+  if (concepts.some(c => c.includes('Roster')))    recommendations.push('Ensure roster bulk-upload parser in RosterPanel.vue handles new field requirements.');
+
+  // ── Style-specific feature matching ────────────────────────────────────────
+  const affectedStyleFeatures = [];
+  for (const sf of STYLE_FEATURES) {
+    const matchedKws = sf.keywords.filter(kw => contentToScan.includes(kw));
+    if (matchedKws.length === 0) continue;
+    const kwList = matchedKws.slice(0, 3).join(', ');
+    affectedStyleFeatures.push({
+      feature:     sf.feature,
+      tab:         sf.tab,
+      status:      sf.status,
+      impact:      matchedKws.length >= 3 ? 'High' : 'Medium',
+      explanation: 'Matched keywords: ' + kwList + '. This feature will need review as part of this BRD.',
+    });
+  }
+
+  const impactScore = Math.min(scorePoints, 100);
+  const verdict = `Impact score ${impactScore}/100. ` +
+    (impactScore > 60 ? `HIGH impact: touches core ${concepts.slice(0, 3).join(', ')} engines. Full regression testing required.`
+    : impactScore > 30 ? `MODERATE impact: affects ${concepts.slice(0, 3).join(', ')} layer(s). Targeted QA across affected panels.`
+    : `LOW impact: isolated to ${concepts.slice(0, 2).join(', ')} UI. Spot-check affected components.`);
+
+  const affectedCodeBlocks = repoAvailable ? readAffectedCodeBlocks(affectedModules) : [];
+  return { impactScore, verdict, affectedModules, affectedConcepts: concepts, recommendations: recommendations.slice(0, 6), affectedStyleFeatures, affectedCodeBlocks };
+}
+
+// ─── Post Affected Modules Endpoint ──────────────────────────────────────────
+app.post('/api/ai/analyze-affected-modules', async (req, res) => {
+  try {
+    const { brd, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent: uploadedDoc } = req.body;
+
+    let docContent = uploadedDoc || null;
+    if (!docContent && brd.googleDocsLink) {
+      const { text } = await fetchGoogleDocText(brd.googleDocsLink);
+      docContent = text;
+    }
+
+    // If no AI provider has a valid key, go straight to the local scanner
+    if (resolveProviderChain().length === 0) {
+      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+      return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'missing_all_ai_api_keys', docFetched: !!docContent });
+    }
+
+    // ── Build full codebase-aware AI prompt ───────────────────────────────
+    const kbSections = knowledgeBase.length
+      ? knowledgeBase.map(k => `### ${k.category}: ${k.title}\n${k.content}`).join('\n\n')
+      : '';
+
+    // Module index: all 60+ modules as a compact table
+    const moduleIndex = CUSTOMIZER_MODULES.map(m =>
+      `• [${m.domain}] ${m.name} — ${m.path}\n  Role: ${m.role}\n  Key exports: ${m.keyExports.join(', ')}`
+    ).join('\n\n');
+
+    // Live file snippets from the actual repo
+    const snippetSection = repoAvailable
+      ? customizerContext.snippets.map(s =>
+          `### ${s.path}\n\`\`\`\n${s.snippet}\n\`\`\``
+        ).join('\n\n')
+      : '(Repository not accessible — using module index only)';
+
+    // Style-feature index for prompt — compact list Gemini can reference
+    const styleFeatureIndex = STYLE_FEATURES.map(sf =>
+      `• [${sf.tab}] ${sf.feature} (status: ${sf.status})`
+    ).join('\n');
+
+    const prompt = `You are a senior technical architect for a sports apparel customizer platform (QStrike / ProLook Builder).
+Your task: read the BRD below and identify (A) which codebase files are affected, AND (B) which style-specific product features from the feature registry are impacted.
+
+═══════════════════════════════════════════════════════
+SECTION 1 — FULL CODEBASE MODULE INDEX (${CUSTOMIZER_MODULES.length} modules)
+═══════════════════════════════════════════════════════
+${moduleIndex}
+
+═══════════════════════════════════════════════════════
+SECTION 2 — LIVE FILE SNIPPETS (actual source code)
+═══════════════════════════════════════════════════════
+${snippetSection}
+
+═══════════════════════════════════════════════════════
+SECTION 3 — SYSTEM KNOWLEDGE BASE
+═══════════════════════════════════════════════════════
+${kbSections || 'No KB entries.'}
+
+═══════════════════════════════════════════════════════
+SECTION 4 — BUILDER FUNCTION REGISTRY (${STYLE_FEATURES.length} functions)
+These are the known builder functions and capabilities across all tabs. Identify which ones this BRD will affect.
+═══════════════════════════════════════════════════════
+${styleFeatureIndex}
+
+═══════════════════════════════════════════════════════
+SECTION 5 — BRD TO ANALYSE (full content)
+═══════════════════════════════════════════════════════
+Title:       ${brd.title}
+Status:      ${brd.status || '—'}
+Quarter:     ${brd.quarter || '—'} ${brd.year || ''}
+Sprint:      ${brd.sprintStart ? `${brd.sprintStart}${brd.sprintEnd && brd.sprintEnd !== brd.sprintStart ? ' – ' + brd.sprintEnd : ''}` : 'Not assigned'}
+T-Shirt:     ${brd.tshirtSize || 'Not sized'}
+BA / Author: ${brd.baName || 'Not assigned'}
+Jira:        ${brd.jiraLink || 'None'}
+FE Ticket:   ${brd.feTicket || 'None'}
+BE Ticket:   ${brd.beTicket || 'None'}
+R&D Ticket:  ${brd.rndTicket || 'None'}
+
+── DESCRIPTION ──────────────────────────────────────
+${brd.description || 'No description provided.'}
+
+── BUGS / LINKED REQUIREMENTS (${bugs.length}) ─────
+${bugs.length
+  ? bugs.map(b =>
+      `[${(b.severity || 'medium').toUpperCase()}] ${b.title}\n` +
+      `  Status: ${b.status || 'open'} | Criteria: ${b.criteria || 'N/A'}\n` +
+      (b.description ? `  Details: ${b.description.slice(0, 400)}\n` : '') +
+      (b.rootCause   ? `  Root cause: ${b.rootCause.slice(0, 200)}\n` : '')
+    ).join('\n')
+  : 'No bugs logged.'}
+
+── FULL SPECIFICATION ───────────────────────────────
+${docContent
+  ? docContent.slice(0, 12000)
+  : brd.googleDocsLink
+    ? `(Google Doc present at ${brd.googleDocsLink} but could not be fetched — ensure the document is publicly shared.)`
+    : 'No specification document attached. Analyse based on title, description, and bugs above.'
+}
+
+═══════════════════════════════════════════════════════
+INSTRUCTIONS
+═══════════════════════════════════════════════════════
+Using ALL sections above:
+
+PART A — Codebase modules: identify which files are affected.
+- Use exact file names and paths from Section 1
+- Reference real function/export names in explanations
+- Severity: High (core engine) | Medium (component/store) | Low (UI tweak)
+
+PART B — Builder functions: identify which functions from Section 4 will be affected by this BRD.
+- Use the exact function name and tab from Section 4
+- Assign impact level: High | Medium | Low
+- Write a concise explanation of HOW this BRD will affect that function
+
+Output ONLY a single valid JSON object — no markdown, no text outside the JSON:
+
+{
+  "impactScore": <0-100>,
+  "verdict": "<one paragraph overview referencing real module names and affected features>",
+  "affectedModules": [
+    {
+      "name": "<filename from Section 1>",
+      "path": "<exact path>",
+      "role": "<role>",
+      "severity": "High|Medium|Low",
+      "explanation": "<specific explanation with real function names>",
+      "affectedFunctions": ["functionName1", "functionName2"]
+    }
+  ],
+  "affectedConcepts": ["<domain concept>"],
+  "recommendations": ["<actionable recommendation with real function/file names>"],
+  "affectedStyleFeatures": [
+    {
+      "feature": "<exact function name from Section 4>",
+      "tab": "<tab/section from Section 4>",
+      "status": "<status from Section 4: new|stable|ongoing|assessment>",
+      "impact": "High|Medium|Low",
+      "explanation": "<how this BRD specifically impacts this function>"
+    }
+  ]
+}`;
+
+    // Try configured provider → fall back through the others on quota/error
+    const r = await runAnalysisWithFallback(prompt);
+    if (!r.provider) {
+      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+      return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'all_ai_providers_failed', docFetched: !!docContent });
+    }
+    const result = r;
+    const usedProvider = r.provider;
+    const fellBack = r.tried.length ? `fell_back_from_${r.tried.map(t => t.provider).join('_')}` : null;
+
+    let parsedJson = null;
+    try {
+      const clean = (result.analysis || '').replace(/```json/g, '').replace(/```/g, '').trim();
+      parsedJson = JSON.parse(clean);
+    } catch {
+      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+      return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'ai_parse_error', docFetched: !!docContent });
+    }
+
+    // Read actual code blocks from the local repo for each affected module
+    const affectedCodeBlocks = repoAvailable
+      ? readAffectedCodeBlocks(parsedJson.affectedModules || [])
+      : [];
+
+    return res.json({ ...parsedJson, affectedCodeBlocks, mode: 'ai', provider: usedProvider, modeReason: fellBack, docFetched: !!docContent });
+
+  } catch (e) {
+    try {
+      const { brd, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent: uploadedDoc } = req.body;
+      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent: uploadedDoc });
+      return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'error_fallback', docFetched: !!uploadedDoc });
+    } catch { return res.status(500).json({ error: e.message }); }
+  }
+});
+
+// ─── Google OAuth2 Routes ─────────────────────────────────────────────────────
+
+// Returns connection status and whether credentials are configured
+app.get('/api/google/status', (_req, res) => {
+  res.json({
+    connected:   !!googleTokens?.refresh_token,
+    configured:  !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET),
+    email:       googleTokens?.email || null,
+  });
+});
+
+// Returns the Google consent URL for the user to open in their browser
+app.get('/api/google/auth-url', (_req, res) => {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    return res.status(400).json({ error: 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are not set in .env' });
+  }
+  const params = new URLSearchParams({
+    client_id:    GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_REDIRECT_URI,
+    response_type:'code',
+    scope:        GOOGLE_SCOPE,
+    access_type:  'offline',
+    prompt:       'consent',
+  });
+  res.json({ url: `https://accounts.google.com/o/oauth2/auth?${params}` });
+});
+
+// OAuth2 callback — exchanges the auth code for tokens and saves them
+app.get('/api/google/callback', async (req, res) => {
+  const { code, error } = req.query;
+  console.log('[google/callback] received —', error ? `error: ${error}` : `code: ${code?.slice(0,12)}…`);
+  if (error) return res.status(400).send(`<h2>Google denied access: ${error}</h2><p>Close this tab and try again.</p>`);
+  if (!code)  return res.status(400).send('<h2>Missing authorization code</h2>');
+
+  try {
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id:     GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        code,
+        grant_type:    'authorization_code',
+        redirect_uri:  GOOGLE_REDIRECT_URI,
+      }),
+    });
+    if (!tokenRes.ok) {
+      const body = await tokenRes.text();
+      console.error('[google/callback] ❌ token exchange failed:', tokenRes.status, body.slice(0, 200));
+      return res.status(400).send(`<h2>Token exchange failed (${tokenRes.status})</h2><pre>${body}</pre><p>Check that GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env are correct.</p>`);
+    }
+    const tokens = await tokenRes.json();
+
+    // Optionally fetch the user's email for display
+    let email = null;
+    try {
+      const infoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+      if (infoRes.ok) { const info = await infoRes.json(); email = info.email; }
+    } catch {}
+
+    saveGoogleTokens({
+      ...tokens,
+      email,
+      expiry_date: Date.now() + (tokens.expires_in || 3600) * 1000,
+    });
+    console.log(`[google/callback] ✅ tokens saved${email ? ' for ' + email : ''}, has_refresh=${!!tokens.refresh_token}`);
+
+    // Redirect back to the app — same-tab flow, no popup needed
+    const appUrl = `http://localhost:5173/?google=connected&email=${encodeURIComponent(email || '')}`;
+    res.redirect(appUrl);
+  } catch (e) {
+    res.status(500).send(`<h2>Error: ${e.message}</h2>`);
+  }
+});
+
+// Disconnect Google — removes stored tokens
+app.delete('/api/google/disconnect', (_req, res) => {
+  clearGoogleTokens();
+  res.json({ ok: true });
+});
+
+// Test doc fetch — returns exactly what fetchGoogleDocText returns so the UI can show debug info
+app.post('/api/google/test-doc', async (req, res) => {
+  const { url } = req.body || {};
+  if (!url) return res.status(400).json({ error: 'url is required' });
+  const result = await fetchGoogleDocText(url);
+  const token  = await getGoogleAccessToken();
+  res.json({
+    ...result,
+    hasToken:  !!token,
+    connected: !!googleTokens?.refresh_token,
+    wordCount: result.text ? result.text.split(/\s+/).filter(Boolean).length : 0,
+    preview:   result.text ? result.text.slice(0, 300) : null,
+  });
+});
+
+// ─── Local BRD Backup ─────────────────────────────────────────────────────────
+async function writeBRDLocalBackup() {
+  try {
+    const [{ recordset: brds }, { recordset: bugs }] = await Promise.all([
+      pool.request().query('SELECT * FROM brds ORDER BY createdAt DESC'),
+      pool.request().query('SELECT * FROM bugs ORDER BY createdAt DESC'),
+    ]);
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      source: 'BRD Insight Auto-Sync',
+      totalBRDs: brds.length,
+      totalBugs: bugs.length,
+      brds,
+      bugs,
+    };
+    writeFileSync(LOCAL_BACKUP_PATH, JSON.stringify(payload, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('[backup] write failed:', e.message);
+  }
+}
+
+// Serve the latest backup as a download; always regenerates so it is fresh
+// Route is /api/brd-backup (not under /api/brds/ to avoid :id param clash)
+app.get('/api/brd-backup', async (_req, res) => {
+  try {
+    await writeBRDLocalBackup();
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="brd-backup-${date}.json"`);
+    res.send(readFileSync(LOCAL_BACKUP_PATH, 'utf-8'));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Silently refresh the local backup file — no download, just writes to disk
+app.post('/api/brd-backup/sync', async (_req, res) => {
+  try {
+    await writeBRDLocalBackup();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 init()
   .then(() => {
     app.listen(PORT, () => {
+      const aiStatus = resolveAIProvider();
+      const aiLine = aiStatus.provider
+        ? `${aiStatus.provider} (key OK)`
+        : `UNAVAILABLE — ${aiStatus.reason}`;
       console.log(`\n  BRD Insight API  →  http://localhost:${PORT}/api/health`);
       console.log(`  Database         →  ${DB_HOST}${DB_INSTANCE ? '\\' + DB_INSTANCE : ':' + DB_PORT}/${DB_NAME}`);
-      console.log(`  Auth             →  ${(DB_TRUSTED || !DB_USER) ? 'Windows Authentication' : `SQL Server (${DB_USER})`}\n`);
+      console.log(`  Auth             →  ${(DB_TRUSTED || !DB_USER) ? 'Windows Authentication' : `SQL Server (${DB_USER})`}`);
+      console.log(`  AI Provider      →  ${aiLine}\n`);
     });
   })
   .catch((err) => {
@@ -1098,3 +2723,4 @@ init()
     console.error('  Check your .env file and make sure SQL Server is running.\n');
     process.exit(1);
   });
+

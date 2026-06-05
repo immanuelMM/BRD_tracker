@@ -4,6 +4,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line,
 } from 'recharts';
 import { QUARTERS, YEARS, BUG_CRITERIA as DEFAULT_CRITERIA, STATUS_OPTIONS, MIN_BUG_THRESHOLD, QUARTER_MONTHS, getSprintLabel, getTShirtSize } from '../utils/constants';
+import { fmtTitle } from '../utils/db';
 import { generateBRDReport } from '../utils/pdfGenerator';
 import { exportQuarterToExcel } from '../utils/excelExport';
 import StatusBadge from './StatusBadge';
@@ -55,7 +56,7 @@ export default function QuarterReport({ brds, bugs, criteria = DEFAULT_CRITERIA,
   })).filter((d) => d.count > 0);
 
   const bugsPerBRD = quarterBRDs.map((b) => ({
-    name: b.title.length > 18 ? b.title.slice(0, 18) + '…' : b.title,
+    name: fmtTitle(b.title).length > 18 ? fmtTitle(b.title).slice(0, 18) + '…' : fmtTitle(b.title),
     bugs: bugs.filter((bug) => bug.brdId === b.id).length,
     threshold: MIN_BUG_THRESHOLD,
   }));
@@ -242,7 +243,7 @@ export default function QuarterReport({ brds, bugs, criteria = DEFAULT_CRITERIA,
                     <tr key={brd.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="px-5 py-3.5 font-medium text-slate-900 dark:text-white">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span>{brd.title}</span>
+                          <span>{fmtTitle(brd.title)}</span>
                           {isExtended(brd) && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 flex-shrink-0">
                               ← {brd.quarter} {brd.year}

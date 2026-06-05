@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BA_OPTIONS, STATUS_OPTIONS, QUARTERS, YEARS, MIN_BUG_THRESHOLD, getSprintLabel, getTShirtSize } from '../utils/constants';
+import { fmtTitle } from '../utils/db';
 import StatusBadge from './StatusBadge';
 import { exportBAViewToExcel } from '../utils/excelExport';
 
@@ -108,10 +109,10 @@ export default function BAPage({ brds, bugs, onSelectBRD }) {
 
                           <div className="flex items-start gap-2 mb-2">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${isSuccess ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' : col.avatar}`}>
-                              {brd.title.charAt(0).toUpperCase()}
+                              {fmtTitle(brd.title).charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <h3 className="font-semibold text-sm text-slate-900 dark:text-white truncate">{brd.title}</h3>
+                              <h3 className="font-semibold text-sm text-slate-900 dark:text-white truncate">{fmtTitle(brd.title)}</h3>
                               <p className="text-xs text-slate-400">{brd.quarter} {brd.year}</p>
                             </div>
                           </div>

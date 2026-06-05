@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BUG_CRITERIA as DEFAULT_CRITERIA, BUG_SEVERITY, MIN_BUG_THRESHOLD, getSprintLabel, getTShirtSize } from '../utils/constants';
-import { createBug, updateBug, deleteBug, updateBRD } from '../utils/db';
+import { createBug, updateBug, deleteBug, updateBRD, fmtTitle } from '../utils/db';
 import BugForm from './BugForm';
 import StatusBadge from './StatusBadge';
 
@@ -160,7 +160,7 @@ export default function BRDDetail({ brd, bugs, onEdit, onBack, onRefresh, criter
       <div className={`rounded-2xl border-2 p-6 ${isSuccess ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{brd.title}</h2>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{fmtTitle(brd.title)}</h2>
             {brd.description && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{brd.description}</p>}
           </div>
           <div className="flex flex-col items-end gap-2 flex-shrink-0">

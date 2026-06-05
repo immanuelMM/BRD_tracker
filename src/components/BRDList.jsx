@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { STATUS_OPTIONS, QUARTERS, YEARS, MIN_BUG_THRESHOLD, getSprintLabel, getTShirtSize } from '../utils/constants';
+import { fmtTitle } from '../utils/db';
 import StatusBadge from './StatusBadge';
 import { exportBRDsToExcel } from '../utils/excelExport';
 
@@ -48,7 +49,7 @@ function BRDCard({ brd, bugCount, onSelect, onDelete }) {
       <div className="p-3">
         {/* Title row */}
         <div className="flex items-start justify-between gap-2 mb-2">
-          <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-snug line-clamp-2 flex-1">{brd.title}</p>
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-100 leading-snug line-clamp-2 flex-1">{fmtTitle(brd.title)}</p>
           <button
             onClick={(e) => { e.stopPropagation(); if (confirm('Delete this BRD and all its bugs?')) onDelete(brd.id); }}
             className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-all flex-shrink-0 -mt-0.5 -mr-1"
@@ -216,10 +217,10 @@ export default function BRDList({ brds, bugs, onSelect, onNew, onDelete }) {
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 ${isSuccess ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' : 'bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400'}`}>
-                      {brd.title.charAt(0).toUpperCase()}
+                      {fmtTitle(brd.title).charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-sm text-slate-900 dark:text-white truncate">{brd.title}</h3>
+                      <h3 className="font-semibold text-sm text-slate-900 dark:text-white truncate">{fmtTitle(brd.title)}</h3>
                       <p className="text-xs text-slate-400">{brd.quarter} {brd.year}</p>
                     </div>
                   </div>

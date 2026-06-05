@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { QUARTERS, YEARS } from '../utils/constants';
+import { fmtTitle } from '../utils/db';
 
 const HIGHLIGHT_COLORS = [
   { color: '#fef08a', label: 'Yellow' },
@@ -192,7 +193,7 @@ function NoteForm({ initial = {}, brds = [], onSave, onCancel }) {
               const brd = brds.find(b => b.id === id);
               return (
                 <span key={id} className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                  {brd ? brd.title : id}
+                  {brd ? fmtTitle(brd.title) : id}
                   <button type="button" onClick={() => set('brdIds', form.brdIds.filter(x => x !== id))}
                     className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors text-blue-500">
                     ×
@@ -210,7 +211,7 @@ function NoteForm({ initial = {}, brds = [], onSave, onCancel }) {
         >
           <option value="">+ Add a BRD…</option>
           {brds.filter(b => !form.brdIds.includes(b.id)).map(b => (
-            <option key={b.id} value={b.id}>{b.title}</option>
+            <option key={b.id} value={b.id}>{fmtTitle(b.title)}</option>
           ))}
         </select>
       </div>
@@ -318,7 +319,7 @@ function NoteCard({ note, brds, onEdit, onDelete, onStatusChange, onSelectBRD })
               <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <span className="font-medium">{brd.title}</span>
+              <span className="font-medium">{fmtTitle(brd.title)}</span>
               <svg className="w-2.5 h-2.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -689,7 +690,7 @@ export default function PMNotesPage({ notes = [], brds = [], onCreate, onUpdate,
                               {linkedBRDs.map(b => (
                                 <button key={b.id} type="button" onClick={() => onSelectBRD?.(b.id)}
                                   className="text-blue-600 dark:text-blue-400 hover:underline hover:text-blue-800 dark:hover:text-blue-200 transition-colors text-left">
-                                  {b.title}
+                                  {fmtTitle(b.title)}
                                 </button>
                               ))}
                             </div>

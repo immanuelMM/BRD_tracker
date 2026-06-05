@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { TSHIRT_SIZES as DEFAULT_SIZES, SPRINT_DAYS } from '../utils/constants';
+import { fmtTitle } from '../utils/db';
 import { exportTShirtToExcel } from '../utils/excelExport';
 
 const RISK_ICON = {
@@ -215,7 +216,7 @@ export default function TShirtSizePage({ brds, bugs = [], tshirtSizes = DEFAULT_
                     {sizedBRDs.map((brd) => (
                       <span key={brd.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium">
                         <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: col }} />
-                        {brd.title}
+                        {fmtTitle(brd.title)}
                       </span>
                     ))}
                   </div>

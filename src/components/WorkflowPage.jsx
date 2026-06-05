@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { MIN_BUG_THRESHOLD, getSprintLabel, YEARS } from '../utils/constants';
+import { fmtTitle } from '../utils/db';
 import { exportWorkflowToExcel } from '../utils/excelExport';
 
 // ── Shape Components ──────────────────────────────────────────────────────────
@@ -101,7 +102,7 @@ const BrdCard = ({ brd, bugs, onSelectBRD }) => {
   return (
     <button onClick={() => onSelectBRD(brd.id)}
       className="w-full text-left bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded px-2 py-1.5 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors">
-      <p className="text-xs font-semibold text-slate-900 dark:text-white truncate leading-snug">{brd.title}</p>
+      <p className="text-xs font-semibold text-slate-900 dark:text-white truncate leading-snug">{fmtTitle(brd.title)}</p>
       <div className="flex items-center justify-between mt-0.5 gap-1">
         <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{brd.baName || '—'}</span>
         {bugCount > 0 && (
@@ -405,7 +406,7 @@ export default function WorkflowPage({ brds, bugs, onSelectBRD }) {
                     <tr key={brd.id} onClick={() => onSelectBRD(brd.id)}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors">
                       <td className="px-4 py-2.5 text-slate-400">{idx + 1}</td>
-                      <td className="px-4 py-2.5 font-medium text-slate-900 dark:text-white">{brd.title}</td>
+                      <td className="px-4 py-2.5 font-medium text-slate-900 dark:text-white">{fmtTitle(brd.title)}</td>
                       <td className="px-4 py-2.5">
                         {stageInfo && <span className={`inline-block px-2 py-0.5 rounded-md text-xs font-semibold ${stageInfo.bg} ${stageInfo.text}`}>{stageInfo.label}</span>}
                       </td>

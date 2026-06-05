@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets & local state — never commit
+.env
+.env.*
+!.env.example
+.npmrc
+google-tokens.json
+brd-local-backup.json

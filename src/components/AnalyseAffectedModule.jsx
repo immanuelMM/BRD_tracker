@@ -910,6 +910,23 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
   const [analyzing, setAnalyzing]         = useState(false);
   const [analysis, setAnalysis]           = useState(null);
   const [error, setError]                 = useState('');
+  const [progress, setProgress]           = useState(0);
+
+  // Simulated 1→100% progress bar while a scan is running. Real analysis is a
+  // single async request with no progress events, so we ease toward 95% and
+  // snap to 100% the moment the result arrives.
+  useEffect(() => {
+    if (!analyzing) return;
+    setProgress(1);
+    const id = setInterval(() => {
+      setProgress((p) => {
+        if (p >= 95) return p;            // hold near the top until done
+        const step = p < 60 ? 4 : p < 85 ? 2 : 1; // slow down as it climbs
+        return Math.min(95, p + step);
+      });
+    }, 180);
+    return () => clearInterval(id);
+  }, [analyzing]);
   
   // Interactive UI States
   const [hoveredZone, setHoveredZone]     = useState(null);
@@ -1026,13 +1043,18 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
 
       if (result.error) {
         setError(result.error);
+        setAnalyzing(false);
       } else {
-        setAnalysis(result);
+        // Snap the bar to 100%, let it show briefly, then reveal the results
+        setProgress(100);
         notify('Architectural scan completed');
+        setTimeout(() => {
+          setAnalysis(result);
+          setAnalyzing(false);
+        }, 450);
       }
     } catch (err) {
       setError(err.message || 'Affected module analysis failed.');
-    } finally {
       setAnalyzing(false);
     }
   };
@@ -1339,9 +1361,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
             <div className="flex flex-col items-center justify-center p-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl h-full shadow-sm space-y-6">
               <div className="w-20 h-20 relative flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin" />
-                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                </svg>
+                <span className="text-base font-extrabold text-blue-600 dark:text-blue-400 tabular-nums">{progress}%</span>
               </div>
               <div className="text-center space-y-2">
                 <h4 className="font-bold text-slate-800 dark:text-slate-200">Reading BRD &amp; Scanning Codebase...</h4>
@@ -1350,6 +1370,20 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                     ? 'Fetching Google Doc spec, then mapping requirements to builder modules.'
                     : 'Correlating BRD requirements with Pinia stores, canvas handlers, and components.'}
                 </p>
+              </div>
+
+              {/* Progress bar 1 → 100% */}
+              <div className="w-full max-w-xs">
+                <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-200 ease-out"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <div className="flex justify-between mt-1.5 text-[10px] font-medium text-slate-400">
+                  <span>{progress < 100 ? 'Analysing…' : 'Done'}</span>
+                  <span className="tabular-nums">{progress}%</span>
+                </div>
               </div>
             </div>
           )}

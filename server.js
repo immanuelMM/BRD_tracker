@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import sql from 'mssql';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import { config as dotenv } from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, existsSync, writeFileSync } from 'fs';
@@ -436,6 +436,18 @@ async function init() {
       sortOrder INT           NOT NULL DEFAULT 0,
       createdAt BIGINT,
       updatedAt BIGINT
+    )
+  `);
+
+  // Create ai_analysis_cache table — same input hash ⇒ same stored output
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ai_analysis_cache')
+    CREATE TABLE ai_analysis_cache (
+      cacheKey  NVARCHAR(64)  PRIMARY KEY,
+      endpoint  NVARCHAR(50)  NOT NULL,
+      provider  NVARCHAR(30),
+      result    NVARCHAR(MAX) NOT NULL,
+      createdAt BIGINT
     )
   `);
 
@@ -1558,24 +1570,78 @@ const callProvider = (provider, prompt) =>
   : provider === 'openai'  ? analyzeWithOpenAI(prompt)
   : analyzeWithGemini(prompt);
 
+// ─── AI analysis cache ─────────────────────────────────────────────────────────
+// Deterministic key from everything that affects the output, so the same BRD +
+// same content (bugs, KB, uploaded/fetched doc) always returns the same result.
+function computeCacheKey(endpoint, { brd = {}, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent = '' }) {
+  const canonical = JSON.stringify({
+    endpoint,
+    brd: {
+      title: brd.title || '', description: brd.description || '', status: brd.status || '',
+      quarter: brd.quarter || '', year: brd.year || '', tshirtSize: brd.tshirtSize || '',
+      feTicket: brd.feTicket || '', beTicket: brd.beTicket || '',
+      anciliaryTicket: brd.anciliaryTicket || '', rndTicket: brd.rndTicket || '',
+      googleDocsLink: brd.googleDocsLink || '',
+    },
+    bugs: bugs.map(b => [b.title, b.description, b.criteria, b.severity, b.status, b.rootCause]),
+    techLeads: techLeads.map(t => [t.name, t.expertise]),
+    devAssignees,
+    knowledgeBase: knowledgeBase.map(k => [k.title, k.category, k.content]),
+    docContent: docContent || '',
+  });
+  return createHash('sha256').update(canonical).digest('hex');
+}
+
+async function getCachedAnalysis(cacheKey) {
+  try {
+    const { recordset } = await pool.request()
+      .input('k', NV(64), cacheKey)
+      .query('SELECT result FROM ai_analysis_cache WHERE cacheKey = @k');
+    return recordset.length ? JSON.parse(recordset[0].result) : null;
+  } catch { return null; }
+}
+
+async function saveCachedAnalysis(cacheKey, endpoint, provider, resultObj) {
+  try {
+    await pool.request()
+      .input('k', NV(64), cacheKey)
+      .input('e', NV(50), endpoint)
+      .input('p', NV(30), provider || 'ai')
+      .input('r', NV(),   JSON.stringify(resultObj))
+      .input('c', BIG,    Date.now())
+      .query(`MERGE ai_analysis_cache AS t
+              USING (SELECT @k AS cacheKey) AS s ON t.cacheKey = s.cacheKey
+              WHEN MATCHED THEN UPDATE SET result=@r, provider=@p, endpoint=@e, createdAt=@c
+              WHEN NOT MATCHED THEN INSERT (cacheKey,endpoint,provider,result,createdAt)
+                VALUES (@k,@e,@p,@r,@c);`);
+  } catch (e) { console.warn('[cache] save failed:', e.message); }
+}
+
 // Try each provider in the chain; on failure (quota/error) fall through to the
 // next. Returns { analysis, usage, provider } on success, or { provider: null }.
 async function runAnalysisWithFallback(prompt) {
   const chain = resolveProviderChain();
-  if (!chain.length) return { provider: null, reason: 'missing_all_ai_api_keys', tried: [] };
+  console.log(`\n━━━ AI ANALYSIS ━━━ provider chain: ${chain.join(' → ') || '(none)'}`);
+  if (!chain.length) {
+    console.warn('[AI] no provider with a valid key — using local rule-based analysis');
+    return { provider: null, reason: 'missing_all_ai_api_keys', tried: [] };
+  }
 
   const tried = [];
   for (const provider of chain) {
+    console.log(`▶ [AI] attempting provider: ${provider.toUpperCase()}`);
     try {
       const result = await callProvider(provider, prompt);
-      if (tried.length) console.log(`[AI] fell back to ${provider} after: ${tried.map(t => t.provider).join(', ')}`);
+      const modelInfo = result.model ? ` (model: ${result.model})` : '';
+      console.log(`✅ [AI] SUCCESS via ${provider.toUpperCase()}${modelInfo}${tried.length ? ` — after ${tried.map(t => t.provider).join(', ')} failed` : ''}\n`);
       return { ...result, provider, reason: null, tried };
     } catch (e) {
       const msg = (e?.message || String(e)).slice(0, 160);
-      console.warn(`[AI] ${provider} failed (${msg}) — trying next provider`);
+      console.warn(`❌ [AI] ${provider.toUpperCase()} failed: ${msg} — trying next provider`);
       tried.push({ provider, error: msg });
     }
   }
+  console.error(`⛔ [AI] ALL providers failed (${tried.map(t => t.provider).join(', ')}) — falling back to local analysis\n`);
   return { provider: null, reason: 'all_ai_providers_failed', tried };
 }
 
@@ -1682,26 +1748,64 @@ async function analyzeWithOpenAI(prompt) {
   return { analysis, usage: data.usage || null };
 }
 
-async function analyzeWithGemini(prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+// Ordered list of Gemini text models to try: the configured one first, then
+// stable fallbacks. If a model is rate-limited (429), overloaded (503), down
+// (500/404), the next model is tried automatically before giving up on Gemini.
+const GEMINI_FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS ||
+  'gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.0-flash,gemini-flash-latest')
+  .split(',').map(s => s.trim()).filter(Boolean);
+
+function geminiModelChain() {
+  const chain = [];
+  if (GEMINI_MODEL) chain.push(GEMINI_MODEL);
+  for (const m of GEMINI_FALLBACK_MODELS) if (!chain.includes(m)) chain.push(m);
+  return chain;
+}
+
+async function callGeminiModel(model, prompt) {
+  console.log(`  🔹 [Gemini] trying model: ${model}`);
+  const t0 = Date.now();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-    }),
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
   });
-
+  const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`Gemini API error (${resp.status}): ${body.slice(0, 400)}`);
+    const err = new Error(`Gemini ${model} error (${resp.status}): ${(data?.error?.message || '').slice(0, 200)}`);
+    // 429 quota, 503 overloaded, 500 server, 404 model-not-found → try next model
+    err.retriable = [429, 500, 503, 404].includes(resp.status);
+    console.warn(`  ⚠️  [Gemini] ${model} → HTTP ${resp.status} (${data?.error?.status || 'error'})`);
+    throw err;
   }
-
-  const data = await resp.json();
   const parts = data?.candidates?.[0]?.content?.parts || [];
   const analysis = parts.map((p) => p?.text || '').join('\n').trim();
-  if (!analysis) throw new Error('Gemini API returned no text response.');
-  return { analysis, usage: data.usageMetadata || null };
+  if (!analysis) {
+    const err = new Error(`Gemini ${model} returned no text response.`);
+    err.retriable = true;
+    console.warn(`  ⚠️  [Gemini] ${model} → empty response (finishReason: ${data?.candidates?.[0]?.finishReason || 'unknown'})`);
+    throw err;
+  }
+  console.log(`  ✅ [Gemini] model ${model} responded in ${Date.now() - t0}ms (${analysis.length} chars)`);
+  return { analysis, usage: data.usageMetadata || null, model };
+}
+
+async function analyzeWithGemini(prompt) {
+  const chain = geminiModelChain();
+  console.log(`🤖 [Gemini] model chain: ${chain.join(' → ')}`);
+  let lastErr;
+  for (const model of chain) {
+    try {
+      const result = await callGeminiModel(model, prompt);
+      if (result.model !== chain[0]) console.log(`🔁 [Gemini] used FALLBACK model: ${result.model} (primary ${chain[0]} was unavailable)`);
+      return result;
+    } catch (e) {
+      lastErr = e;
+      if (!e.retriable) { console.error(`  ⛔ [Gemini] ${model} non-retriable — stopping: ${e.message}`); throw e; }
+    }
+  }
+  throw lastErr || new Error('All Gemini models failed.');
 }
 
 // ─── AI 3D Uniform Render (Gemini "Nano Banana" image generation) ─────────────
@@ -1771,6 +1875,14 @@ app.post('/api/ai/analyze', async (req, res) => {
       docError = result.error;
     }
 
+    // ── Cache: identical BRD + content ⇒ identical stored output ──────────
+    const cacheKey = computeCacheKey('analyze', { brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+    const cached = await getCachedAnalysis(cacheKey);
+    if (cached) {
+      console.log(`💾 [cache] HIT for /analyze (${cacheKey.slice(0, 12)}…) — returning stored result`);
+      return res.json({ ...cached, cached: true });
+    }
+
     const prompt = buildAnalysisPrompt({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, docError });
 
     // Try the configured provider, then fall back to the others; only drop to
@@ -1787,14 +1899,18 @@ app.post('/api/ai/analyze', async (req, res) => {
       });
     }
 
-    return res.json({
+    const payload = {
       analysis: r.analysis,
       mode: 'ai',
       provider: r.provider,
+      model: r.model || null,
       modeReason: r.tried.length ? `fell_back_from_${r.tried.map(t => t.provider).join('_')}` : null,
       usage: r.usage,
       docFetched: !!docContent,
-    });
+    };
+    // Persist so the same input returns the same output next time
+    await saveCachedAnalysis(cacheKey, 'analyze', r.provider, payload);
+    return res.json(payload);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
@@ -2185,6 +2301,148 @@ const CUSTOMIZER_MODULES = [
     role: 'Vectorsoft integration API: logo digitizing and vector art services.',
     keyExports: ['uploadToVectorsoft','getVectorsoftStatus'],
     keywords: ['vectorsoft','vector art','logo digitizing','art digitizing','vector logo'] },
+
+  // ── ORDERS ──────────────────────────────────────────────────────────────────
+  { name: 'orders.js (store)', path: 'resources/js/stores/orders.js', domain: 'Orders',
+    role: 'Pinia store for order history: in-production / shipped tabs, pagination, search, sort, filter, pricing toggle.',
+    keyExports: ['useOrdersStore','setOrderQuotations','archiveOrderQuotation','deleteOrder','initSubmittedOrders','initShippedOrders','handleSearch','handleSort','handleFilter','handleDateFilter','setActiveTab','setPricingToggleOn','resetForTrackerMode'],
+    keywords: ['order','orders','order history','order tracker','in production','shipped','quotation','reorder','order status','order tracking','submitted order','order page','pricing toggle'] },
+
+  { name: 'orders.js (api)', path: 'resources/js/api/orders.js', domain: 'Orders / API',
+    role: 'Order API: fetch in-production orders, split part item IDs, update/sync order shipping.',
+    keyExports: ['fetchOrdersInProduction','getSplitPartItemIdsByOrderItemId','updateOrderShipping','syncOrderShipping'],
+    keywords: ['order api','fetch orders','order shipping','sync order','order production','order endpoint'] },
+
+  { name: 'Pages/User/Order.vue', path: 'resources/js/Pages/User/Order.vue', domain: 'Orders / UI',
+    role: 'End-user order history page (with OrderNew.vue / OrderOld.vue tracker variants).',
+    keyExports: ['Order'],
+    keywords: ['order page','my orders','order history page','order list','user order','order tracker page'] },
+
+  { name: 'Orders/Dealer.vue', path: 'resources/js/Components/Orders/Dealer.vue', domain: 'Orders / Dealer',
+    role: 'Dealer order management: order tracker, pending internal approval, quotations (OrderTrackerNew/Old.vue).',
+    keyExports: ['Dealer','OrderTrackerNew','OrderTrackerOld','PendingInternalApproval','Quotations'],
+    keywords: ['dealer order','order tracker','pending approval','internal approval','dealer quotation','dealer orders'] },
+
+  { name: 'CartItem/EditReorder.vue', path: 'resources/js/Pages/CartItem/EditReorder.vue', domain: 'Orders / Reorder',
+    role: 'Reorder flow: edit / show / duplicate an existing order item (ShowReorder, ShowDuplicate).',
+    keyExports: ['EditReorder','ShowReorder','ShowDuplicate'],
+    keywords: ['reorder','re-order','duplicate order','edit reorder','order item','reorder item','duplicate item'] },
+
+  // ── SAVED DESIGNS ───────────────────────────────────────────────────────────
+  { name: 'saved-designs.js (store)', path: 'resources/js/stores/saved-designs.js', domain: 'Saved Designs',
+    role: 'Pinia store for the saved-design gallery: fetch, paginate, filter by category/user/sport, search, sort, favorite, archive, delete.',
+    keyExports: ['useSavedDesignsStore','fetchSavedDesigns','fetchAllSavedDesigns','filterSavedDesignByCategory','filterSavedDesignBySports','filterSearchSavedDesign','sortSavedDesigns','favoriteDesign','archiveDesign','deleteDesign','createUniformConfig','fetchProductInfo'],
+    keywords: ['saved design','save design','saved designs','design gallery','design library','favorite design','archive design','my designs','load design','design list'] },
+
+  { name: 'saved-designs.js (api)', path: 'resources/js/api/saved-designs.js', domain: 'Saved Designs / API',
+    role: 'Saved-design API: CRUD, filter by category/sport/user, search, sort, favorite, archive, create/update design.',
+    keyExports: ['getSavedDesigns','getAllSavedDesign','filterByCategory','filterBySport','filterByUser','searchSavedDesigns','sortSavedDesigns','archiveSavedDesign','favoriteSavedDesign','deleteSavedDesign','createSaveDesign','updateSaveDesign'],
+    keywords: ['saved design api','create save design','update design','filter design','design persistence','save design endpoint'] },
+
+  { name: 'Pages/User/SavedDesign.vue', path: 'resources/js/Pages/User/SavedDesign.vue', domain: 'Saved Designs / UI',
+    role: 'Saved designs gallery page with filter/share modals (SavedDesignItems, ShareDesignModal, SelectFilterModal).',
+    keyExports: ['SavedDesign','SavedDesignItems','ShareDesignModal'],
+    keywords: ['saved design page','design gallery page','share design','design filter','saved design items','design grid'] },
+
+  // ── CART / SHOPPING CART / MY CARTS ─────────────────────────────────────────
+  { name: 'shopping-cart.js (store)', path: 'resources/js/stores/shopping-cart.js', domain: 'Cart',
+    role: 'Active shopping cart: items, grand totals, MOQ tracking, discount validation, shipment dates, thumbnails, missing-info checks.',
+    keyExports: ['useShoppingCartStore','initialize','processCartItems','updateCart','validateDiscountCode','fetchDiscountDetails','fetchShipmentDates','setMissingRoster','setMissingApplicationSizes','setNoFabricSelectedItemsId','getGrandTotals','getAppliedDiscountCode'],
+    keywords: ['shopping cart','cart total','grand total','moq','minimum order','discount code','promo code','cart item','shipment date','missing roster','add to cart','cart checkout'] },
+
+  { name: 'cart.js (store)', path: 'resources/js/stores/cart.js', domain: 'Cart',
+    role: 'Cart list + selection: cart list, selected cart, default cart, rush order detection, next cart name.',
+    keyExports: ['useCartStore','setCartList','setSelectedCart','setDefaultCart','fetchCarts','getNextCartName','hasActiveRushOrder'],
+    keywords: ['cart','cart list','selected cart','default cart','save cart','my cart','rush order','cart name'] },
+
+  { name: 'my-carts.js (store)', path: 'resources/js/stores/my-carts.js', domain: 'Cart / UI',
+    role: 'My Carts page store: paginated carts + quote requests, search, sort, tabs.',
+    keyExports: ['useMyCartsStore','initCarts','initAllCarts','initQuotations','handleSort','handleSearch','refreshData','setActiveTab'],
+    keywords: ['my carts','saved carts','cart page','quote request','cart pagination','cart tab'] },
+
+  { name: 'cart-items.js (store)', path: 'resources/js/stores/cart-items.js', domain: 'Cart',
+    role: 'Cart item state: change logs, rejection form, active item, fixed logs by type.',
+    keyExports: ['useCartItemsStore','setCartItems','setActiveCartItem','setCartItemLogs','getRejectionDetails','getFixedLogsByType','isRejected'],
+    keywords: ['cart item','change log','rejection','rejected item','item log','fix request','cart item detail'] },
+
+  { name: 'carts.js (api)', path: 'resources/js/api/carts.js', domain: 'Cart / API',
+    role: 'Cart API: paginated/minimized cart fetch, set default cart, paginated quotations.',
+    keyExports: ['fetchCartsPaginated','fetchCartsMinimized','setCartAsDefault','fetchQuotationsPaginated'],
+    keywords: ['cart api','fetch carts','default cart api','quotation api','cart endpoint'] },
+
+  { name: 'Pages/ShoppingCart/ShoppingCart.vue', path: 'resources/js/Pages/ShoppingCart/ShoppingCart.vue', domain: 'Cart / UI',
+    role: 'Main shopping cart page: items, approval, cart info, continue shopping, quote-request flow.',
+    keyExports: ['ShoppingCart','ApprovalPage','CartInformation','ShoppingCartItem'],
+    keywords: ['shopping cart page','cart page','cart approval','cart information','continue shopping','request submitted','cart item page'] },
+
+  // ── CHECKOUT ────────────────────────────────────────────────────────────────
+  { name: 'checkout.js (store)', path: 'resources/js/stores/checkout.js', domain: 'Checkout',
+    role: 'Full checkout flow: shipping/billing addresses, payment (card / terms / pro-code), customer & dealer selection, tax, order summary, sales-rep id.',
+    keyExports: ['useCheckoutStore','setShippingState','setBillingState','setTotalTaxByState','setPaymentType','setCardType','setOrderSummary','setCustomerInformation','setDealerSelectedCustomer','setAccountRepId','getShipping','getBilling','getSaleRepInformation','getPaymentTerms','getSalesRepId','getOrderSummary'],
+    keywords: ['checkout','payment','shipping','billing','address','credit card','payment terms','net terms','tax','order summary','place order','submit order','promo code','checkout page'] },
+
+  { name: 'addresses.js (api)', path: 'resources/js/api/addresses.js', domain: 'Checkout / API',
+    role: 'Address book API: fetch saved addresses by user.',
+    keyExports: ['fetchAddressesByUserId'],
+    keywords: ['address','address book','shipping address','billing address','saved address'] },
+
+  { name: 'discount-code.js (api)', path: 'resources/js/api/discount-code.js', domain: 'Checkout / Pricing',
+    role: 'Discount / promo code API: apply, remove, fetch discount details.',
+    keyExports: ['applyDiscount','removeDiscount','getDiscountDetails'],
+    keywords: ['discount','promo code','coupon','discount code','apply discount','voucher'] },
+
+  { name: 'Checkout/Index.vue', path: 'resources/js/Pages/Checkout/Index.vue', domain: 'Checkout / UI',
+    role: 'Main checkout page with shipping/billing/payment components and Success / UnsuccessOrder result pages.',
+    keyExports: ['CheckoutIndex','Success','UnsuccessOrder'],
+    keywords: ['checkout page','checkout form','order confirmation','order success','payment page','checkout flow'] },
+
+  { name: 'Checkout/PaymentWithCreditCard.vue', path: 'resources/js/Components/Checkout/PaymentWithCreditCard.vue', domain: 'Checkout / Payment',
+    role: 'Payment components: credit card, net terms, promo code, order summary, policy acceptance.',
+    keyExports: ['PaymentWithCreditCard','PaymentWithTerms','PromoCode','OrderSummary','Policy'],
+    keywords: ['credit card','payment','net terms','promo code','order summary','payment method','card payment','policy'] },
+
+  // ── SALES REP / DEALER ──────────────────────────────────────────────────────
+  { name: 'dealer.js (store)', path: 'resources/js/stores/dealer.js', domain: 'Sales Rep / Dealer',
+    role: 'Dealers + sales reps: filter by brand, find dealer / sales rep, dealer & rep near-me lookups.',
+    keyExports: ['useDealerStore','getDealers','setSalesReps','filterDealerByBrand','getSalesReps','dealerNearMe','findDealer','findSalesReps','salesRepsNearMe'],
+    keywords: ['dealer','sales rep','sales representative','sale ref','rep','dealer near me','find dealer','find rep','dealer brand','preferred dealer'] },
+
+  { name: 'user.js (api)', path: 'resources/js/api/user.js', domain: 'Sales Rep / API',
+    role: 'User/dealer/rep API: fetch users & teams, dealer cost, rep cost, search sales representatives.',
+    keyExports: ['fetchUsers','getProductProInfo','getTeams','fetchDealerCost','getRepCost','searchSalesRepresentatives'],
+    keywords: ['sales rep api','rep cost','dealer cost','search sales rep','product pro','dealer pricing','rep pricing'] },
+
+  { name: 'cost-settings.js (store)', path: 'resources/js/stores/cost-settings.js', domain: 'Sales Rep / Pricing',
+    role: 'Determines dealer vs retail cost / pricing formula based on user role.',
+    keyExports: ['useCostSettingsStore'],
+    keywords: ['cost setting','dealer cost','retail cost','rep cost','pricing formula','cost formula','markup'] },
+
+  // ── END USER / USER ─────────────────────────────────────────────────────────
+  { name: 'user.js (store)', path: 'resources/js/stores/user.js', domain: 'End User',
+    role: 'User profile + role gates (end-user, dealer, sales-rep, admin, brand manager, product-pro), associated users/customers, orders, sales-rep linkage.',
+    keyExports: ['useUserStore','initUser','fetchAssociatedUsers','isEndUser','isDealer','isSalesRep','isManagingRep','isAdmin','isBrandManager','isProductPro','getUserRole','getSalesRepId','getAssociatedCustomer'],
+    keywords: ['end user','enduser','customer','user role','dealer','sales rep','account','login','logged in','guest','customer account','user profile','role','permission'] },
+
+  { name: 'Orders/Customer.vue', path: 'resources/js/Components/Orders/Customer.vue', domain: 'End User / UI',
+    role: 'Customer-facing order history display (end-user view of orders).',
+    keyExports: ['Customer'],
+    keywords: ['customer order','end user order','customer view','my orders','customer order history'] },
+
+  { name: 'Checkout/EndUser.vue', path: 'resources/js/Components/Checkout/EndUser.vue', domain: 'End User / UI',
+    role: 'End-user checkout flow (vs dealer checkout); customer self-service ordering.',
+    keyExports: ['EndUser'],
+    keywords: ['end user checkout','customer checkout','self service','guest checkout','enduser flow'] },
+
+  { name: 'Pages/User/Index.vue', path: 'resources/js/Pages/User/Index.vue', domain: 'End User / UI',
+    role: 'End-user account hub: dashboard, profile, address book, saved designs/logos, carts, orders.',
+    keyExports: ['UserIndex','Profile','Address','Customers'],
+    keywords: ['user dashboard','account page','profile','address book','my account','user page','customer dashboard'] },
+
+  // ── MANUAL ORDER ────────────────────────────────────────────────────────────
+  { name: 'manual-order.js (store)', path: 'resources/js/stores/manual-order.js', domain: 'Custom Pro / Manual Order',
+    role: 'Manual (Custom Pro) order flow: main body color, add-ons, design-file upload, notes, fabric, estimated ship date.',
+    keyExports: ['useManualOrderStore','setMainBodyColor','setAddon','isManualOrderAllowed','saveDesignFile','getManualOrderEstimatedShipDate','setActiveFabric','initializeManualOrderCartItem'],
+    keywords: ['manual order','custom pro','design file','upload design','manual order file','main body color','manual fabric','custom order','bags'] },
 ];
 
 // ─── Live file snippet reader (top 12 most architecturally critical files) ───
@@ -2201,6 +2459,11 @@ const CRITICAL_FILES = [
   'resources/js/Components/Builder/Logo/LogoPanel.vue',
   'resources/js/stores/approval.js',
   'resources/js/stores/cart.js',
+  'resources/js/stores/orders.js',
+  'resources/js/stores/checkout.js',
+  'resources/js/stores/shopping-cart.js',
+  'resources/js/stores/saved-designs.js',
+  'resources/js/stores/user.js',
 ];
 
 function buildCustomizerContext() {
@@ -2326,7 +2589,7 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
       path: mod.path,
       role: mod.role,
       severity,
-      explanation: `Matched keywords: "${matchedKws.slice(0, 4).join('", "')}". This file is part of the ${mod.domain} domain and will need review for this BRD.`
+      explanation: `Analysis indicates this BRD touches ${matchedKws.slice(0, 4).join(', ')}. As part of the ${mod.domain} domain, this file should be reviewed and likely modified for this requirement.`
     });
     affectedConcepts.add(mod.domain);
   }
@@ -2345,7 +2608,7 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
       name: 'customizer.js', path: 'resources/js/stores/customizer.js',
       role: 'Primary Pinia store managing customizer state.',
       severity: 'Low',
-      explanation: 'No specific domain keywords matched. General uniform changes typically start in the customizer store.'
+      explanation: 'Analysis did not surface a specific domain for this BRD. General uniform changes typically begin in the central customizer store, so it should be reviewed first.'
     });
     affectedConcepts.add('Core Store');
     recommendations.push('Audit customizer.js to register any new uniform properties in ActiveUniform.settings.');
@@ -2374,7 +2637,7 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
       tab:         sf.tab,
       status:      sf.status,
       impact:      matchedKws.length >= 3 ? 'High' : 'Medium',
-      explanation: 'Matched keywords: ' + kwList + '. This feature will need review as part of this BRD.',
+      explanation: 'Analysis indicates this BRD involves ' + kwList + ', so this function will need review and testing as part of this requirement.',
     });
   }
 
@@ -2397,6 +2660,14 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
     if (!docContent && brd.googleDocsLink) {
       const { text } = await fetchGoogleDocText(brd.googleDocsLink);
       docContent = text;
+    }
+
+    // ── Cache: identical BRD + content ⇒ identical stored output ──────────
+    const cacheKey = computeCacheKey('affected-modules', { brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+    const cachedResult = await getCachedAnalysis(cacheKey);
+    if (cachedResult) {
+      console.log(`💾 [cache] HIT for /analyze-affected-modules (${cacheKey.slice(0, 12)}…) — returning stored result`);
+      return res.json({ ...cachedResult, cached: true });
     }
 
     // If no AI provider has a valid key, go straight to the local scanner
@@ -2553,7 +2824,10 @@ Output ONLY a single valid JSON object — no markdown, no text outside the JSON
       ? readAffectedCodeBlocks(parsedJson.affectedModules || [])
       : [];
 
-    return res.json({ ...parsedJson, affectedCodeBlocks, mode: 'ai', provider: usedProvider, modeReason: fellBack, docFetched: !!docContent });
+    const payload = { ...parsedJson, affectedCodeBlocks, mode: 'ai', provider: usedProvider, model: r.model || null, modeReason: fellBack, docFetched: !!docContent };
+    // Persist so the same BRD + content returns the same output next time
+    await saveCachedAnalysis(cacheKey, 'affected-modules', usedProvider, payload);
+    return res.json(payload);
 
   } catch (e) {
     try {

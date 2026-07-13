@@ -9,6 +9,7 @@ const BA_COLORS = {
   JR:       { dot: 'bg-blue-500',   header: 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800',         label: 'text-blue-700 dark:text-blue-300',     count: 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400',     avatar: 'bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400' },
   ERMS:     { dot: 'bg-amber-500',  header: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800',     label: 'text-amber-700 dark:text-amber-300',   count: 'bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-400', avatar: 'bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400' },
   Joyce:    { dot: 'bg-emerald-500',header: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800', label: 'text-emerald-700 dark:text-emerald-300', count: 'bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-400', avatar: 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' },
+  Imman:    { dot: 'bg-rose-500',   header: 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800',         label: 'text-rose-700 dark:text-rose-300',     count: 'bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-400',     avatar: 'bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400' },
 };
 
 export default function BAPage({ brds, bugs, onSelectBRD }) {

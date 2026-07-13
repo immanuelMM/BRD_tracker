@@ -113,6 +113,12 @@ export const createPMNote   = (data)     => call('POST',   '/pm-notes', data);
 export const updatePMNote   = (id, data) => call('PUT',    `/pm-notes/${id}`, data);
 export const deletePMNote   = (id)       => call('DELETE', `/pm-notes/${id}`);
 
+// ─── Style Features ────────────────────────────────────────────────────────────
+export const getAllStyleFeatures  = ()         => call('GET',    '/style-features');
+export const createStyleFeature   = (data)     => call('POST',   '/style-features', data);
+export const updateStyleFeature   = (id, data) => call('PUT',    `/style-features/${id}`, data);
+export const deleteStyleFeature   = (id)       => call('DELETE', `/style-features/${id}`);
+
 // ─── SQL Explorer ──────────────────────────────────────────────────────────────
 export const runQuery = (sql) => call('POST', '/query', { sql });
 

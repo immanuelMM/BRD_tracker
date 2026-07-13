@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import mammoth from 'mammoth';
 import { jsPDF } from 'jspdf';
-import { analyzeWithAI, fmtTitle } from '../utils/db';
+import { analyzeWithAI, fmtTitle, getAllStyleFeatures, createStyleFeature, updateStyleFeature, deleteStyleFeature } from '../utils/db';
 
 const KB_CATEGORIES = ['System Overview', 'Tech Stack', 'Business Rules', 'Integration', 'Standards & Guidelines', 'Domain Knowledge', 'General'];
 
@@ -142,7 +142,19 @@ function MarkdownRenderer({ text, className = '' }) {
   );
 }
 
+const SF_STATUSES = ['stable', 'new', 'ongoing', 'assessment'];
+const SF_STATUS_COLORS = {
+  stable:     'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300',
+  new:        'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
+  ongoing:    'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300',
+  assessment: 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300',
+};
+const sfStatusColor = (s) => SF_STATUS_COLORS[s] || SF_STATUS_COLORS.stable;
+
 export default function KnowledgeBasePage({ brds, bugs, brdTechLeads, kbEntries, onRefreshKB, onCreateKB, onUpdateKB, onDeleteKB, notify }) {
+  // Left-panel tab: 'kb' | 'functions'
+  const [leftTab, setLeftTab] = useState('kb');
+
   // KB management
   const [showAddKB, setShowAddKB]   = useState(false);
   const [editingKB, setEditingKB]   = useState(null);
@@ -152,6 +164,63 @@ export default function KnowledgeBasePage({ brds, bugs, brdTechLeads, kbEntries,
   const [searchQuery, setSearchQuery] = useState('');
   const [uploading, setUploading]   = useState(false);
   const fileInputRef = useRef(null);
+
+  // Function Registry (style features)
+  const [styleFeatures, setStyleFeatures]   = useState([]);
+  const [sfLoading, setSfLoading]           = useState(false);
+  const [sfSearch, setSfSearch]             = useState('');
+  const [sfTabFilter, setSfTabFilter]       = useState('all');
+  const [showAddSF, setShowAddSF]           = useState(false);
+  const [editingSF, setEditingSF]           = useState(null);
+  const [sfForm, setSfForm]                 = useState({ feature: '', tab: '', status: 'stable', keywords: '' });
+
+  const loadSF = useCallback(async () => {
+    setSfLoading(true);
+    try {
+      const data = await getAllStyleFeatures();
+      setStyleFeatures(Array.isArray(data) ? data : []);
+    } catch { /* silently ignore */ }
+    finally { setSfLoading(false); }
+  }, []);
+
+  useEffect(() => { if (leftTab === 'functions') loadSF(); }, [leftTab, loadSF]);
+
+  const sfTabs = ['all', ...Array.from(new Set(styleFeatures.map(sf => sf.tab).filter(Boolean))).sort()];
+
+  const visibleSF = styleFeatures.filter(sf => {
+    const matchTab = sfTabFilter === 'all' || sf.tab === sfTabFilter;
+    if (!sfSearch.trim()) return matchTab;
+    const q = sfSearch.toLowerCase();
+    return matchTab && (
+      sf.feature?.toLowerCase().includes(q) ||
+      sf.tab?.toLowerCase().includes(q) ||
+      (Array.isArray(sf.keywords) ? sf.keywords : []).some(kw => kw.toLowerCase().includes(q))
+    );
+  });
+
+  const handleSaveSF = async (e) => {
+    e.preventDefault();
+    if (!sfForm.feature.trim()) { notify('Feature name is required', 'error'); return; }
+    const keywords = sfForm.keywords.split(',').map(k => k.trim()).filter(Boolean);
+    const payload = { feature: sfForm.feature.trim(), tab: sfForm.tab.trim() || 'General', status: sfForm.status, keywords };
+    if (editingSF) {
+      await updateStyleFeature(editingSF.id, payload);
+      notify('Feature updated');
+      setEditingSF(null);
+    } else {
+      await createStyleFeature({ ...payload, sortOrder: styleFeatures.length });
+      notify('Feature added');
+      setShowAddSF(false);
+    }
+    setSfForm({ feature: '', tab: '', status: 'stable', keywords: '' });
+    loadSF();
+  };
+
+  const handleDeleteSF = async (id) => {
+    await deleteStyleFeature(id);
+    notify('Feature deleted');
+    loadSF();
+  };
 
   // BRD analysis
   const [selectedBRDId, setSelectedBRDId] = useState('');
@@ -418,7 +487,9 @@ ${htmlLines}
       }
     });
 
-    doc.save(`analysis-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`);
+    const slug = title.replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0, 60);
+    doc.setProperties({ title: `${title} — BRD Analysis Report` });
+    doc.save(`${slug}-brd-analysis.pdf`);
   };
 
   const downloadKBEntryDocx = (entry) => {
@@ -580,9 +651,176 @@ ${htmlLines}
       )}
 
       {/* ════════════════════════════════════════
-          LEFT PANEL — Knowledge Base
+          LEFT PANEL — Knowledge Base / Function Registry
       ════════════════════════════════════════ */}
       <div className="flex-1 min-w-0 flex flex-col gap-3">
+
+        {/* Tab switcher */}
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 self-start">
+          <button onClick={() => setLeftTab('kb')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${leftTab === 'kb' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+            Knowledge Base
+          </button>
+          <button onClick={() => setLeftTab('functions')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${leftTab === 'functions' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+            Function Registry
+          </button>
+        </div>
+
+        {/* ── FUNCTION REGISTRY PANEL ── */}
+        {leftTab === 'functions' && (
+          <div className="flex flex-col gap-3 flex-1 min-h-0">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-base font-bold text-slate-900 dark:text-white">Function Registry</h1>
+                <p className="text-xs text-slate-400 mt-0.5">{styleFeatures.length} builder {styleFeatures.length === 1 ? 'feature' : 'features'} · used for AI impact analysis</p>
+              </div>
+              <button onClick={() => { setShowAddSF(true); setEditingSF(null); setSfForm({ feature: '', tab: '', status: 'stable', keywords: '' }); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors shadow-sm">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                New Feature
+              </button>
+            </div>
+
+            {/* Tab filter chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
+              {sfTabs.map(t => (
+                <button key={t} onClick={() => setSfTabFilter(t)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 transition-all ${
+                    sfTabFilter === t
+                      ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                  }`}>
+                  {t === 'all' ? `All (${styleFeatures.length})` : t}
+                </button>
+              ))}
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input value={sfSearch} onChange={e => setSfSearch(e.target.value)}
+                placeholder="Search features or keywords…"
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors" />
+              {sfSearch && (
+                <button onClick={() => setSfSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+            </div>
+
+            {/* Feature list */}
+            <div className="flex flex-col gap-2 overflow-y-auto flex-1 pr-0.5">
+              {sfLoading ? (
+                <div className="flex items-center justify-center py-16 text-slate-400 text-sm">Loading…</div>
+              ) : visibleSF.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-20 text-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl">
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{sfSearch ? 'No results found' : 'No features yet'}</p>
+                  <p className="text-xs text-slate-400">{sfSearch ? 'Try a different search' : 'Click "New Feature" to add a builder function'}</p>
+                </div>
+              ) : visibleSF.map(sf => (
+                <div key={sf.id} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 group hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full ${sfStatusColor(sf.status)}`}>
+                          {sf.status}
+                        </span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium truncate">{sf.tab}</span>
+                      </div>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">{sf.feature}</p>
+                      {Array.isArray(sf.keywords) && sf.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {sf.keywords.slice(0, 6).map((kw, i) => (
+                            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">{kw}</span>
+                          ))}
+                          {sf.keywords.length > 6 && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400">+{sf.keywords.length - 6}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <button onClick={() => { setEditingSF(sf); setShowAddSF(false); setSfForm({ feature: sf.feature, tab: sf.tab, status: sf.status, keywords: Array.isArray(sf.keywords) ? sf.keywords.join(', ') : '' }); }}
+                        title="Edit"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      </button>
+                      <button onClick={() => handleDeleteSF(sf.id)}
+                        title="Delete"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Add / Edit Function modal */}
+            {(showAddSF || editingSF) && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                onClick={() => { setShowAddSF(false); setEditingSF(null); }}>
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 w-full max-w-lg shadow-2xl"
+                  onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                    <h3 className="font-bold text-slate-900 dark:text-white">{editingSF ? 'Edit Feature' : 'New Builder Feature'}</h3>
+                    <button onClick={() => { setShowAddSF(false); setEditingSF(null); }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                  <form onSubmit={handleSaveSF} className="p-6 space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5 block">Feature Name</label>
+                      <input value={sfForm.feature} onChange={e => setSfForm({ ...sfForm, feature: e.target.value })}
+                        placeholder="e.g. Fabric Flow (Upgrade)"
+                        autoFocus
+                        className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5 block">Tab / Section</label>
+                        <input value={sfForm.tab} onChange={e => setSfForm({ ...sfForm, tab: e.target.value })}
+                          placeholder="e.g. Options Tab"
+                          className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5 block">Status</label>
+                        <select value={sfForm.status} onChange={e => setSfForm({ ...sfForm, status: e.target.value })}
+                          className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                          {SF_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5 block">Keywords</label>
+                      <textarea value={sfForm.keywords} onChange={e => setSfForm({ ...sfForm, keywords: e.target.value })}
+                        placeholder="comma-separated keywords, e.g. fabric upgrade, upgrade fee, upgrade flow"
+                        rows={3}
+                        className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-colors" />
+                      <p className="text-[11px] text-slate-400 mt-1">Comma-separated. Used to match BRD descriptions during analysis.</p>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button type="submit"
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-sm">
+                        {editingSF ? 'Save Changes' : 'Create Feature'}
+                      </button>
+                      <button type="button" onClick={() => { setShowAddSF(false); setEditingSF(null); }}
+                        className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-medium transition-colors hover:bg-slate-200 dark:hover:bg-slate-700">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── KNOWLEDGE BASE PANEL ── */}
+        {leftTab === 'kb' && (<>
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -718,6 +956,7 @@ ${htmlLines}
             );
           })}
         </div>
+        </>)}
       </div>
 
       {/* ════════════════════════════════════════

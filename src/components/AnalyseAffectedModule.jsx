@@ -5,6 +5,64 @@ import { analyzeAffectedModules, fmtTitle } from '../utils/db';
 import GarmentZoneSimulator from './GarmentZoneSimulator';
 import Garment3DView        from './Garment3DView';
 
+// ── Default AI instructions for the affected-modules prompt ───────────────────
+const DEFAULT_INSTRUCTIONS = `═══════════════════════════════════════════════════════
+INSTRUCTIONS — ANALYSIS OUTPUT
+═══════════════════════════════════════════════════════
+You have now read:
+  ✓ Section 1 — The BRD requirement
+  ✓ Section 2 — AI Knowledge Base (domain rules and hardcoded logic relevant to this BRD)
+  ✓ Section 3 — Codebase module index (real file paths and roles)
+  ✓ Section 4 — Live code snippets (actual functions and exports in the repository)
+  ✓ Section 5 — Builder function registry
+
+Now produce your analysis using ONLY information found in those sections. Every file path, function name, and KB reference in your output must exist in the material above.
+
+PART A — Affected Files
+- List only files from Section 3 that are directly impacted by the BRD requirement
+- Each file must include the exact path from Section 3 and real function names from Section 4
+- Explain specifically HOW the requirement changes or touches that file — reference the KB context (Section 2) where it confirms the impact
+- Severity: High = core store/engine/factory logic | Medium = component, service, or store helper | Low = UI-only or config tweak
+
+PART B — Affected Builder Functions
+- List only functions from Section 5 that the BRD will change, add, or remove
+- Use the exact feature name and tab from Section 5
+- Explain HOW the BRD impacts that function — tie it back to KB entries or code snippets where applicable
+
+RULES:
+- Do NOT include files or functions that are not touched by this specific requirement
+- Do NOT invent paths, function names, or KB entries — only use what is in Sections 1–5
+- If the KB (Section 2) contains a hardcoded rule directly related to the BRD, it MUST appear in your verdict and relevant explanations
+- impactScore 0-100: reflects actual code surface area affected (High severity files raise the score)
+
+Output ONLY a single valid JSON object — no markdown, no text outside the JSON:
+
+{
+  "impactScore": <0-100>,
+  "verdict": "<one paragraph: summarise what the BRD changes, which KB rules are relevant, and which core files/functions are affected — use real names>",
+  "affectedModules": [
+    {
+      "name": "<filename from Section 3>",
+      "path": "<exact path from Section 3>",
+      "role": "<role of this file>",
+      "severity": "High|Medium|Low",
+      "explanation": "<specific explanation: what in this file changes, which function is touched, and why — tie to BRD requirement and KB context>",
+      "affectedFunctions": ["<real function name from Section 4 code snippets>"]
+    }
+  ],
+  "affectedConcepts": ["<domain concept derived from BRD + KB — e.g. 'TCG', 'Sideline Size Restriction', 'MDJ Color Init'>"],
+  "recommendations": ["<actionable step referencing real file or function names>"],
+  "affectedStyleFeatures": [
+    {
+      "feature": "<exact feature name from Section 5>",
+      "tab": "<exact tab from Section 5>",
+      "status": "<status from Section 5: new|stable|ongoing|assessment>",
+      "impact": "High|Medium|Low",
+      "explanation": "<how this BRD specifically impacts this feature — reference the KB entry or code line that confirms it>"
+    }
+  ]
+}`;
+
 // ── Severity colour helpers ────────────────────────────────────────────────────
 const SEV_RGB   = { High: [239,68,68], Medium: [245,158,11], Low: [16,185,129] };
 const SEV_HEX   = { High: '#ef4444',   Medium: '#f59e0b',   Low:  '#10b981'   };
@@ -23,16 +81,11 @@ function downloadResultsPDF(analysis, brd) {
     if (y + need > H - 14) { doc.addPage(); y = 16; }
   };
 
-  const txt = (text, size, style, rgb = [30,30,30]) => {
+  const txt = (_text, size, style, rgb = [30,30,30]) => {
     doc.setFontSize(size); doc.setFont('helvetica', style);
     doc.setTextColor(...rgb);
   };
 
-  const wrappedText = (text, x, maxW, lineH) => {
-    const lines = doc.splitTextToSize(String(text || ''), maxW);
-    lines.forEach(ln => { checkPage(lineH); doc.text(ln, x, y); y += lineH; });
-    return lines.length;
-  };
 
   // ── Header band ──────────────────────────────────────────────────────────────
   doc.setFillColor(30, 58, 138);          // dark navy
@@ -40,18 +93,18 @@ function downloadResultsPDF(analysis, brd) {
   doc.setFillColor(37, 99, 235);          // blue accent stripe
   doc.rect(0, 19, W, 3, 'F');
 
-  txt('ARCHITECTURAL IMPACT ANALYSIS', 11, 'bold', [255,255,255]);
+  txt('ARCHITECTURAL IMPACT ANALYSIS', 12, 'bold', [255,255,255]);
   doc.text('ARCHITECTURAL IMPACT ANALYSIS', ML, 8);
 
-  txt(new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }), 7, 'normal', [147,197,253]);
+  txt(new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }), 8, 'normal', [147,197,253]);
   doc.text(new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }), W - ML, 8, { align: 'right' });
 
-  const title = (brd?.title || 'Affected Module Report').slice(0, 90);
-  txt(title, 9, 'normal', [186, 212, 253]);
+  const title = (brd?.title || 'Affected File Report').slice(0, 90);
+  txt(title, 10, 'normal', [186, 212, 253]);
   doc.text(title, ML, 15);
 
   const providerLabel = analysis.provider === 'gemini' ? 'Gemini AI' : analysis.provider === 'anthropic' ? 'Claude AI' : analysis.provider === 'openai' ? 'OpenAI' : 'Rule-based';
-  txt(providerLabel, 7, 'bold', [147,197,253]);
+  txt(providerLabel, 8, 'bold', [147,197,253]);
   doc.text(providerLabel, W - ML, 15, { align: 'right' });
   y = 30;
 
@@ -63,17 +116,17 @@ function downloadResultsPDF(analysis, brd) {
   // Score circle
   doc.setDrawColor(...scoreColor); doc.setLineWidth(2.5);
   doc.circle(ML + 13, y + 10, 11, 'S');
-  txt(String(score), 14, 'bold', scoreColor);
+  txt(String(score), 15, 'bold', scoreColor);
   doc.text(String(score), ML + 13, y + 12, { align: 'center' });
 
   // Label + verdict text
   doc.setFillColor(...scoreColor);
   doc.roundedRect(ML + 28, y, 34, 6, 1.5, 1.5, 'F');
-  txt(label, 7, 'bold', [255,255,255]);
+  txt(label, 8, 'bold', [255,255,255]);
   doc.text(label, ML + 45, y + 4.2, { align: 'center' });
 
   y += 8;
-  txt(analysis.verdict || '', 8, 'normal', [71,85,105]);
+  txt(analysis.verdict || '', 9, 'normal', [71,85,105]);
   const verdictLines = doc.splitTextToSize(analysis.verdict || '', CW - 30);
   verdictLines.slice(0, 4).forEach(ln => { doc.text(ln, ML + 28, y); y += 4.5; });
   y += 4;
@@ -88,13 +141,13 @@ function downloadResultsPDF(analysis, brd) {
     doc.line(ML - 1, y - 4, ML - 1, y + 3);
     doc.setFillColor(37, 99, 235);
     doc.rect(ML - 1, y - 4, 2.5, 7, 'F');
-    txt(title, 8, 'bold', [30, 64, 175]);
+    txt(title, 9, 'bold', [30, 64, 175]);
     doc.text(title, ML + 4, y + 0.5);
     y += 7;
   };
 
-  // ── Affected Modules ─────────────────────────────────────────────────────────
-  sectionHeader(`AFFECTED MODULES  (${(analysis.affectedModules || []).length})`);
+  // ── Affected Files ───────────────────────────────────────────────────────────
+  sectionHeader(`AFFECTED FILES  (${(analysis.affectedModules || []).length})`);
 
   (analysis.affectedModules || []).forEach((mod, i) => {
     checkPage(22);
@@ -108,32 +161,32 @@ function downloadResultsPDF(analysis, brd) {
     // Severity badge
     doc.setFillColor(...sRgb);
     doc.roundedRect(ML, y, 18, 5, 1.2, 1.2, 'F');
-    txt(mod.severity?.toUpperCase() || '', 5.5, 'bold', [255,255,255]);
+    txt(mod.severity?.toUpperCase() || '', 6.5, 'bold', [255,255,255]);
     doc.text(mod.severity?.toUpperCase() || '', ML + 9, y + 3.6, { align:'center' });
 
     // Module name
-    txt(mod.name || '', 8, 'bold', [15,23,42]);
+    txt(mod.name || '', 9, 'bold', [15,23,42]);
     doc.text(mod.name || '', ML + 21, y + 3.5);
 
     y += 7;
 
     // Path
-    txt(mod.path || '', 6.5, 'normal', [100,116,139]);
+    txt(mod.path || '', 7.5, 'normal', [100,116,139]);
     doc.text(doc.splitTextToSize(mod.path || '', CW - 4)[0], ML + 2, y);
-    y += 4.5;
+    y += 5;
 
     // Role
     if (mod.role) {
-      txt('Role: ' + (mod.role || ''), 7, 'italic', [71,85,105]);
+      txt('Role: ' + (mod.role || ''), 8, 'italic', [71,85,105]);
       const roleLines = doc.splitTextToSize('Role: ' + mod.role, CW - 4);
-      roleLines.slice(0,2).forEach(ln => { checkPage(4.5); doc.text(ln, ML + 2, y); y += 4.5; });
+      roleLines.slice(0,2).forEach(ln => { checkPage(5); doc.text(ln, ML + 2, y); y += 5; });
     }
 
     // Explanation
     if (mod.explanation) {
-      txt(mod.explanation, 7, 'normal', [71,85,105]);
+      txt(mod.explanation, 8, 'normal', [71,85,105]);
       const expLines = doc.splitTextToSize(mod.explanation, CW - 4);
-      expLines.slice(0, 3).forEach(ln => { checkPage(4.5); doc.text(ln, ML + 2, y); y += 4.5; });
+      expLines.slice(0, 3).forEach(ln => { checkPage(5); doc.text(ln, ML + 2, y); y += 5; });
     }
 
     y += 2;
@@ -159,7 +212,7 @@ function downloadResultsPDF(analysis, brd) {
       doc.setDrawColor(147, 197, 253);
       doc.setLineWidth(0.3);
       doc.roundedRect(cx, y, pw, pillH, 1.5, 1.5, 'FD');
-      txt(concept, 6.5, 'normal', [29, 78, 216]);
+      txt(concept, 7.5, 'normal', [29, 78, 216]);
       doc.text(concept, cx + pillPadX, y + 4);
       cx += pw + pillGap;
     });
@@ -178,7 +231,7 @@ function downloadResultsPDF(analysis, brd) {
       txt(String(i + 1), 6, 'bold', [255,255,255]);
       doc.text(String(i + 1), ML + 3, y + 3, { align: 'center' });
 
-      txt(rec, 7.5, 'normal', [30,41,59]);
+      txt(rec, 8.5, 'normal', [30,41,59]);
       const recLines = doc.splitTextToSize(rec, CW - 10);
       recLines.forEach((ln, li) => {
         checkPage(5);
@@ -214,12 +267,12 @@ function downloadResultsPDF(analysis, brd) {
       const sRgb = stRgb[sf.status] || stRgb.stable;
       doc.setFillColor(...sRgb);
       doc.roundedRect(ML, y, 26, 5, 1.2, 1.2, 'F');
-      txt((sf.status || 'stable').toUpperCase(), 5, 'bold', [255, 255, 255]);
+      txt((sf.status || 'stable').toUpperCase(), 6, 'bold', [255, 255, 255]);
       doc.text((sf.status || 'stable').toUpperCase(), ML + 13, y + 3.6, { align: 'center' });
 
       // Feature name — limited to space between pill and impact badge
       const featMaxW = CW - 30 - 24;
-      txt(sf.feature || '', 8.5, 'bold', [15, 23, 42]);
+      txt(sf.feature || '', 9.5, 'bold', [15, 23, 42]);
       const featLine = doc.splitTextToSize(sf.feature || '', featMaxW)[0];
       doc.text(featLine, ML + 29, y + 3.8);
 
@@ -228,23 +281,23 @@ function downloadResultsPDF(analysis, brd) {
         const iRgb = impRgb[sf.impact] || impRgb.Medium;
         doc.setFillColor(...iRgb);
         doc.roundedRect(MR - 22, y, 22, 5, 1.2, 1.2, 'F');
-        txt(sf.impact.toUpperCase(), 5.5, 'bold', [255, 255, 255]);
+        txt(sf.impact.toUpperCase(), 6.5, 'bold', [255, 255, 255]);
         doc.text(sf.impact.toUpperCase(), MR - 11, y + 3.6, { align: 'center' });
       }
       y += 7;
 
       // ── Row 2: tab label ───────────────────────────────────────────────────
-      txt(sf.tab || '', 7, 'normal', [100, 116, 139]);
+      txt(sf.tab || '', 8, 'normal', [100, 116, 139]);
       doc.text(sf.tab || '', ML + 2, y);
       y += 5;
 
       // ── Row 3: explanation text (wraps up to 3 lines) ─────────────────────
       if (expText) {
-        txt(expText, 7.5, 'normal', [71, 85, 105]);
+        txt(expText, 8.5, 'normal', [71, 85, 105]);
         expLines.slice(0, 3).forEach(ln => {
-          checkPage(4.5);
+          checkPage(5);
           doc.text(ln, ML + 2, y);
-          y += 4.5;
+          y += 5;
         });
       }
 
@@ -252,6 +305,88 @@ function downloadResultsPDF(analysis, brd) {
       doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.2);
       doc.line(ML, y + 1, MR, y + 1);
       y += 4;
+    });
+  }
+
+  // ── Affected Code Blocks ─────────────────────────────────────────────────────
+  const codeBlocks = (analysis.affectedCodeBlocks || []).filter(b => b.fileAvailable);
+  if (codeBlocks.length > 0) {
+    checkPage(14);
+    sectionHeader(`AFFECTED CODE  (${codeBlocks.length} files)`);
+
+    codeBlocks.forEach((block) => {
+      checkPage(16);
+
+      // File path header bar
+      doc.setFillColor(30, 41, 59);
+      doc.rect(ML - 1, y - 2, CW + 2, 8, 'F');
+      txt(block.path || '', 7.5, 'bold', [52, 211, 153]);
+      doc.text(doc.splitTextToSize(block.path || '', CW - 20)[0], ML + 2, y + 3.5);
+
+      // Severity badge top-right
+      const sRgb = SEV_RGB[block.severity] || [100,116,139];
+      doc.setFillColor(...sRgb);
+      doc.roundedRect(MR - 20, y - 1, 20, 6, 1.2, 1.2, 'F');
+      txt((block.severity || '').toUpperCase(), 6, 'bold', [255,255,255]);
+      doc.text((block.severity || '').toUpperCase(), MR - 10, y + 3.2, { align: 'center' });
+      y += 10;
+
+      // Reason / why this file
+      if (block.reason) {
+        txt(block.reason, 8, 'italic', [100, 116, 139]);
+        const reasonLines = doc.splitTextToSize(block.reason.slice(0, 300), CW - 4);
+        reasonLines.slice(0, 2).forEach(ln => { checkPage(5); doc.text(ln, ML + 2, y); y += 5; });
+        y += 1;
+      }
+
+      // Function snippets
+      (block.functions || []).forEach((fn) => {
+        checkPage(12);
+
+        // Function header
+        doc.setFillColor(51, 65, 85);
+        doc.rect(ML - 1, y - 2, CW + 2, 7, 'F');
+        txt(fn.functionName || '', 7.5, 'bold', [250, 204, 21]);
+        doc.text(fn.functionName || '', ML + 2, y + 2.8);
+        txt(`lines ${fn.lineStart}–${fn.lineEnd}`, 7, 'normal', [148, 163, 184]);
+        doc.text(`lines ${fn.lineStart}–${fn.lineEnd}`, MR - 2, y + 2.8, { align: 'right' });
+        y += 9;
+
+        // Code lines (monospace, up to 25 lines per snippet)
+        const codeLines = (fn.code || '').split('\n').slice(0, 25);
+        doc.setFont('courier', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(30, 30, 30);
+        doc.setFillColor(248, 250, 252);
+        doc.rect(ML - 1, y - 1, CW + 2, codeLines.length * 4.2 + 2, 'F');
+
+        codeLines.forEach((line, li) => {
+          checkPage(4.5);
+          // Line number
+          doc.setTextColor(148, 163, 184);
+          doc.text(String(fn.lineStart + li), ML + 1, y + 3, { align: 'right' });
+          // Code
+          doc.setTextColor(30, 30, 30);
+          const trimmedLine = line.length > 100 ? line.slice(0, 100) + '…' : line;
+          doc.text(trimmedLine, ML + 5, y + 3);
+          y += 4.2;
+        });
+
+        if (fn.code.split('\n').length > 25) {
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(7);
+          doc.setTextColor(148, 163, 184);
+          doc.text(`… ${fn.code.split('\n').length - 25} more lines`, ML + 5, y + 3);
+          y += 5;
+        }
+        doc.setFont('helvetica', 'normal');
+        y += 3;
+      });
+
+      // Divider between files
+      doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.4);
+      doc.line(ML, y, MR, y);
+      y += 5;
     });
   }
 
@@ -263,14 +398,15 @@ function downloadResultsPDF(analysis, brd) {
     doc.rect(0, H - 10, W, 10, 'F');
     doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.3);
     doc.line(0, H - 10, W, H - 10);
-    txt('BRD Insight · Affected Module Analysis', 6.5, 'normal', [100,116,139]);
-    doc.text('BRD Insight · Affected Module Analysis', ML, H - 4);
-    txt(`Page ${p} / ${totalPages}`, 6.5, 'normal', [100,116,139]);
+    txt('BRD Insight · Affected File Analysis', 7.5, 'normal', [100,116,139]);
+    doc.text('BRD Insight · Affected File Analysis', ML, H - 4);
+    txt(`Page ${p} / ${totalPages}`, 7.5, 'normal', [100,116,139]);
     doc.text(`Page ${p} / ${totalPages}`, W - ML, H - 4, { align: 'right' });
   }
 
-  const slug = (brd?.title || 'analysis').replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0,40);
-  doc.save(`affected-modules-${slug}.pdf`);
+  const slug = (brd?.title || 'analysis').replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0,60);
+  doc.setProperties({ title: `${brd?.title || 'Analysis'} — Architectural Impact Analysis` });
+  doc.save(`${slug}-impact-analysis.pdf`);
 }
 
 // ── Word / DOCX export (Word-compatible HTML → .doc blob) ─────────────────────
@@ -280,7 +416,7 @@ function downloadResultsPDF(analysis, brd) {
 //   • Severity badges: solid-background <td> cells, no <span> wrapping
 //   • Row striping: apply bgcolor to every <td>, never the <tr>
 function downloadResultsDocx(analysis, brd) {
-  const title    = brd?.title || 'Affected Module Analysis';
+  const title    = brd?.title || 'Affected File Analysis';
   const date     = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' });
   const score    = analysis.impactScore ?? 0;
   const scoreHex = score >= 70 ? '#dc2626' : score >= 40 ? '#d97706' : '#059669';
@@ -386,8 +522,8 @@ function downloadResultsDocx(analysis, brd) {
 <h2>Scan Verdict</h2>
 <p style="font-size:10.5pt;color:#334155;">${analysis.verdict || ''}</p>
 
-<!-- ── AFFECTED MODULES ──────────────────────────────────────────────────── -->
-<h2>Affected Modules &nbsp; <font color="#64748b" style="font-size:9pt;font-weight:normal;">(${(analysis.affectedModules||[]).length} identified)</font></h2>
+<!-- ── AFFECTED FILES ────────────────────────────────────────────────────── -->
+<h2>Affected Files &nbsp; <font color="#64748b" style="font-size:9pt;font-weight:normal;">(${(analysis.affectedModules||[]).length} identified)</font></h2>
 <table width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
     <td bgcolor="#1e3a8a" width="80"  style="padding:7px 9px;border:1px solid #1e3a8a;">
@@ -462,7 +598,7 @@ ${(analysis.affectedStyleFeatures || []).length ? `
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `affected-modules-${(brd?.title||'analysis').replace(/[^a-z0-9]/gi,'-').toLowerCase().slice(0,40)}.doc`;
+  a.download = `brd-analysis-${(brd?.title||'analysis').replace(/[^a-z0-9]/gi,'-').toLowerCase().slice(0,40)}.doc`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -604,7 +740,7 @@ function downloadTechSpec(analysis, brd) {
   <tr>
     <td bgcolor="#1e3a8a" width="75%" valign="middle" style="padding:16px 18px;">
       <p style="color:#bfdbfe;font-size:7.5pt;margin:0 0 5pt;letter-spacing:1px;">
-        TECHNICAL SPECIFICATION &nbsp;·&nbsp; AFFECTED MODULE ANALYSIS &nbsp;·&nbsp; ${date}
+        TECHNICAL SPECIFICATION &nbsp;·&nbsp; AFFECTED FILE ANALYSIS &nbsp;·&nbsp; ${date}
       </p>
       <h1>${title}</h1>
       <p style="color:#93c5fd;font-size:8.5pt;margin:5pt 0 0;">
@@ -678,8 +814,8 @@ function downloadTechSpec(analysis, brd) {
   </tr>
 </table>
 
-<!-- 2. AFFECTED MODULES REGISTRY ──────────────────────────────────────── -->
-<h2>2. Affected Modules Registry</h2>
+<!-- 2. AFFECTED FILES REGISTRY ─────────────────────────────────────────── -->
+<h2>2. Affected Files Registry</h2>
 <table width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
     <td width="160" bgcolor="#1e3a8a" style="padding:7px 9px;border:1px solid #1e3a8a;">
@@ -933,6 +1069,21 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
   const [activeTab, setActiveTab]         = useState('modules');
   const [checkedRecs, setCheckedRecs]     = useState({});
 
+  // Prompt editor
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [customInstructions, setCustomInstructions] = useState('');
+  const [promptLoaded, setPromptLoaded]           = useState(false);
+
+  const togglePromptEditor = () => {
+    if (!showPromptEditor && !promptLoaded) {
+      setCustomInstructions(DEFAULT_INSTRUCTIONS);
+      setPromptLoaded(true);
+    }
+    setShowPromptEditor(v => !v);
+  };
+
+  const resetPrompt = () => setCustomInstructions(DEFAULT_INSTRUCTIONS);
+
   // Garment Zone Simulator — brand style ID control
   const [brandStyleId, setBrandStyleId]     = useState(123);
   const [styleInput, setStyleInput]         = useState('123');
@@ -1039,6 +1190,8 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
         knowledgeBase: kbEntries,
         // Always send uploaded doc as docContent (not crammed into description)
         ...(localDocText ? { docContent: localDocText } : {}),
+        // Send custom instructions only if the editor is open and has content
+        ...(showPromptEditor && customInstructions ? { customInstructions } : {}),
       });
 
       if (result.error) {
@@ -1187,6 +1340,52 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                 {error}
               </div>
             )}
+
+            {/* Prompt Editor */}
+            <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+              <button
+                type="button"
+                onClick={togglePromptEditor}
+                className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  </svg>
+                  Edit AI Prompt
+                  {showPromptEditor && customInstructions !== '' && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-500 text-[10px] font-bold">CUSTOM</span>
+                  )}
+                </span>
+                <svg className={`w-3.5 h-3.5 transition-transform ${showPromptEditor ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {showPromptEditor && (
+                <div className="p-3 space-y-2 bg-white dark:bg-slate-900">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                    This is the <strong>INSTRUCTIONS</strong> section sent to the AI. Edit it to change how the analysis is performed. The data sections (module index, BRD content, etc.) are always included automatically.
+                  </p>
+                  <textarea
+                    value={customInstructions}
+                    onChange={e => setCustomInstructions(e.target.value)}
+                    rows={16}
+                    spellCheck={false}
+                    className="w-full px-3 py-2.5 text-xs font-mono rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-violet-500 focus:outline-none resize-y leading-relaxed"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={resetPrompt}
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-slate-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/10 transition-colors"
+                    >
+                      Reset to default
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Scan Trigger */}
             <button
@@ -1452,7 +1651,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
 
                     {/* PDF */}
                     <button
-                      onClick={() => downloadResultsPDF(analysis, selectedBRD)}
+                      onClick={() => downloadResultsPDF(analysis, selectedBRD || (localDocName ? { title: localDocName } : null))}
                       title="Download PDF report"
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 border border-red-200 dark:border-red-800/60 text-red-600 dark:text-red-400 text-xs font-semibold transition-all cursor-pointer"
                     >
@@ -1464,7 +1663,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
 
                     {/* Word */}
                     <button
-                      onClick={() => downloadResultsDocx(analysis, selectedBRD)}
+                      onClick={() => downloadResultsDocx(analysis, selectedBRD || (localDocName ? { title: localDocName } : null))}
                       title="Download Word summary"
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 text-xs font-semibold transition-all cursor-pointer"
                     >
@@ -1476,7 +1675,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
 
                     {/* Tech Spec */}
                     <button
-                      onClick={() => downloadTechSpec(analysis, selectedBRD)}
+                      onClick={() => downloadTechSpec(analysis, selectedBRD || (localDocName ? { title: localDocName } : null))}
                       title="Download full Technical Specification document"
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-50 dark:bg-violet-950/30 hover:bg-violet-100 dark:hover:bg-violet-950/50 border border-violet-200 dark:border-violet-800/60 text-violet-600 dark:text-violet-400 text-xs font-semibold transition-all cursor-pointer"
                     >
@@ -1499,7 +1698,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                     onClick={() => setActiveTab('modules')}
                     className={`flex-1 py-3 text-xs font-bold border-b-2 uppercase tracking-wide transition-all cursor-pointer ${activeTab === 'modules' ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                   >
-                    Affected Modules ({analysis.affectedModules?.length || 0})
+                    Affected Files ({analysis.affectedModules?.length || 0})
                   </button>
                   <button 
                     onClick={() => setActiveTab('concepts')}

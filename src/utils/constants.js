@@ -1,4 +1,4 @@
-export const BA_OPTIONS = ['Patricia', 'JR', 'ERMS', 'Joyce'];
+export const BA_OPTIONS = ['Patricia', 'JR', 'ERMS', 'Joyce', 'Imman'];
 
 export const STATUS_OPTIONS = [
   { value: 'planning', label: 'Planning', color: '#6366f1' },

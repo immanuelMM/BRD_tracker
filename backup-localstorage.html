@@ -1,29 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>BRD Tracker – LocalStorage Backup</title>
   <style>
-    body { font-family: sans-serif; max-width: 500px; margin: 60px auto; text-align: center; }
-    button { padding: 12px 28px; font-size: 16px; cursor: pointer; border-radius: 6px; border: none;
-             background: #2563eb; color: #fff; margin: 8px; }
-    button:hover { background: #1d4ed8; }
-    #status { margin-top: 20px; font-size: 14px; color: #555; white-space: pre-wrap; text-align: left;
-              background: #f3f4f6; padding: 12px; border-radius: 6px; display: none; }
+    body {
+      font-family: sans-serif;
+      max-width: 500px;
+      margin: 60px auto;
+      text-align: center;
+    }
+
+    button {
+      padding: 12px 28px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 6px;
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      margin: 8px;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #555;
+      white-space: pre-wrap;
+      text-align: left;
+      background: #f3f4f6;
+      padding: 12px;
+      border-radius: 6px;
+      display: none;
+    }
   </style>
 </head>
+
 <body>
   <h2>BRD Tracker – LocalStorage Backup</h2>
   <p>Open this file in the <strong>same browser</strong> you use for the BRD Tracker app.</p>
 
   <button onclick="downloadBackup()">Download Backup (JSON)</button>
   <button onclick="showContents()">Preview Data</button>
+  <button onclick="uploadToDatabase()" style="background:#16a34a;">Upload to Database</button>
 
   <div id="status"></div>
 
   <script>
     const KEY = 'brd_tracker_db';
     const MIGRATE_KEY = 'brd_tracker_migrated_mssql';
+    const API_URL = 'http://localhost:3001/api/migrate';
 
     function getData() {
       const raw = localStorage.getItem(KEY);
@@ -76,6 +107,48 @@
         `Found ${brds.length} BRD(s) and ${bugs.length} bug(s).\n\n` +
         brds.map(b => `• ${b.title || '(untitled)'} [${b.status || '?'}]`).join('\n');
     }
+
+    async function uploadToDatabase() {
+      const data = getData();
+      const status = document.getElementById('status');
+      status.style.display = 'block';
+
+      if (!data) {
+        status.textContent = 'No brd_tracker_db key found in localStorage.\n\nMake sure you open this file in the same browser as the app.';
+        return;
+      }
+
+      const brds = data.brds || [];
+      const bugs = data.bugs || [];
+      status.textContent = `Uploading ${brds.length} BRD(s) and ${bugs.length} bug(s) to database…`;
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brds, bugs }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }));
+          status.textContent = `Upload failed: ${err.error || res.statusText}`;
+          return;
+        }
+
+        const result = await res.json();
+        if (result.ok) {
+          status.textContent =
+            `Upload complete!\n\nInserted: ${result.brds} new BRD(s), ${result.bugs} new bug(s).\n` +
+            `(Records that already exist in the database were skipped.)`;
+          localStorage.setItem(MIGRATE_KEY, '1');
+        } else {
+          status.textContent = `Server returned an error: ${JSON.stringify(result)}`;
+        }
+      } catch (err) {
+        status.textContent = `Network error — is the server running at localhost:3001?\n\n${err.message}`;
+      }
+    }
   </script>
 </body>
+
 </html>

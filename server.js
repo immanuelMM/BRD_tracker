@@ -9,14 +9,14 @@ import { join, resolve } from 'path';
 
 dotenv(); // must run before any process.env reads below
 
-const LOCAL_BACKUP_PATH   = resolve('./brd-local-backup.json');
-const GOOGLE_TOKENS_PATH  = resolve('./google-tokens.json');
+const LOCAL_BACKUP_PATH = resolve('./brd-local-backup.json');
+const GOOGLE_TOKENS_PATH = resolve('./google-tokens.json');
 
 // ─── Google OAuth2 ─────────────────────────────────────────────────────────────
-const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     || '';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
-const GOOGLE_REDIRECT_URI  = `http://localhost:${process.env.PORT || 3001}/api/google/callback`;
-const GOOGLE_SCOPE         = 'openid email https://www.googleapis.com/auth/drive.readonly';
+const GOOGLE_REDIRECT_URI = `http://localhost:${process.env.PORT || 3001}/api/google/callback`;
+const GOOGLE_SCOPE = 'openid email https://www.googleapis.com/auth/drive.readonly';
 
 let googleTokens = null;
 
@@ -30,12 +30,12 @@ function loadGoogleTokens() {
 
 function saveGoogleTokens(tokens) {
   googleTokens = tokens;
-  try { writeFileSync(GOOGLE_TOKENS_PATH, JSON.stringify(tokens, null, 2), 'utf-8'); } catch {}
+  try { writeFileSync(GOOGLE_TOKENS_PATH, JSON.stringify(tokens, null, 2), 'utf-8'); } catch { }
 }
 
 function clearGoogleTokens() {
   googleTokens = null;
-  try { if (existsSync(GOOGLE_TOKENS_PATH)) require('fs').unlinkSync(GOOGLE_TOKENS_PATH); } catch {}
+  try { if (existsSync(GOOGLE_TOKENS_PATH)) require('fs').unlinkSync(GOOGLE_TOKENS_PATH); } catch { }
 }
 
 async function refreshGoogleAccessToken() {
@@ -74,7 +74,7 @@ loadGoogleTokens(); // load any stored tokens on startup
 
 // ─── Customizer Repo ──────────────────────────────────────────────────────────
 const CUSTOMIZER_REPO = (process.env.CUSTOMIZER_REPO_PATH ||
-  'C:/Users/merin/laravel-docker/core/src/customizer-core').replace(/\\/g, '/');
+  '/Users/qip-innovation/laravel-docker/core/src/customizer-core').replace(/\\/g, '/');
 
 function readRepoFile(relPath, maxChars = 3000) {
   try {
@@ -88,21 +88,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const DB_SERVER  = process.env.DB_SERVER   || 'localhost';
-const DB_PORT    = parseInt(process.env.DB_PORT) || 1433;
-const DB_USER    = process.env.DB_USER     || '';
-const DB_PASS    = process.env.DB_PASSWORD || '';
-const DB_NAME    = process.env.DB_NAME     || 'brd_tracker';
-const DB_TRUSTED = process.env.DB_TRUSTED  === 'true';
-const PORT       = parseInt(process.env.PORT) || 3001;
+const DB_SERVER = process.env.DB_SERVER || 'localhost';
+const DB_PORT = parseInt(process.env.DB_PORT) || 1433;
+const DB_USER = process.env.DB_USER || '';
+const DB_PASS = process.env.DB_PASSWORD || '';
+const DB_NAME = process.env.DB_NAME || 'brd_tracker';
+const DB_TRUSTED = process.env.DB_TRUSTED === 'true';
+const PORT = parseInt(process.env.PORT) || 3001;
 const AI_PROVIDER = (process.env.AI_PROVIDER || 'anthropic').trim().toLowerCase();
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const ANTHROPIC_MODEL   = process.env.ANTHROPIC_MODEL || 'claude-opus-4-6';
-const OPENAI_API_KEY    = process.env.OPENAI_API_KEY || '';
-const OPENAI_MODEL      = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-const GEMINI_API_KEY    = process.env.GEMINI_API_KEY || '';
-const GEMINI_MODEL      = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-6';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
 
 // Named instance support — split "HOSTNAME\INSTANCE" into separate fields
@@ -111,7 +111,7 @@ const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-i
 const [DB_HOST, DB_INSTANCE] = DB_SERVER.split('\\');
 
 // ─── Type shortcuts ───────────────────────────────────────────────────────────
-const NV  = (n) => sql.NVarChar(n || sql.MAX);
+const NV = (n) => sql.NVarChar(n || sql.MAX);
 const INT = sql.Int;
 const BIG = sql.BigInt;
 
@@ -265,23 +265,23 @@ async function init() {
     .query('SELECT COUNT(*) AS critCnt FROM bug_criteria');
   if (critCnt === 0) {
     const defaultCriteria = [
-      { value: 'new_requirements',    label: 'New Requirements',    color: '#3b82f6', description: 'Requirements discovered during development not in original spec',         sortOrder: 0 },
-      { value: 'missed_requirements', label: 'Missed Requirements',  color: '#f59e0b', description: 'Features or functionality missed from initial requirements',           sortOrder: 1 },
-      { value: 'code_logic_issue',    label: 'Code Logic Issue',    color: '#ef4444', description: 'Bug in code implementation or logic',                                sortOrder: 2 },
-      { value: 'known_issue',         label: 'Known Issue',         color: '#6366f1', description: 'Pre-identified issue documented and accepted',                       sortOrder: 3 },
-      { value: 'affected_by_dev',     label: 'Affected by Dev',     color: '#8b5cf6', description: 'Issue caused by changes from other development work',                sortOrder: 4 },
+      { value: 'new_requirements', label: 'New Requirements', color: '#3b82f6', description: 'Requirements discovered during development not in original spec', sortOrder: 0 },
+      { value: 'missed_requirements', label: 'Missed Requirements', color: '#f59e0b', description: 'Features or functionality missed from initial requirements', sortOrder: 1 },
+      { value: 'code_logic_issue', label: 'Code Logic Issue', color: '#ef4444', description: 'Bug in code implementation or logic', sortOrder: 2 },
+      { value: 'known_issue', label: 'Known Issue', color: '#6366f1', description: 'Pre-identified issue documented and accepted', sortOrder: 3 },
+      { value: 'affected_by_dev', label: 'Affected by Dev', color: '#8b5cf6', description: 'Issue caused by changes from other development work', sortOrder: 4 },
     ];
     const now = Date.now();
     for (const c of defaultCriteria) {
       const id = randomUUID();
       await pool.request()
-        .input('id',          NV(36),  id)
-        .input('value',       NV(100), c.value)
-        .input('label',       NV(255), c.label)
-        .input('color',       NV(20),  c.color)
-        .input('description', NV(),    c.description)
-        .input('sortOrder',   INT,     c.sortOrder)
-        .input('createdAt',   BIG,     now)
+        .input('id', NV(36), id)
+        .input('value', NV(100), c.value)
+        .input('label', NV(255), c.label)
+        .input('color', NV(20), c.color)
+        .input('description', NV(), c.description)
+        .input('sortOrder', INT, c.sortOrder)
+        .input('createdAt', BIG, now)
         .query(`INSERT INTO bug_criteria (id,value,label,color,description,sortOrder,createdAt)
                 VALUES (@id,@value,@label,@color,@description,@sortOrder,@createdAt)`);
     }
@@ -312,10 +312,10 @@ async function init() {
     for (const tl of defaultTeamLeads) {
       const id = randomUUID();
       await pool.request()
-        .input('id',        NV(36),  id)
-        .input('name',      NV(255), tl.name)
-        .input('sortOrder', INT,     tl.sortOrder)
-        .input('createdAt', BIG,     now)
+        .input('id', NV(36), id)
+        .input('name', NV(255), tl.name)
+        .input('sortOrder', INT, tl.sortOrder)
+        .input('createdAt', BIG, now)
         .query(`INSERT INTO team_leads (id,name,sortOrder,createdAt)
                 VALUES (@id,@name,@sortOrder,@createdAt)`);
     }
@@ -362,27 +362,27 @@ async function init() {
     .query('SELECT COUNT(*) AS tsCnt FROM tshirt_sizes');
   if (tsCnt === 0) {
     const defaultSizes = [
-      { value: 'XS',  label: 'XS',  minDays: null, maxDays: 10,   description: 'Very small feature. Minimal effort, very low risk. No dependencies.',                                                                 risk: 'Very Low',  color: '#10b981', sortOrder: 0 },
-      { value: 'S',   label: 'S',   minDays: null, maxDays: 20,   description: 'Simple and isolated task. Clear scope. Might require 1–2 people.',                                                                    risk: 'Low',       color: '#3b82f6', sortOrder: 1 },
-      { value: 'M',   label: 'M',   minDays: 20,   maxDays: 40,   description: 'Moderate effort. Might require collaboration across team members. Some complexity or testing.',                                        risk: 'Medium',    color: '#f59e0b', sortOrder: 2 },
-      { value: 'L',   label: 'L',   minDays: 40,   maxDays: 60,   description: 'Complex features. Cross-functional work. May involve back-end, front-end, QA, or coordination. Moderate risk.',                      risk: 'Moderate',  color: '#f97316', sortOrder: 3 },
-      { value: 'XL',  label: 'XL',  minDays: 60,   maxDays: 100,  description: 'Large initiative. Many moving parts or dependencies. Needs coordination across teams. Higher risk.',                                  risk: 'High',      color: '#ef4444', sortOrder: 4 },
-      { value: 'XXL', label: 'XXL', minDays: 100,  maxDays: null, description: 'Epic-level work. Needs to be broken down. Too big to plan effectively as-is. High uncertainty.',                                      risk: 'Very High', color: '#7c3aed', sortOrder: 5 },
+      { value: 'XS', label: 'XS', minDays: null, maxDays: 10, description: 'Very small feature. Minimal effort, very low risk. No dependencies.', risk: 'Very Low', color: '#10b981', sortOrder: 0 },
+      { value: 'S', label: 'S', minDays: null, maxDays: 20, description: 'Simple and isolated task. Clear scope. Might require 1–2 people.', risk: 'Low', color: '#3b82f6', sortOrder: 1 },
+      { value: 'M', label: 'M', minDays: 20, maxDays: 40, description: 'Moderate effort. Might require collaboration across team members. Some complexity or testing.', risk: 'Medium', color: '#f59e0b', sortOrder: 2 },
+      { value: 'L', label: 'L', minDays: 40, maxDays: 60, description: 'Complex features. Cross-functional work. May involve back-end, front-end, QA, or coordination. Moderate risk.', risk: 'Moderate', color: '#f97316', sortOrder: 3 },
+      { value: 'XL', label: 'XL', minDays: 60, maxDays: 100, description: 'Large initiative. Many moving parts or dependencies. Needs coordination across teams. Higher risk.', risk: 'High', color: '#ef4444', sortOrder: 4 },
+      { value: 'XXL', label: 'XXL', minDays: 100, maxDays: null, description: 'Epic-level work. Needs to be broken down. Too big to plan effectively as-is. High uncertainty.', risk: 'Very High', color: '#7c3aed', sortOrder: 5 },
     ];
     const now2 = Date.now();
     for (const s of defaultSizes) {
       const id = randomUUID();
       await pool.request()
-        .input('id',          NV(36),  id)
-        .input('value',       NV(10),  s.value)
-        .input('label',       NV(50),  s.label)
-        .input('minDays',     INT,     s.minDays)
-        .input('maxDays',     INT,     s.maxDays)
-        .input('description', NV(),    s.description)
-        .input('risk',        NV(50),  s.risk)
-        .input('color',       NV(7),   s.color)
-        .input('sortOrder',   INT,     s.sortOrder)
-        .input('createdAt',   BIG,     now2)
+        .input('id', NV(36), id)
+        .input('value', NV(10), s.value)
+        .input('label', NV(50), s.label)
+        .input('minDays', INT, s.minDays)
+        .input('maxDays', INT, s.maxDays)
+        .input('description', NV(), s.description)
+        .input('risk', NV(50), s.risk)
+        .input('color', NV(7), s.color)
+        .input('sortOrder', INT, s.sortOrder)
+        .input('createdAt', BIG, now2)
         .query(`INSERT INTO tshirt_sizes (id,value,label,minDays,maxDays,description,risk,color,sortOrder,createdAt)
                 VALUES (@id,@value,@label,@minDays,@maxDays,@description,@risk,@color,@sortOrder,@createdAt)`);
     }
@@ -404,22 +404,22 @@ async function init() {
     .query('SELECT COUNT(*) AS dmCnt FROM dev_members');
   if (dmCnt === 0) {
     const defaultDevs = [
-      { name: 'Eric',    team: 'BE', sortOrder: 0 },
-      { name: 'Eloisa',  team: 'FE', sortOrder: 1 },
-      { name: 'Marco',   team: 'FE', sortOrder: 2 },
-      { name: 'Jessie',  team: 'FE', sortOrder: 3 },
-      { name: 'Cristian',team: 'FE', sortOrder: 4 },
-      { name: 'Russel',  team: 'FE', sortOrder: 5 },
-      { name: 'Yves',    team: 'FE', sortOrder: 6 },
+      { name: 'Eric', team: 'BE', sortOrder: 0 },
+      { name: 'Eloisa', team: 'FE', sortOrder: 1 },
+      { name: 'Marco', team: 'FE', sortOrder: 2 },
+      { name: 'Jessie', team: 'FE', sortOrder: 3 },
+      { name: 'Cristian', team: 'FE', sortOrder: 4 },
+      { name: 'Russel', team: 'FE', sortOrder: 5 },
+      { name: 'Yves', team: 'FE', sortOrder: 6 },
     ];
     const dmNow = Date.now();
     for (const d of defaultDevs) {
       await pool.request()
-        .input('id',        NV(36),  randomUUID())
-        .input('name',      NV(255), d.name)
-        .input('team',      NV(50),  d.team)
-        .input('sortOrder', INT,     d.sortOrder)
-        .input('createdAt', BIG,     dmNow)
+        .input('id', NV(36), randomUUID())
+        .input('name', NV(255), d.name)
+        .input('team', NV(50), d.team)
+        .input('sortOrder', INT, d.sortOrder)
+        .input('createdAt', BIG, dmNow)
         .query(`INSERT INTO dev_members (id,name,team,sortOrder,createdAt)
                 VALUES (@id,@name,@team,@sortOrder,@createdAt)`);
     }
@@ -433,6 +433,21 @@ async function init() {
       title     NVARCHAR(255) NOT NULL,
       category  NVARCHAR(100) NOT NULL DEFAULT 'General',
       content   NVARCHAR(MAX) NOT NULL,
+      sortOrder INT           NOT NULL DEFAULT 0,
+      createdAt BIGINT,
+      updatedAt BIGINT
+    )
+  `);
+
+  // Create style_features table
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'style_features')
+    CREATE TABLE style_features (
+      id        NVARCHAR(36)  PRIMARY KEY,
+      feature   NVARCHAR(255) NOT NULL DEFAULT '',
+      tab       NVARCHAR(100) NOT NULL DEFAULT 'General',
+      status    NVARCHAR(50)  NOT NULL DEFAULT 'stable',
+      keywords  NVARCHAR(MAX) NOT NULL DEFAULT '[]',
       sortOrder INT           NOT NULL DEFAULT 0,
       createdAt BIGINT,
       updatedAt BIGINT
@@ -508,6 +523,41 @@ async function init() {
   for (const bug of bugs) {
     await _insertBug({ id: randomUUID(), ...bug, description: '', createdAt: now });
   }
+}
+
+// ─── Style Features — seed from hardcoded list if table is empty ──────────────
+async function seedStyleFeatures() {
+  const { recordset: [{ sfCnt }] } = await pool.request()
+    .query('SELECT COUNT(*) AS sfCnt FROM style_features');
+  if (sfCnt > 0) return;
+  const sfNow = Date.now();
+  for (let i = 0; i < STYLE_FEATURES_SEED.length; i++) {
+    const sf = STYLE_FEATURES_SEED[i];
+    // Some seed entries use `features` (typo) or missing `feature` — guard gracefully
+    const featureName = sf.feature || sf.features || '';
+    const tabName = sf.tab || sf.customizer || 'General';
+    await pool.request()
+      .input('id', NV(36), randomUUID())
+      .input('feature', NV(255), featureName)
+      .input('tab', NV(100), tabName)
+      .input('status', NV(50), sf.status || 'stable')
+      .input('keywords', NV(), JSON.stringify(sf.keywords || []))
+      .input('sortOrder', INT, i)
+      .input('createdAt', BIG, sfNow)
+      .input('updatedAt', BIG, sfNow)
+      .query(`INSERT INTO style_features (id,feature,tab,status,keywords,sortOrder,createdAt,updatedAt)
+              VALUES (@id,@feature,@tab,@status,@keywords,@sortOrder,@createdAt,@updatedAt)`);
+  }
+}
+
+// ─── Style Features — load from DB ────────────────────────────────────────────
+async function loadStyleFeatures() {
+  const { recordset } = await pool.request()
+    .query('SELECT * FROM style_features ORDER BY tab ASC, sortOrder ASC');
+  return recordset.map(sf => ({
+    ...sf,
+    keywords: JSON.parse(sf.keywords || '[]'),
+  }));
 }
 
 // ─── DB helpers ───────────────────────────────────────────────────────────────
@@ -715,13 +765,13 @@ app.post('/api/criteria', async (req, res) => {
     const id = randomUUID();
     const createdAt = Date.now();
     await pool.request()
-      .input('id',          NV(36),  id)
-      .input('value',       NV(100), value)
-      .input('label',       NV(255), label)
-      .input('color',       NV(20),  color || '#3b82f6')
-      .input('description', NV(),    description || '')
-      .input('sortOrder',   INT,     sortOrder ?? 99)
-      .input('createdAt',   BIG,     createdAt)
+      .input('id', NV(36), id)
+      .input('value', NV(100), value)
+      .input('label', NV(255), label)
+      .input('color', NV(20), color || '#3b82f6')
+      .input('description', NV(), description || '')
+      .input('sortOrder', INT, sortOrder ?? 99)
+      .input('createdAt', BIG, createdAt)
       .query(`INSERT INTO bug_criteria (id,value,label,color,description,sortOrder,createdAt)
               VALUES (@id,@value,@label,@color,@description,@sortOrder,@createdAt)`);
     res.json({ id, value, label, color, description, sortOrder, createdAt });
@@ -732,11 +782,11 @@ app.put('/api/criteria/:id', async (req, res) => {
   try {
     const { label, color, description, sortOrder } = req.body;
     await pool.request()
-      .input('id',          NV(36),  req.params.id)
-      .input('label',       NV(255), label || '')
-      .input('color',       NV(20),  color || '#3b82f6')
-      .input('description', NV(),    description || '')
-      .input('sortOrder',   INT,     sortOrder ?? 0)
+      .input('id', NV(36), req.params.id)
+      .input('label', NV(255), label || '')
+      .input('color', NV(20), color || '#3b82f6')
+      .input('description', NV(), description || '')
+      .input('sortOrder', INT, sortOrder ?? 0)
       .query(`UPDATE bug_criteria SET label=@label, color=@color,
               description=@description, sortOrder=@sortOrder WHERE id=@id`);
     res.json({ id: req.params.id, ...req.body });
@@ -781,10 +831,10 @@ app.post('/api/teamleads', async (req, res) => {
     const id = randomUUID();
     const createdAt = Date.now();
     await pool.request()
-      .input('id',        NV(36),  id)
-      .input('name',      NV(255), name)
-      .input('sortOrder', INT,     sortOrder ?? 99)
-      .input('createdAt', BIG,     createdAt)
+      .input('id', NV(36), id)
+      .input('name', NV(255), name)
+      .input('sortOrder', INT, sortOrder ?? 99)
+      .input('createdAt', BIG, createdAt)
       .query(`INSERT INTO team_leads (id,name,sortOrder,createdAt)
               VALUES (@id,@name,@sortOrder,@createdAt)`);
     res.json({ id, name, sortOrder, createdAt });
@@ -795,9 +845,9 @@ app.put('/api/teamleads/:id', async (req, res) => {
   try {
     const { name, sortOrder } = req.body;
     await pool.request()
-      .input('id',        NV(36),  req.params.id)
-      .input('name',      NV(255), name || '')
-      .input('sortOrder', INT,     sortOrder ?? 0)
+      .input('id', NV(36), req.params.id)
+      .input('name', NV(255), name || '')
+      .input('sortOrder', INT, sortOrder ?? 0)
       .query(`UPDATE team_leads SET name=@name, sortOrder=@sortOrder WHERE id=@id`);
     res.json({ id: req.params.id, ...req.body });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -841,11 +891,11 @@ app.post('/api/dev-members', async (req, res) => {
     const id = randomUUID();
     const createdAt = Date.now();
     await pool.request()
-      .input('id',        NV(36),  id)
-      .input('name',      NV(255), name)
-      .input('team',      NV(50),  team || 'FE')
-      .input('sortOrder', INT,     sortOrder ?? 99)
-      .input('createdAt', BIG,     createdAt)
+      .input('id', NV(36), id)
+      .input('name', NV(255), name)
+      .input('team', NV(50), team || 'FE')
+      .input('sortOrder', INT, sortOrder ?? 99)
+      .input('createdAt', BIG, createdAt)
       .query(`INSERT INTO dev_members (id,name,team,sortOrder,createdAt)
               VALUES (@id,@name,@team,@sortOrder,@createdAt)`);
     res.json({ id, name, team: team || 'FE', sortOrder, createdAt });
@@ -856,10 +906,10 @@ app.put('/api/dev-members/:id', async (req, res) => {
   try {
     const { name, team, sortOrder } = req.body;
     await pool.request()
-      .input('id',        NV(36),  req.params.id)
-      .input('name',      NV(255), name || '')
-      .input('team',      NV(50),  team || 'FE')
-      .input('sortOrder', INT,     sortOrder ?? 0)
+      .input('id', NV(36), req.params.id)
+      .input('name', NV(255), name || '')
+      .input('team', NV(50), team || 'FE')
+      .input('sortOrder', INT, sortOrder ?? 0)
       .query(`UPDATE dev_members SET name=@name, team=@team, sortOrder=@sortOrder WHERE id=@id`);
     res.json({ id: req.params.id, ...req.body });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -918,16 +968,16 @@ app.post('/api/tshirt-sizes', async (req, res) => {
     const id = randomUUID();
     const createdAt = Date.now();
     await pool.request()
-      .input('id',          NV(36),  id)
-      .input('value',       NV(10),  value)
-      .input('label',       NV(50),  label)
-      .input('minDays',     INT,     minDays ?? null)
-      .input('maxDays',     INT,     maxDays ?? null)
-      .input('description', NV(),    description || '')
-      .input('risk',        NV(50),  risk || '')
-      .input('color',       NV(7),   color || '#3b82f6')
-      .input('sortOrder',   INT,     sortOrder ?? 0)
-      .input('createdAt',   BIG,     createdAt)
+      .input('id', NV(36), id)
+      .input('value', NV(10), value)
+      .input('label', NV(50), label)
+      .input('minDays', INT, minDays ?? null)
+      .input('maxDays', INT, maxDays ?? null)
+      .input('description', NV(), description || '')
+      .input('risk', NV(50), risk || '')
+      .input('color', NV(7), color || '#3b82f6')
+      .input('sortOrder', INT, sortOrder ?? 0)
+      .input('createdAt', BIG, createdAt)
       .query(`INSERT INTO tshirt_sizes (id,value,label,minDays,maxDays,description,risk,color,sortOrder,createdAt)
               VALUES (@id,@value,@label,@minDays,@maxDays,@description,@risk,@color,@sortOrder,@createdAt)`);
     res.json({ id, value, label, minDays, maxDays, description, risk, color, sortOrder, createdAt });
@@ -941,14 +991,14 @@ app.put('/api/tshirt-sizes/:id', async (req, res) => {
   try {
     const { label, minDays, maxDays, description, risk, color, sortOrder } = req.body;
     await pool.request()
-      .input('id',          NV(36),  req.params.id)
-      .input('label',       NV(50),  label)
-      .input('minDays',     INT,     minDays ?? null)
-      .input('maxDays',     INT,     maxDays ?? null)
-      .input('description', NV(),    description || '')
-      .input('risk',        NV(50),  risk || '')
-      .input('color',       NV(7),   color || '#3b82f6')
-      .input('sortOrder',   INT,     sortOrder ?? 0)
+      .input('id', NV(36), req.params.id)
+      .input('label', NV(50), label)
+      .input('minDays', INT, minDays ?? null)
+      .input('maxDays', INT, maxDays ?? null)
+      .input('description', NV(), description || '')
+      .input('risk', NV(50), risk || '')
+      .input('color', NV(7), color || '#3b82f6')
+      .input('sortOrder', INT, sortOrder ?? 0)
       .query(`UPDATE tshirt_sizes SET label=@label, minDays=@minDays, maxDays=@maxDays,
               description=@description, risk=@risk, color=@color, sortOrder=@sortOrder
               WHERE id=@id`);
@@ -993,17 +1043,17 @@ app.post('/api/pm-notes', async (req, res) => {
     const id = randomUUID();
     const now = Date.now();
     await pool.request()
-      .input('id',        NV(36),  id)
-      .input('title',     NV(255), title || '')
-      .input('content',   NV(),    content || '')
-      .input('quarter',   NV(5),   quarter || null)
-      .input('year',      INT,     year || new Date().getFullYear())
-      .input('sprint',    NV(20),  sprint || null)
-      .input('priority',  NV(20),  priority || 'medium')
-      .input('status',    NV(20),  status || 'todo')
-      .input('brdId',     NV(),    brdId || null)
-      .input('createdAt', BIG,     now)
-      .input('updatedAt', BIG,     now)
+      .input('id', NV(36), id)
+      .input('title', NV(255), title || '')
+      .input('content', NV(), content || '')
+      .input('quarter', NV(5), quarter || null)
+      .input('year', INT, year || new Date().getFullYear())
+      .input('sprint', NV(20), sprint || null)
+      .input('priority', NV(20), priority || 'medium')
+      .input('status', NV(20), status || 'todo')
+      .input('brdId', NV(), brdId || null)
+      .input('createdAt', BIG, now)
+      .input('updatedAt', BIG, now)
       .query(`INSERT INTO pm_notes (id,title,content,quarter,year,sprint,priority,status,brdId,createdAt,updatedAt)
               VALUES (@id,@title,@content,@quarter,@year,@sprint,@priority,@status,@brdId,@createdAt,@updatedAt)`);
     res.json({ id, title, content, quarter, year, sprint, priority, status, brdId, createdAt: now, updatedAt: now });
@@ -1015,16 +1065,16 @@ app.put('/api/pm-notes/:id', async (req, res) => {
     const { title, content, quarter, year, sprint, priority, status, brdId } = req.body;
     const updatedAt = Date.now();
     await pool.request()
-      .input('id',        NV(36),  req.params.id)
-      .input('title',     NV(255), title || '')
-      .input('content',   NV(),    content || '')
-      .input('quarter',   NV(5),   quarter || null)
-      .input('year',      INT,     year || new Date().getFullYear())
-      .input('sprint',    NV(20),  sprint || null)
-      .input('priority',  NV(20),  priority || 'medium')
-      .input('status',    NV(20),  status || 'todo')
-      .input('brdId',     NV(),    brdId || null)
-      .input('updatedAt', BIG,     updatedAt)
+      .input('id', NV(36), req.params.id)
+      .input('title', NV(255), title || '')
+      .input('content', NV(), content || '')
+      .input('quarter', NV(5), quarter || null)
+      .input('year', INT, year || new Date().getFullYear())
+      .input('sprint', NV(20), sprint || null)
+      .input('priority', NV(20), priority || 'medium')
+      .input('status', NV(20), status || 'todo')
+      .input('brdId', NV(), brdId || null)
+      .input('updatedAt', BIG, updatedAt)
       .query(`UPDATE pm_notes SET title=@title,content=@content,quarter=@quarter,year=@year,
               sprint=@sprint,priority=@priority,status=@status,brdId=@brdId,updatedAt=@updatedAt
               WHERE id=@id`);
@@ -1220,13 +1270,13 @@ app.post('/api/knowledge-base', async (req, res) => {
     const id = randomUUID();
     const now = Date.now();
     await pool.request()
-      .input('id',        NV(36),  id)
-      .input('title',     NV(255), title)
-      .input('category',  NV(100), category || 'General')
-      .input('content',   NV(),    content)
-      .input('sortOrder', INT,     sortOrder ?? 99)
-      .input('createdAt', BIG,     now)
-      .input('updatedAt', BIG,     now)
+      .input('id', NV(36), id)
+      .input('title', NV(255), title)
+      .input('category', NV(100), category || 'General')
+      .input('content', NV(), content)
+      .input('sortOrder', INT, sortOrder ?? 99)
+      .input('createdAt', BIG, now)
+      .input('updatedAt', BIG, now)
       .query(`INSERT INTO knowledge_base (id,title,category,content,sortOrder,createdAt,updatedAt)
               VALUES (@id,@title,@category,@content,@sortOrder,@createdAt,@updatedAt)`);
     res.json({ id, title, category: category || 'General', content, sortOrder, createdAt: now, updatedAt: now });
@@ -1238,12 +1288,12 @@ app.put('/api/knowledge-base/:id', async (req, res) => {
     const { title, category, content, sortOrder } = req.body;
     const now = Date.now();
     await pool.request()
-      .input('id',        NV(36),  req.params.id)
-      .input('title',     NV(255), title || '')
-      .input('category',  NV(100), category || 'General')
-      .input('content',   NV(),    content || '')
-      .input('sortOrder', INT,     sortOrder ?? 0)
-      .input('updatedAt', BIG,     now)
+      .input('id', NV(36), req.params.id)
+      .input('title', NV(255), title || '')
+      .input('category', NV(100), category || 'General')
+      .input('content', NV(), content || '')
+      .input('sortOrder', INT, sortOrder ?? 0)
+      .input('updatedAt', BIG, now)
       .query(`UPDATE knowledge_base SET title=@title, category=@category, content=@content,
               sortOrder=@sortOrder, updatedAt=@updatedAt WHERE id=@id`);
     res.json({ id: req.params.id, ...req.body, updatedAt: now });
@@ -1259,6 +1309,64 @@ app.delete('/api/knowledge-base/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── Style Features ────────────────────────────────────────────────────────────
+app.get('/api/style-features', async (_req, res) => {
+  try {
+    const features = await loadStyleFeatures();
+    res.json(features);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/style-features', async (req, res) => {
+  try {
+    const { feature, tab, status, keywords, sortOrder } = req.body;
+    if (!feature) return res.status(400).json({ error: 'feature is required' });
+    const id = randomUUID();
+    const now = Date.now();
+    const keywordsJson = JSON.stringify(Array.isArray(keywords) ? keywords : []);
+    await pool.request()
+      .input('id', NV(36), id)
+      .input('feature', NV(255), feature)
+      .input('tab', NV(100), tab || 'General')
+      .input('status', NV(50), status || 'stable')
+      .input('keywords', NV(), keywordsJson)
+      .input('sortOrder', INT, sortOrder ?? 99)
+      .input('createdAt', BIG, now)
+      .input('updatedAt', BIG, now)
+      .query(`INSERT INTO style_features (id,feature,tab,status,keywords,sortOrder,createdAt,updatedAt)
+              VALUES (@id,@feature,@tab,@status,@keywords,@sortOrder,@createdAt,@updatedAt)`);
+    res.json({ id, feature, tab: tab || 'General', status: status || 'stable', keywords: Array.isArray(keywords) ? keywords : [], sortOrder, createdAt: now, updatedAt: now });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/style-features/:id', async (req, res) => {
+  try {
+    const { feature, tab, status, keywords, sortOrder } = req.body;
+    const now = Date.now();
+    const keywordsJson = JSON.stringify(Array.isArray(keywords) ? keywords : []);
+    await pool.request()
+      .input('id', NV(36), req.params.id)
+      .input('feature', NV(255), feature || '')
+      .input('tab', NV(100), tab || 'General')
+      .input('status', NV(50), status || 'stable')
+      .input('keywords', NV(), keywordsJson)
+      .input('sortOrder', INT, sortOrder ?? 0)
+      .input('updatedAt', BIG, now)
+      .query(`UPDATE style_features SET feature=@feature, tab=@tab, status=@status,
+              keywords=@keywords, sortOrder=@sortOrder, updatedAt=@updatedAt WHERE id=@id`);
+    res.json({ id: req.params.id, feature, tab, status, keywords: Array.isArray(keywords) ? keywords : [], sortOrder, updatedAt: now });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/style-features/:id', async (req, res) => {
+  try {
+    await pool.request()
+      .input('id', NV(36), req.params.id)
+      .query('DELETE FROM style_features WHERE id = @id');
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── Google Docs fetcher ───────────────────────────────────────────────────────
 async function fetchGoogleDocText(url) {
   try {
@@ -1267,9 +1375,9 @@ async function fetchGoogleDocText(url) {
     const docId = match[1];
 
     // ── Try OAuth2 first (reads private docs the user owns / has access to) ──
-    const accessToken    = await getGoogleAccessToken();
+    const accessToken = await getGoogleAccessToken();
     const connectedEmail = googleTokens?.email || null;
-    let driveDenied      = false;   // true when Drive said 403/404 for this account
+    let driveDenied = false;   // true when Drive said 403/404 for this account
 
     if (accessToken) {
       try {
@@ -1331,22 +1439,22 @@ async function fetchGoogleDocText(url) {
 // ─── Local (no-API-key) BRD analysis ──────────────────────────────────────────
 function localAnalyzeBRD({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, docError }) {
   const lines = [];
-  const push  = (s) => lines.push(s);
+  const push = (s) => lines.push(s);
 
   // ── 1. Quality Score ────────────────────────────────────────────────────────
   const checks = [
-    { label: 'Title',           ok: !!brd.title?.trim(),        pts: 10 },
-    { label: 'Description',     ok: !!brd.description?.trim(),  pts: 10 },
-    { label: 'BA assigned',     ok: !!brd.baName,               pts: 10 },
-    { label: 'Quarter/Year',    ok: !!brd.quarter && !!brd.year,pts: 10 },
-    { label: 'Sprint assigned', ok: !!brd.sprintStart,          pts: 10 },
-    { label: 'T-Shirt size',    ok: !!brd.tshirtSize,           pts: 10 },
-    { label: 'Tech Lead(s)',    ok: techLeads.length > 0,        pts: 10 },
-    { label: 'Dev Assignee(s)', ok: devAssignees.length > 0,    pts: 10 },
-    { label: 'Jira link',       ok: !!brd.jiraLink,             pts: 5  },
-    { label: 'Google Docs',     ok: !!brd.googleDocsLink,       pts: 5  },
+    { label: 'Title', ok: !!brd.title?.trim(), pts: 10 },
+    { label: 'Description', ok: !!brd.description?.trim(), pts: 10 },
+    { label: 'BA assigned', ok: !!brd.baName, pts: 10 },
+    { label: 'Quarter/Year', ok: !!brd.quarter && !!brd.year, pts: 10 },
+    { label: 'Sprint assigned', ok: !!brd.sprintStart, pts: 10 },
+    { label: 'T-Shirt size', ok: !!brd.tshirtSize, pts: 10 },
+    { label: 'Tech Lead(s)', ok: techLeads.length > 0, pts: 10 },
+    { label: 'Dev Assignee(s)', ok: devAssignees.length > 0, pts: 10 },
+    { label: 'Jira link', ok: !!brd.jiraLink, pts: 5 },
+    { label: 'Google Docs', ok: !!brd.googleDocsLink, pts: 5 },
   ];
-  const score   = checks.filter((c) => c.ok).reduce((s, c) => s + c.pts, 0);
+  const score = checks.filter((c) => c.ok).reduce((s, c) => s + c.pts, 0);
   const missing = checks.filter((c) => !c.ok);
 
   push(`## 1. BRD Quality Score`);
@@ -1365,11 +1473,11 @@ function localAnalyzeBRD({ brd, bugs, techLeads, devAssignees, knowledgeBase, do
 
   // ── 3. Risk Assessment ──────────────────────────────────────────────────────
   push(`## 3. Risk Assessment`);
-  const highBugs   = bugs.filter((b) => b.severity === 'high'   && !['resolved','closed'].includes(b.status));
-  const openBugs   = bugs.filter((b) => !['resolved','closed'].includes(b.status));
-  const sizeRisk   = { XS:'Very Low', S:'Low', M:'Medium', L:'Moderate', XL:'High', XXL:'Very High' }[brd.tshirtSize] || 'Unknown';
-  const bugRisk    = openBugs.length === 0 ? 'Low' : openBugs.length <= 3 ? 'Medium' : 'High';
-  const scopeRisk  = !brd.sprintStart ? 'High (no sprint assigned)' : 'Low';
+  const highBugs = bugs.filter((b) => b.severity === 'high' && !['resolved', 'closed'].includes(b.status));
+  const openBugs = bugs.filter((b) => !['resolved', 'closed'].includes(b.status));
+  const sizeRisk = { XS: 'Very Low', S: 'Low', M: 'Medium', L: 'Moderate', XL: 'High', XXL: 'Very High' }[brd.tshirtSize] || 'Unknown';
+  const bugRisk = openBugs.length === 0 ? 'Low' : openBugs.length <= 3 ? 'Medium' : 'High';
+  const scopeRisk = !brd.sprintStart ? 'High (no sprint assigned)' : 'Low';
 
   push(`- **Technical risk:** ${sizeRisk}${brd.tshirtSize ? ` (size ${brd.tshirtSize})` : ' (no size set)'}`);
   push(`- **Delivery risk:** ${scopeRisk}`);
@@ -1407,7 +1515,7 @@ function localAnalyzeBRD({ brd, bugs, techLeads, devAssignees, knowledgeBase, do
     .map((s) => parseInt(String(s).replace(/\D/g, ''), 10))
     .filter((n) => !isNaN(n));
   const sprintSpan = sprintNums.length === 2 ? Math.abs(sprintNums[1] - sprintNums[0]) + 1 : (sprintNums.length === 1 ? 1 : 0);
-  const sizeSprintMap = { XS: [1,1], S: [1,2], M: [2,3], L: [3,4], XL: [4,6], XXL: [6, 99] };
+  const sizeSprintMap = { XS: [1, 1], S: [1, 2], M: [2, 3], L: [3, 4], XL: [4, 6], XXL: [6, 99] };
   const expectedRange = sizeSprintMap[brd.tshirtSize];
 
   if (!brd.sprintStart) {
@@ -1432,9 +1540,9 @@ function localAnalyzeBRD({ brd, bugs, techLeads, devAssignees, knowledgeBase, do
     push('- No bugs logged for this BRD.');
   } else {
     const bySeverity = bugs.reduce((acc, b) => { acc[b.severity] = (acc[b.severity] || 0) + 1; return acc; }, {});
-    const byStatus   = bugs.reduce((acc, b) => { acc[b.status]   = (acc[b.status]   || 0) + 1; return acc; }, {});
-    push(`- Total bugs: **${bugs.length}** — ${Object.entries(bySeverity).map(([k,v]) => `${v} ${k}`).join(', ')}`);
-    push(`- By status: ${Object.entries(byStatus).map(([k,v]) => `${v} ${k}`).join(', ')}`);
+    const byStatus = bugs.reduce((acc, b) => { acc[b.status] = (acc[b.status] || 0) + 1; return acc; }, {});
+    push(`- Total bugs: **${bugs.length}** — ${Object.entries(bySeverity).map(([k, v]) => `${v} ${k}`).join(', ')}`);
+    push(`- By status: ${Object.entries(byStatus).map(([k, v]) => `${v} ${k}`).join(', ')}`);
     if (highBugs.length) push(`- ⚠️ ${highBugs.length} unresolved high-severity bug(s) — requires attention before launch.`);
     const storyBugs = bugs.filter((b) => b.storyTicket);
     if (storyBugs.length) push(`- ${storyBugs.length} item(s) are story/enhancement tickets (not real defects).`);
@@ -1444,14 +1552,14 @@ function localAnalyzeBRD({ brd, bugs, techLeads, devAssignees, knowledgeBase, do
   // ── 7. Recommendations ──────────────────────────────────────────────────────
   push(`## 7. Recommendations`);
   const recs = [];
-  if (!brd.description?.trim())   recs.push('Add a clear description to the BRD to improve understanding and alignment.');
-  if (!brd.sprintStart)            recs.push('Assign a sprint to this BRD to move it out of the backlog.');
-  if (!brd.tshirtSize)             recs.push('Size the BRD with a T-shirt estimate for better sprint planning.');
-  if (techLeads.length === 0)      recs.push('Assign at least one tech lead to ensure technical oversight.');
-  if (devAssignees.length === 0)   recs.push('Assign developer(s) so ownership is clear.');
-  if (!brd.jiraLink)               recs.push('Link a Jira ticket for end-to-end traceability.');
-  if (highBugs.length > 0)         recs.push(`Resolve ${highBugs.length} open high-severity bug(s) before proceeding.`);
-  if (knowledgeBase.length === 0)  recs.push('Populate the knowledge base so future analyses have richer context.');
+  if (!brd.description?.trim()) recs.push('Add a clear description to the BRD to improve understanding and alignment.');
+  if (!brd.sprintStart) recs.push('Assign a sprint to this BRD to move it out of the backlog.');
+  if (!brd.tshirtSize) recs.push('Size the BRD with a T-shirt estimate for better sprint planning.');
+  if (techLeads.length === 0) recs.push('Assign at least one tech lead to ensure technical oversight.');
+  if (devAssignees.length === 0) recs.push('Assign developer(s) so ownership is clear.');
+  if (!brd.jiraLink) recs.push('Link a Jira ticket for end-to-end traceability.');
+  if (highBugs.length > 0) recs.push(`Resolve ${highBugs.length} open high-severity bug(s) before proceeding.`);
+  if (knowledgeBase.length === 0) recs.push('Populate the knowledge base so future analyses have richer context.');
   if (recs.length === 0) recs.push('BRD looks well-formed. Perform a final stakeholder review before launch.');
   recs.slice(0, 5).forEach((r, i) => push(`${i + 1}. ${r}`));
   push('');
@@ -1465,9 +1573,9 @@ function localAnalyzeBRD({ brd, bugs, techLeads, devAssignees, knowledgeBase, do
       push(`- ⚠️ Google Doc could not be read — ${docError || 'ensure it is publicly shared. You can also download the doc locally and upload it.'}`)
     }
   } else {
-    const words      = docContent.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
-    const wordCount  = words.length;
-    const lineCount  = docContent.split('\n').filter((l) => l.trim()).length;
+    const words = docContent.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+    const wordCount = words.length;
+    const lineCount = docContent.split('\n').filter((l) => l.trim()).length;
     push(`- ✅ Document read successfully — **${wordCount} words**, ${lineCount} lines.`);
 
     // Check KB keyword coverage inside the doc
@@ -1492,7 +1600,7 @@ function localAnalyzeBRD({ brd, bugs, techLeads, devAssignees, knowledgeBase, do
 
   // ── 9. Overall Verdict ──────────────────────────────────────────────────────
   push(`## 9. Overall Verdict`);
-  const statusLabel = { planning:'in planning', inprogress:'in progress', development:'in development', testing:'in testing', launched:'launched', onhold:'on hold' }[brd.status] || brd.status;
+  const statusLabel = { planning: 'in planning', inprogress: 'in progress', development: 'in development', testing: 'in testing', launched: 'launched', onhold: 'on hold' }[brd.status] || brd.status;
   push(`This BRD ("**${brd.title}**") is currently **${statusLabel}** and scored **${score}/100** on the quality check. ` +
     `${missing.length ? `Key gaps include: ${missing.map((m) => m.label).join(', ')}.` : 'All key fields are present.'} ` +
     `${openBugs.length ? `There are ${openBugs.length} open bug(s) that need attention.` : 'No open bugs.'} ` +
@@ -1567,8 +1675,8 @@ function resolveProviderChain() {
 
 const callProvider = (provider, prompt) =>
   provider === 'anthropic' ? analyzeWithAnthropic(prompt)
-  : provider === 'openai'  ? analyzeWithOpenAI(prompt)
-  : analyzeWithGemini(prompt);
+    : provider === 'openai' ? analyzeWithOpenAI(prompt)
+      : analyzeWithGemini(prompt);
 
 // ─── AI analysis cache ─────────────────────────────────────────────────────────
 // Deterministic key from everything that affects the output, so the same BRD +
@@ -1607,8 +1715,8 @@ async function saveCachedAnalysis(cacheKey, endpoint, provider, resultObj) {
       .input('k', NV(64), cacheKey)
       .input('e', NV(50), endpoint)
       .input('p', NV(30), provider || 'ai')
-      .input('r', NV(),   JSON.stringify(resultObj))
-      .input('c', BIG,    Date.now())
+      .input('r', NV(), JSON.stringify(resultObj))
+      .input('c', BIG, Date.now())
       .query(`MERGE ai_analysis_cache AS t
               USING (SELECT @k AS cacheKey) AS s ON t.cacheKey = s.cacheKey
               WHEN MATCHED THEN UPDATE SET result=@r, provider=@p, endpoint=@e, createdAt=@c
@@ -1830,10 +1938,12 @@ app.post('/api/ai/render-3d', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [
-          { text: prompt },
-          { inline_data: { mime_type: 'image/png', data: b64 } },
-        ] }],
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: 'image/png', data: b64 } },
+          ]
+        }],
       }),
     });
 
@@ -1853,7 +1963,7 @@ app.post('/api/ai/render-3d', async (req, res) => {
     const imgPart = parts.find(p => p.inlineData || p.inline_data);
     if (!imgPart) {
       const txt = parts.find(p => p.text)?.text;
-      return res.status(502).json({ error: txt ? `Model returned text instead of an image: ${txt.slice(0,150)}` : 'No image returned by the model.' });
+      return res.status(502).json({ error: txt ? `Model returned text instead of an image: ${txt.slice(0, 150)}` : 'No image returned by the model.' });
     }
 
     const out = imgPart.inlineData || imgPart.inline_data;
@@ -1918,58 +2028,71 @@ app.post('/api/ai/analyze', async (req, res) => {
 
 // ─── Style-Specific Feature Registry (from KB: Style-Specific Requirements) ───
 // Each entry maps a named builder feature to keywords for BRD keyword-scanning.
-const STYLE_FEATURES = [
+const STYLE_FEATURES_SEED = [
   // Options Tab — Fabric
-  { feature: 'No Default Fabric',           tab: 'Options Tab',      status: 'new',     keywords: ['no default fabric','default fabric','fabric required','no fabric selected','without fabric','cart without fabric'] },
-  { feature: 'Fabric Flow (Upgrade)',        tab: 'Options Tab',      status: 'stable',  keywords: ['fabric upgrade','upgrade fee','upgrade flow','fabric flow upgrade','primary material','upgrade price'] },
-  { feature: 'Fabric Selection',            tab: 'Options Tab',      status: 'stable',  keywords: ['fabric selection','select fabric','fabric picker','choose fabric','fabric group','material selection'] },
-  { feature: 'Fabric Flow (Downgrade)',      tab: 'Options Tab',      status: 'ongoing', keywords: ['fabric downgrade','downgrade flow','fabric flow downgrade','downgrade fabric'] },
-  { feature: 'Fabric Style Part (Twill)',    tab: 'Options Tab',      status: 'assessment', keywords: ['fabric twill','twill style','twill fabric','tackle twill fabric part','hybrid fabric'] },
+  { feature: 'No Default Fabric', tab: 'Options Tab', status: 'new', keywords: ['no default fabric', 'default fabric', 'fabric required', 'no fabric selected', 'without fabric', 'cart without fabric'] },
+  { feature: 'Fabric Flow (Upgrade)', tab: 'Options Tab', status: 'stable', keywords: ['fabric upgrade', 'upgrade fee', 'upgrade flow', 'fabric flow upgrade', 'primary material', 'upgrade price'] },
+  { feature: 'Fabric Selection', tab: 'Options Tab', status: 'stable', keywords: ['fabric selection', 'select fabric', 'fabric picker', 'choose fabric', 'fabric group', 'material selection'] },
+  { feature: 'Fabric Flow (Downgrade)', tab: 'Options Tab', status: 'ongoing', keywords: ['fabric downgrade', 'downgrade flow', 'fabric flow downgrade', 'downgrade fabric'] },
+  { feature: 'Fabric Style Part (Twill)', tab: 'Options Tab', status: 'assessment', keywords: ['fabric twill', 'twill style', 'twill fabric', 'tackle twill fabric part', 'hybrid fabric'] },
 
   // Customize Tab — Trims & Brand Logo
-  { feature: 'Trims Functionality',         tab: 'Customize Tab',    status: 'stable',  keywords: ['trim','trims','trim functionality','brand trim','multiple trim','trim color'] },
-  { feature: 'Locker Tag',                  tab: 'Customize Tab',    status: 'stable',  keywords: ['locker tag','lockertag','locker tag sublimated'] },
-  { feature: '3D Trim',                     tab: 'Customize Tab',    status: 'stable',  keywords: ['3d trim','3d embroidered','tackle twill trim','twill trim'] },
-  { feature: 'Brand Logo Color Rule',        tab: 'Customize Tab',    status: 'stable',  keywords: ['brand logo color','logo color rule','color rule','logo contrast','logo visibility','color conflict','logo brand color'] },
-  { feature: 'Brand Logo Intersecting Parts',tab: 'Customize Tab',    status: 'stable',  keywords: ['intersect','logo intersect','brand logo intersect','intersecting','logo across parts','logo overlap'] },
-  { feature: 'Reversible Color Combination', tab: 'Customize Tab',    status: 'ongoing', keywords: ['reversible color','color combination','reversible combination','reversible binding','reversible uniform','color binding'] },
+  { feature: 'Trims Functionality', tab: 'Customize Tab', status: 'stable', keywords: ['trim', 'trims', 'trim functionality', 'brand trim', 'multiple trim', 'trim color'] },
+  { feature: 'Locker Tag', tab: 'Customize Tab', status: 'stable', keywords: ['locker tag', 'lockertag', 'locker tag sublimated'] },
+  { feature: '3D Trim', tab: 'Customize Tab', status: 'stable', keywords: ['3d trim', '3d embroidered', 'tackle twill trim', 'twill trim'] },
+  { feature: 'Brand Logo Color Rule', tab: 'Customize Tab', status: 'stable', keywords: ['brand logo color', 'logo color rule', 'color rule', 'logo contrast', 'logo visibility', 'color conflict', 'logo brand color'] },
+  { feature: 'Brand Logo Intersecting Parts', tab: 'Customize Tab', status: 'stable', keywords: ['intersect', 'logo intersect', 'brand logo intersect', 'intersecting', 'logo across parts', 'logo overlap'] },
+  { feature: 'Reversible Color Combination', tab: 'Customize Tab', status: 'ongoing', keywords: ['reversible color', 'color combination', 'reversible combination', 'reversible binding', 'reversible uniform', 'color binding'] },
 
   // Customize Tab — Body Parts & Application Hover
-  { feature: 'Color Combination Functionality', tab: 'Customize Tab', status: 'stable', keywords: ['color combination','combo color','color zone','color group combination','body color','sleeve color'] },
-  { feature: 'Color Indexing',              tab: 'Customize Tab',    status: 'stable',  keywords: ['color index','indexing','color indexing','color order','index color'] },
-  { feature: 'Pattern Functionality',       tab: 'Customize Tab',    status: 'stable',  keywords: ['pattern','fabric pattern','pattern color','pattern position','pattern flow','sublimated pattern'] },
+  { feature: 'Color Combination Functionality', tab: 'Customize Tab', status: 'stable', keywords: ['color combination', 'combo color', 'color zone', 'color group combination', 'body color', 'sleeve color'] },
+  { feature: 'Color Indexing', tab: 'Customize Tab', status: 'stable', keywords: ['color index', 'indexing', 'color indexing', 'color order', 'index color'] },
+  { feature: 'Pattern Functionality', tab: 'Customize Tab', status: 'stable', keywords: ['pattern', 'fabric pattern', 'pattern color', 'pattern position', 'pattern flow', 'sublimated pattern'] },
 
   // Applications Tab
-  { feature: 'Application Soft/Hard Limits',tab: 'Applications Tab', status: 'stable',  keywords: ['soft limit','hard limit','application limit','app limit','application count','limit application'] },
-  { feature: 'Vectorsoft Integration',       tab: 'Applications Tab', status: 'stable',  keywords: ['vectorsoft','vector soft','pds','vectorsoft pds','vector art','logo digitizing'] },
-  { feature: 'Text Application Customization',tab:'Applications Tab', status: 'stable',  keywords: ['text application','text customization','pixi text','custom text','player name','player number','team name','font','text stroke'] },
-  { feature: 'Application Layer Draggable', tab: 'Applications Tab', status: 'stable',  keywords: ['drag','draggable','application layer drag','drag drop','layer drag','drag application'] },
-  { feature: 'Cowl Functionality',           tab: 'Applications Tab', status: 'stable',  keywords: ['cowl','cowl functionality','cowl neck','cowl design'] },
-  { feature: 'View Perspective Application', tab: 'Applications Tab', status: 'new',     keywords: ['view perspective','perspective application','left view','right view','back view','front view','perspective add'] },
-  { feature: 'Text Application Custom Stroke',tab:'Applications Tab', status: 'stable',  keywords: ['text stroke','custom stroke','stroke color','text outline','stroke text'] },
+  { feature: 'Application Soft/Hard Limits', tab: 'Applications Tab', status: 'stable', keywords: ['soft limit', 'hard limit', 'application limit', 'app limit', 'application count', 'limit application'] },
+  { feature: 'Vectorsoft Integration', tab: 'Applications Tab', status: 'stable', keywords: ['vectorsoft', 'vector soft', 'pds', 'vectorsoft pds', 'vector art', 'logo digitizing'] },
+  { feature: 'Text Application Customization', tab: 'Applications Tab', status: 'stable', keywords: ['text application', 'text customization', 'pixi text', 'custom text', 'player name', 'player number', 'team name', 'font', 'text stroke'] },
+  { feature: 'Application Layer Draggable', tab: 'Applications Tab', status: 'stable', keywords: ['drag', 'draggable', 'application layer drag', 'drag drop', 'layer drag', 'drag application'] },
+  { feature: 'Cowl Functionality', tab: 'Applications Tab', status: 'stable', keywords: ['cowl', 'cowl functionality', 'cowl neck', 'cowl design'] },
+  { feature: 'View Perspective Application', tab: 'Applications Tab', status: 'stable', keywords: ['view perspective', 'perspective application', 'left view', 'right view', 'back view', 'front view', 'perspective add'] },
+  { feature: 'Text Application Custom Stroke', tab: 'Applications Tab', status: 'stable', keywords: ['text stroke', 'custom stroke', 'stroke color', 'text outline', 'stroke text'] },
 
   // Roster Tab
-  { feature: 'Copy Roster',                 tab: 'Roster Tab',       status: 'stable',  keywords: ['copy roster','roster copy','top-to-top','bottom-to-bottom','roster duplicate'] },
-  { feature: 'Upload Roster',               tab: 'Roster Tab',       status: 'stable',  keywords: ['upload roster','roster upload','bulk upload','roster file','import roster'] },
-  { feature: 'Roster Error Notification',   tab: 'Roster Tab',       status: 'stable',  keywords: ['roster error','application error notification','roster notification','roster alert'] },
-  { feature: 'Football Pant Thigh Pad Pocket',tab:'Roster Tab',      status: 'stable',  keywords: ['thigh pad','pocket','football pant','pant pocket','thigh pad pocket'] },
-  { feature: 'Roster Football Hemline',     tab: 'Roster Tab',       status: 'new',     keywords: ['hemline','hem line','same hemline','football hemline','pant size hemline'] },
+  { feature: 'Copy Roster', tab: 'Roster Tab', status: 'stable', keywords: ['copy roster', 'roster copy', 'top-to-top', 'bottom-to-bottom', 'roster duplicate'] },
+  { feature: 'Upload Roster', tab: 'Roster Tab', status: 'stable', keywords: ['upload roster', 'roster upload', 'bulk upload', 'roster file', 'import roster'] },
+  { feature: 'Roster Error Notification', tab: 'Roster Tab', status: 'stable', keywords: ['roster error', 'application error notification', 'roster notification', 'roster alert'] },
+  { feature: 'Football Pant Thigh Pad Pocket', tab: 'Roster Tab', status: 'stable', keywords: ['thigh pad', 'pocket', 'football pant', 'pant pocket', 'thigh pad pocket'] },
+  { feature: 'Roster Football Hemline', tab: 'Roster Tab', status: 'stable', keywords: ['hemline', 'hem line', 'same hemline', 'football hemline', 'pant size hemline'] },
 
   // Stock Items
-  { feature: 'Brand-Specific Stock Check (GM1/Alli/PL)', tab: 'Stock Items', status: 'stable', keywords: ['gm1','alli','prolook','pl brand','brand specific','brand check','brand stock','brand item'] },
-  { feature: 'Twill Stock Items',           tab: 'Stock Items',      status: 'stable',  keywords: ['twill','tackle twill','twill item','twill stock'] },
-  { feature: 'Reversible Stock Items',      tab: 'Stock Items',      status: 'stable',  keywords: ['reversible stock','reversible item','reversible uniform','reversible garment'] },
-
+  { feature: 'Brand-Specific Stock Check (GM1/Alli/PL)', tab: 'Stock Items', status: 'stable', keywords: ['gm1', 'alli', 'prolook', 'pl brand', 'brand specific', 'brand check', 'brand stock', 'brand item'] },
+  { feature: 'Color Group Functionality', tab: 'Stock Items', status: 'new', keywords: ['color group', 'colour group', 'trim color wheel', 'color wheel', 'team colors', 'primary color', 'default color group', 'color group default', 'predefined trim', 'color order', 'logo color order', 'brand logo local', 'color group tile'] },
+  { feature: 'Available Color Groups Per Uniform', tab: 'Stock Items', status: 'new', keywords: ['pullover sideline', '1/4-zip', 'qxx', 'logo option', 'white/black logo', 'black/white logo', 'heathered gray base', 'black base', 'silicone poly', 'fusion polo', 'blade collar', 'spread collar', 'parka adult', 'dugout jacket', 'triple crown tee', 'color group per uniform', 'non-stock item', 'blocks'] },
+  { feature: 'Sizes by Color Offering', tab: 'Stock Items', status: 'new', keywords: ['sizes by color', 'size color offering', 'translation layer', 'monster digital', 'mdj', 'color bubble', 'youth size', 'adult size', 'roster size filter', 'size filter color', 'slate gray', 'khaki', 'size 28', 'pop-up modal', 'picker modal', 'go back proceed', 'color set brand', 'factory color', 'qts', 'hcm stock', 'monster rgb', 'next level', 'bella canvas', 'gildan', 'triblend', 'premium tee', 'hoodie', 'long sleeve'] },
+  { feature: 'Trim Color Rules (Brand Logo)', tab: 'Stock Items', status: 'new', keywords: ['trim color rule', 'brand logo trim', 'body color trim', 'trim static', 'trim auto', 'metallic silver logo', 'black/black logo', 'black/white logo', 'heathered gray base', 'sideline polo', 'sideline pullover', 'logo color mapping', 'trim color match', 'body color logo', 'trim not changeable', 'color code pdf', 'full color name pdf'] },
+  { feature: 'Trim Color Rules (Zipper)', tab: 'Stock Items', status: 'new', keywords: ['zipper trim', 'trim zipper', 'zipper color rule', 'zipper body color', 'zipper auto color'] },
+  { feature: 'Hidden Inseam Measurements', tab: 'Stock Items', status: 'new', keywords: ['inseam', 'inseam measurement', 'hidden inseam', 'standard inseam', 'tall inseam', 'inseam description', 'inseam pdf', 'jogger tapered', 'hcm jogger', 'inseam inches', 'inseam label'] },
+  { feature: 'Hemline Property in PDF (All Products)', tab: 'Stock Items', status: 'new', keywords: ['hemline', 'hemline pdf', 'inseam pdf', 'length measurement pdf', 'product hemline', 'hemline sport', 'product type hemline'] },
+  { feature: 'Remove Team Color Palette (Colors Tab)', tab: 'Stock Items', status: 'new', keywords: ['remove team color', 'color palette remove', 'team color palette', 'body color top', 'color tab stock', 'colors tab stock', 'body color section', 'text patterns tab'] },
+  { feature: 'Color Selection Requirements for Stock Items', tab: 'Stock Items', status: 'new', keywords: ['one color selection', 'single color stock', 'color selection stock', 'stock color requirement', 'single application color', 'one body color', 'two colors picker', 'color grouping stock', 'customize experience colors'] },
+  { feature: 'Application Toggle Behavior (Stock Items)', tab: 'Stock Items', status: 'new', keywords: ['application toggle', 'toggle application', 'toggle off application', 'enable location', 'disable front application', 'disable back application', 'mascot guide location', 'toggle message', 'front back toggle', 'toggle proceed', 'application location toggle'] },
+  // Tackle Twill
+  { feature: 'Twill Product', tab: 'Tackle Twill', status: 'stable', keywords: ['twill', 'tackle twill', 'twill item', 'twill', 'Twill color', 'Fabric Color', 'Suggested fabric Color'] },
+  // Reversible
+  { feature: 'Reversible', tab: 'Reversible', status: 'stable', keywords: ['reversible basketball', 'reversible', 'reversible uniform', 'reversible Football'] },
+  // master style
+  { features: 'Master style Customizer', customizer: 'Master style', status: 'stable', keywords: ['Web GA', 'Web Ga customizer'] },
   // Custom Pro
-  { feature: 'Custom Pro / Manual Order',   tab: 'Custom Pro',       status: 'stable',  keywords: ['custom pro','manual order','bags','master style','web ga','customizer web'] },
+  { feature: 'Custom Pro / Manual Order', tab: 'Custom Pro', status: 'stable', keywords: ['custom pro', 'manual order', 'pdf', 'order page', 'custom pro badge', 'add ons'] },
 
   // Pricing
-  { feature: 'Pricing Toggle (MOQ by item)',tab: 'Pricing',          status: 'stable',  keywords: ['pricing toggle','moq','add-on price','pricing item','minimum order','price item'] },
-  { feature: 'Fabric Upgrade Pricing',      tab: 'Pricing',          status: 'stable',  keywords: ['fabric upgrade price','upgrade fee','fabric price','upgrade pricing','material upgrade fee'] },
+  { feature: 'Pricing Toggle (MOQ by item)', tab: 'Pricing', status: 'stable', keywords: ['pricing toggle', 'moq', 'add-on price', 'pricing item', 'minimum order', 'price item'] },
+  { feature: 'Fabric Upgrade Pricing', tab: 'Pricing', status: 'stable', keywords: ['fabric upgrade price', 'upgrade fee', 'fabric price', 'upgrade pricing', 'material upgrade fee'] },
 
   // Notifications
-  { feature: 'Builder Auto-Update Notification', tab: 'System',     status: 'new',     keywords: ['notification','auto update','back to builder','design update','builder notification'] },
-  { feature: 'Issue and Logs from Rejection',tab: 'System',          status: 'new',     keywords: ['rejection','issue log','rejection log','rejection issue','log from rejection'] },
+  { feature: 'Builder Auto-Update Notification', tab: 'System', status: 'new', keywords: ['notification', 'auto update', 'back to builder', 'design update', 'builder notification'] },
+  { feature: 'Issue and Logs from Rejection', tab: 'System', status: 'new', keywords: ['rejection', 'issue log', 'rejection log', 'rejection issue', 'log from rejection'] },
 ];
 
 // ─── Customizer-Core Full Module Registry ─────────────────────────────────────
@@ -1977,472 +2100,654 @@ const STYLE_FEATURES = [
 // Pattern, Pricing/Cart, Approval, Roster, API, Composables, Stores.
 const CUSTOMIZER_MODULES = [
   // ── CORE STORES ───────────────────────────────────────────────────────────
-  { name: 'customizer.js', path: 'resources/js/stores/customizer.js', domain: 'Core Store',
+  {
+    name: 'customizer.js', path: 'resources/js/stores/customizer.js', domain: 'Core Store',
     role: 'Primary Pinia store: uniform state, team colors, fabric groups, pricing, textures, history.',
-    keyExports: ['useCustomizerStore','setTeamColors','setupFabricGroup','renderUniform','setColorsByActiveFabric','setPulloverTexture','setAgnosticTrimColor'],
-    keywords: ['store','pinia','state','upgrade fee','setteamcolors','setupfabricgroup','pullover','heathered','heather','zipper','twill','sublimation','sublimated','reversible','uniform state','activeuniform'] },
+    keyExports: ['useCustomizerStore', 'setTeamColors', 'setupFabricGroup', 'renderUniform', 'setColorsByActiveFabric', 'setPulloverTexture', 'setAgnosticTrimColor'],
+    keywords: ['store', 'pinia', 'state', 'upgrade fee', 'setteamcolors', 'setupfabricgroup', 'pullover', 'heathered', 'heather', 'zipper', 'twill', 'sublimation', 'sublimated', 'reversible', 'uniform state', 'activeuniform']
+  },
 
-  { name: 'colors.js (store)', path: 'resources/js/stores/colors.js', domain: 'Color',
+  {
+    name: 'colors.js (store)', path: 'resources/js/stores/colors.js', domain: 'Color',
     role: 'Pinia store for team color data and filtering.',
     keyExports: ['useColorsStore'],
-    keywords: ['team color','brand color','color list','color filter','palette','color store'] },
+    keywords: ['team color', 'brand color', 'color list', 'color filter', 'palette', 'color store']
+  },
 
-  { name: 'fabric.js (store)', path: 'resources/js/stores/fabric.js', domain: 'Fabric',
+  {
+    name: 'fabric.js (store)', path: 'resources/js/stores/fabric.js', domain: 'Fabric',
     role: 'Pinia store tracking selected fabric groups and fabric state.',
     keyExports: ['useFabricStore'],
-    keywords: ['fabric store','fabric group','material group','fabric state'] },
+    keywords: ['fabric store', 'fabric group', 'material group', 'fabric state']
+  },
 
-  { name: 'approval.js (store)', path: 'resources/js/stores/approval.js', domain: 'Approval',
+  {
+    name: 'approval.js (store)', path: 'resources/js/stores/approval.js', domain: 'Approval',
     role: 'Pinia store for design approval workflow state.',
-    keyExports: ['useApprovalStore','isEmbellishment','isMascot','isPlayerName','isPlayerNumber','isTeamName'],
-    keywords: ['approval','approve','review','sign off','customer approval','ask for changes','rejection'] },
+    keyExports: ['useApprovalStore', 'isEmbellishment', 'isMascot', 'isPlayerName', 'isPlayerNumber', 'isTeamName'],
+    keywords: ['approval', 'approve', 'review', 'sign off', 'customer approval', 'ask for changes', 'rejection']
+  },
 
-  { name: 'logos.js (store)', path: 'resources/js/stores/logos.js', domain: 'Logo',
+  {
+    name: 'logos.js (store)', path: 'resources/js/stores/logos.js', domain: 'Logo',
     role: 'Pinia store for saved logos, filtering, and logo upload management.',
     keyExports: ['useLogosStore'],
-    keywords: ['logo','brand logo','saved logo','logo library','logo upload','logo store'] },
+    keywords: ['logo', 'brand logo', 'saved logo', 'logo library', 'logo upload', 'logo store']
+  },
 
-  { name: 'tailsweep.js (store)', path: 'resources/js/stores/tailsweep.js', domain: 'Embellishment',
+  {
+    name: 'tailsweep.js (store)', path: 'resources/js/stores/tailsweep.js', domain: 'Embellishment',
     role: 'Pinia store for tailsweep embellishment configuration.',
     keyExports: ['useTailsweepStore'],
-    keywords: ['tailsweep','tail sweep','embellishment','decoration'] },
+    keywords: ['tailsweep', 'tail sweep', 'embellishment', 'decoration']
+  },
 
-  { name: 'text-shapes.ts (store)', path: 'resources/js/stores/text-shapes.ts', domain: 'Text',
+  {
+    name: 'text-shapes.ts (store)', path: 'resources/js/stores/text-shapes.ts', domain: 'Text',
     role: 'Pinia store for text shape objects (curved/shaped text).',
     keyExports: ['useTextShapesStore'],
-    keywords: ['text shape','curved text','shaped text','text object'] },
+    keywords: ['text shape', 'curved text', 'shaped text', 'text object']
+  },
 
-  { name: 'roster.js (store)', path: 'resources/js/stores/roster.js', domain: 'Roster',
+  {
+    name: 'roster.js (store)', path: 'resources/js/stores/roster.js', domain: 'Roster',
     role: 'Pinia store for team roster data (player names, numbers).',
     keyExports: ['useRosterStore'],
-    keywords: ['roster','player name','player number','team roster','bulk upload'] },
+    keywords: ['roster', 'player name', 'player number', 'team roster', 'bulk upload']
+  },
 
-  { name: 'cart.js (store)', path: 'resources/js/stores/cart.js', domain: 'Pricing/Cart',
+  {
+    name: 'cart.js (store)', path: 'resources/js/stores/cart.js', domain: 'Pricing/Cart',
     role: 'Pinia store for shopping cart state.',
     keyExports: ['useCartStore'],
-    keywords: ['cart','shopping cart','add to cart','cart state','order'] },
+    keywords: ['cart', 'shopping cart', 'add to cart', 'cart state', 'order']
+  },
 
-  { name: 'saved-designs.js (store)', path: 'resources/js/stores/saved-designs.js', domain: 'Design',
+  {
+    name: 'saved-designs.js (store)', path: 'resources/js/stores/saved-designs.js', domain: 'Design',
     role: 'Pinia store for managing saved uniform designs.',
     keyExports: ['useSavedDesignsStore'],
-    keywords: ['saved design','save design','load design','design template'] },
+    keywords: ['saved design', 'save design', 'load design', 'design template']
+  },
 
-  { name: 'brand-info.js (store)', path: 'resources/js/stores/brand-info.js', domain: 'Brand',
+  {
+    name: 'brand-info.js (store)', path: 'resources/js/stores/brand-info.js', domain: 'Brand',
     role: 'Pinia store for brand settings and brand-specific config.',
     keyExports: ['useBrandInfoStore'],
-    keywords: ['brand','brand info','brand settings','brand config','brand code'] },
+    keywords: ['brand', 'brand info', 'brand settings', 'brand config', 'brand code']
+  },
 
-  { name: 'decorations.js (store)', path: 'resources/js/stores/decorations.js', domain: 'Embellishment',
+  {
+    name: 'decorations.js (store)', path: 'resources/js/stores/decorations.js', domain: 'Embellishment',
     role: 'Pinia store for decoration/embellishment data.',
     keyExports: ['useDecorationsStore'],
-    keywords: ['decoration','embellishment','add-on','mascot','stock art'] },
+    keywords: ['decoration', 'embellishment', 'add-on', 'mascot', 'stock art']
+  },
 
-  { name: 'history.js (store)', path: 'resources/js/stores/history.js', domain: 'History',
+  {
+    name: 'history.js (store)', path: 'resources/js/stores/history.js', domain: 'History',
     role: 'Pinia store for undo/redo history.',
     keyExports: ['useHistoryStore'],
-    keywords: ['undo','redo','history','revert','rollback'] },
+    keywords: ['undo', 'redo', 'history', 'revert', 'rollback']
+  },
 
-  { name: 'master-feature.js (store)', path: 'resources/js/stores/master-feature.js', domain: 'Feature Flags',
+  {
+    name: 'master-feature.js (store)', path: 'resources/js/stores/master-feature.js', domain: 'Feature Flags',
     role: 'Pinia store for feature flags and feature toggles.',
     keyExports: ['useMasterFeatureStore'],
-    keywords: ['feature flag','feature toggle','feature switch','rollout','enable feature'] },
+    keywords: ['feature flag', 'feature toggle', 'feature switch', 'rollout', 'enable feature']
+  },
 
   // ── CORE CUSTOMIZER MODULES ──────────────────────────────────────────────
-  { name: 'color.ts', path: 'resources/js/core/customizer/color.ts', domain: 'Color / Canvas',
+  {
+    name: 'color.ts', path: 'resources/js/core/customizer/color.ts', domain: 'Color / Canvas',
     role: 'Core color engine: maps color arrays to garment parts, converts hex to PixiJS tints (remixColors).',
-    keyExports: ['remixColors','changeColorGroup','changeColorGroupBySide','changeMaterialColor','colorObjectsFromCodes','teamColorSettingCodes','mergeColors','rearrangeColors','updateOtherSideTrimColor'],
-    keywords: ['remix','tint','canvas','parsehexcode','remixcolors','canvas rendering','numeric tint','partobject','color zone','color mapping','hex to tint'] },
+    keyExports: ['remixColors', 'changeColorGroup', 'changeColorGroupBySide', 'changeMaterialColor', 'colorObjectsFromCodes', 'teamColorSettingCodes', 'mergeColors', 'rearrangeColors', 'updateOtherSideTrimColor'],
+    keywords: ['remix', 'tint', 'canvas', 'parsehexcode', 'remixcolors', 'canvas rendering', 'numeric tint', 'partobject', 'color zone', 'color mapping', 'hex to tint']
+  },
 
-  { name: 'fabric.ts', path: 'resources/js/core/customizer/fabric.ts', domain: 'Fabric',
+  {
+    name: 'fabric.ts', path: 'resources/js/core/customizer/fabric.ts', domain: 'Fabric',
     role: 'Core fabric engine: persists fabric selections, triggers downstream color/texture updates.',
-    keyExports: ['changeFabric','setSelected','isSelected','initializeFabricSelectionProperty','hasColorConflict'],
-    keywords: ['changefabric','fabric selection','material selection','texture update','fabric conflict','fabric rule'] },
+    keyExports: ['changeFabric', 'setSelected', 'isSelected', 'initializeFabricSelectionProperty', 'hasColorConflict'],
+    keywords: ['changefabric', 'fabric selection', 'material selection', 'texture update', 'fabric conflict', 'fabric rule']
+  },
 
-  { name: 'application.ts', path: 'resources/js/core/customizer/application.ts', domain: 'Canvas / Applications',
+  {
+    name: 'application.ts', path: 'resources/js/core/customizer/application.ts', domain: 'Canvas / Applications',
     role: 'Core application engine: renders logos, text, mascots; manages placement, scale, rotation on canvas.',
-    keyExports: ['renderApplication','createTextApplication','renderStockMascot','setApplicationOpacity','setApplicationScale','setApplicationPosition','setApplicationAngle','deleteApplication','changeApplicationType','getApplicationLocations','findLogoApplicationByLocation','findTextApplicationByLocationAndType'],
-    keywords: ['application','render','logo placement','text placement','mascot','emblem','opacity','scale','rotate','canvas object','placement','location','application layer'] },
+    keyExports: ['renderApplication', 'createTextApplication', 'renderStockMascot', 'setApplicationOpacity', 'setApplicationScale', 'setApplicationPosition', 'setApplicationAngle', 'deleteApplication', 'changeApplicationType', 'getApplicationLocations', 'findLogoApplicationByLocation', 'findTextApplicationByLocationAndType'],
+    keywords: ['application', 'render', 'logo placement', 'text placement', 'mascot', 'emblem', 'opacity', 'scale', 'rotate', 'canvas object', 'placement', 'location', 'application layer']
+  },
 
-  { name: 'text-shape.ts', path: 'resources/js/core/customizer/text-shape.ts', domain: 'Text',
+  {
+    name: 'text-shape.ts', path: 'resources/js/core/customizer/text-shape.ts', domain: 'Text',
     role: 'Core text-shape engine: creates curved/shaped text objects and handles S3 upload for embellishments.',
-    keyExports: ['createTextShape','reloadTextShape','s3UploadEmbellishments'],
-    keywords: ['text shape','curved text','arc text','shaped text','s3 upload','embellishment upload'] },
+    keyExports: ['createTextShape', 'reloadTextShape', 's3UploadEmbellishments'],
+    keywords: ['text shape', 'curved text', 'arc text', 'shaped text', 's3 upload', 'embellishment upload']
+  },
 
-  { name: 'pattern.ts', path: 'resources/js/core/customizer/pattern.ts', domain: 'Pattern',
+  {
+    name: 'pattern.ts', path: 'resources/js/core/customizer/pattern.ts', domain: 'Pattern',
     role: 'Core pattern engine: assigns/removes patterns, handles position and color on parts.',
-    keyExports: ['setPattern','setPatternColor','setPatternPosition','setPatternStatus','removePattern','createApplicationPattern','changeApplicationPatternPosition'],
-    keywords: ['pattern','fabric pattern','background pattern','pattern color','pattern position','camouflage','sublimated pattern'] },
+    keyExports: ['setPattern', 'setPatternColor', 'setPatternPosition', 'setPatternStatus', 'removePattern', 'createApplicationPattern', 'changeApplicationPatternPosition'],
+    keywords: ['pattern', 'fabric pattern', 'background pattern', 'pattern color', 'pattern position', 'camouflage', 'sublimated pattern']
+  },
 
-  { name: 'piping.ts', path: 'resources/js/core/customizer/piping.ts', domain: 'Embellishment / Piping',
+  {
+    name: 'piping.ts', path: 'resources/js/core/customizer/piping.ts', domain: 'Embellishment / Piping',
     role: 'Core piping engine: creates, configures, and deletes piping/trim on uniform seams.',
-    keyExports: ['createPiping','setPipingStatus','changePipingColor','changePipingSize','deletePiping'],
-    keywords: ['piping','trim','seam','accent','border','piping color','piping size','collar','cuff'] },
+    keyExports: ['createPiping', 'setPipingStatus', 'changePipingColor', 'changePipingSize', 'deletePiping'],
+    keywords: ['piping', 'trim', 'seam', 'accent', 'border', 'piping color', 'piping size', 'collar', 'cuff']
+  },
 
-  { name: 'tailsweep.ts', path: 'resources/js/core/customizer/tailsweep.ts', domain: 'Embellishment',
+  {
+    name: 'tailsweep.ts', path: 'resources/js/core/customizer/tailsweep.ts', domain: 'Embellishment',
     role: 'Core tailsweep engine: creates tailsweep embellishments, handles color and dimension sync.',
-    keyExports: ['createTailsweep','changeTailsweepColor','syncDimension'],
-    keywords: ['tailsweep','tail sweep','jersey tail','tail embellishment'] },
+    keyExports: ['createTailsweep', 'changeTailsweepColor', 'syncDimension'],
+    keywords: ['tailsweep', 'tail sweep', 'jersey tail', 'tail embellishment']
+  },
 
-  { name: 'brand-logo.ts', path: 'resources/js/core/customizer/brand-logo.ts', domain: 'Logo',
+  {
+    name: 'brand-logo.ts', path: 'resources/js/core/customizer/brand-logo.ts', domain: 'Logo',
     role: 'Core brand logo renderer: places brand logo onto the garment canvas.',
-    keyExports: ['renderBrandLogo','updateBrandLogo'],
-    keywords: ['brand logo','logo render','chest logo','logo layer','brand mark'] },
+    keyExports: ['renderBrandLogo', 'updateBrandLogo'],
+    keywords: ['brand logo', 'logo render', 'chest logo', 'logo layer', 'brand mark']
+  },
 
-  { name: 'uniform.ts', path: 'resources/js/core/customizer/uniform.ts', domain: 'Canvas / Stage',
+  {
+    name: 'uniform.ts', path: 'resources/js/core/customizer/uniform.ts', domain: 'Canvas / Stage',
     role: 'Core uniform renderer: loads uniform, highlights parts, manages builder customization properties.',
-    keyExports: ['createUniform','loadUniform','renderUniform','highlightParts','resetHighLights','highlightLogo','highlightText','setBuilderCustomizationProperty'],
-    keywords: ['load uniform','render uniform','highlight','builder customization','uniform loading','active uniform','uniform initialization'] },
+    keyExports: ['createUniform', 'loadUniform', 'renderUniform', 'highlightParts', 'resetHighLights', 'highlightLogo', 'highlightText', 'setBuilderCustomizationProperty'],
+    keywords: ['load uniform', 'render uniform', 'highlight', 'builder customization', 'uniform loading', 'active uniform', 'uniform initialization']
+  },
 
-  { name: 'perspective.ts', path: 'resources/js/core/customizer/perspective.ts', domain: 'Canvas / Stage',
+  {
+    name: 'perspective.ts', path: 'resources/js/core/customizer/perspective.ts', domain: 'Canvas / Stage',
     role: 'Manages front/back/left/right view switching and reversible uniform logic.',
-    keyExports: ['changeActiveView','getPrimaryViews','isReversible'],
-    keywords: ['view','perspective','front view','back view','reversible','side view','active view','switch view'] },
+    keyExports: ['changeActiveView', 'getPrimaryViews', 'isReversible'],
+    keywords: ['view', 'perspective', 'front view', 'back view', 'reversible', 'side view', 'active view', 'switch view']
+  },
 
-  { name: 'thumbnails.ts', path: 'resources/js/core/customizer/thumbnails.ts', domain: 'Rendering',
+  {
+    name: 'thumbnails.ts', path: 'resources/js/core/customizer/thumbnails.ts', domain: 'Rendering',
     role: 'Generates and refreshes uniform design thumbnails for all views.',
-    keyExports: ['generateThumbnail','generateAllThumbnail','generateReversibleThumbnails','generateAllReversibleThumbnail'],
-    keywords: ['thumbnail','preview image','design preview','generate image','snapshot'] },
+    keyExports: ['generateThumbnail', 'generateAllThumbnail', 'generateReversibleThumbnails', 'generateAllReversibleThumbnail'],
+    keywords: ['thumbnail', 'preview image', 'design preview', 'generate image', 'snapshot']
+  },
 
-  { name: 'stage.ts', path: 'resources/js/core/stage/stage.ts', domain: 'Canvas / Stage',
+  {
+    name: 'stage.ts', path: 'resources/js/core/stage/stage.ts', domain: 'Canvas / Stage',
     role: 'PixiJS Application manager: creates/resizes the PIXI renderer canvas, controls visibility and scale.',
-    keyExports: ['createStage','setStage','setStageVisibility','setPosition','setScale','resizeRenderer','disableStageInteractive','enableStageInteractive'],
-    keywords: ['stage','pixi','canvas','renderer','webgl','stage resize','canvas size','stage scale','stage visibility'] },
+    keyExports: ['createStage', 'setStage', 'setStageVisibility', 'setPosition', 'setScale', 'resizeRenderer', 'disableStageInteractive', 'enableStageInteractive'],
+    keywords: ['stage', 'pixi', 'canvas', 'renderer', 'webgl', 'stage resize', 'canvas size', 'stage scale', 'stage visibility']
+  },
 
-  { name: 'stageEvents.js', path: 'resources/js/core/stage/stageEvents.js', domain: 'Canvas / Stage',
+  {
+    name: 'stageEvents.js', path: 'resources/js/core/stage/stageEvents.js', domain: 'Canvas / Stage',
     role: 'PixiJS stage interaction: mouse/touch events, zone hit-testing, part highlighting on hover/click.',
-    keyExports: ['initializeStageEvents','destroyStageEvents','defaultScale'],
-    keywords: ['stage event','mouse event','touch event','hit test','hover','click zone','interactive','point in polygon'] },
+    keyExports: ['initializeStageEvents', 'destroyStageEvents', 'defaultScale'],
+    keywords: ['stage event', 'mouse event', 'touch event', 'hit test', 'hover', 'click zone', 'interactive', 'point in polygon']
+  },
 
-  { name: 'add-ons.ts', path: 'resources/js/core/customizer/add-ons.ts', domain: 'Embellishment',
+  {
+    name: 'add-ons.ts', path: 'resources/js/core/customizer/add-ons.ts', domain: 'Embellishment',
     role: 'Core add-on engine: renders and manages add-on decorative embellishments.',
-    keyExports: ['renderAddOn','updateAddOn'],
-    keywords: ['add-on','addon','decoration','stock mascot','custom mascot','art piece'] },
+    keyExports: ['renderAddOn', 'updateAddOn'],
+    keywords: ['add-on', 'addon', 'decoration', 'stock mascot', 'custom mascot', 'art piece']
+  },
 
-  { name: 'brand-trims.ts', path: 'resources/js/core/customizer/brand-trims.ts', domain: 'Embellishment',
+  {
+    name: 'brand-trims.ts', path: 'resources/js/core/customizer/brand-trims.ts', domain: 'Embellishment',
     role: 'Manages brand-specific trim decorations on the garment.',
-    keyExports: ['renderBrandTrim','updateBrandTrim'],
-    keywords: ['brand trim','trim decoration','3d trim','tackle twill trim'] },
+    keyExports: ['renderBrandTrim', 'updateBrandTrim'],
+    keywords: ['brand trim', 'trim decoration', '3d trim', 'tackle twill trim']
+  },
 
-  { name: 'block-pattern.ts', path: 'resources/js/core/customizer/block-pattern.ts', domain: 'Pattern',
+  {
+    name: 'block-pattern.ts', path: 'resources/js/core/customizer/block-pattern.ts', domain: 'Pattern',
     role: 'Manages block pattern rules for sublimated/cut-and-sew garment layouts.',
-    keyExports: ['applyBlockPattern','getBlockPatternRule'],
-    keywords: ['block pattern','cut and sew','sublimated layout','block rule','panel layout'] },
+    keyExports: ['applyBlockPattern', 'getBlockPatternRule'],
+    keywords: ['block pattern', 'cut and sew', 'sublimated layout', 'block rule', 'panel layout']
+  },
 
-  { name: 'cart-items.ts', path: 'resources/js/core/customizer/cart-items.ts', domain: 'Pricing/Cart',
+  {
+    name: 'cart-items.ts', path: 'resources/js/core/customizer/cart-items.ts', domain: 'Pricing/Cart',
     role: 'Maps customization data to cart line items including upgrade fees.',
-    keyExports: ['buildCartItem','mapUpgradeFees'],
-    keywords: ['cart item','line item','upgrade fee','pricing','cost calculation','cart mapping'] },
+    keyExports: ['buildCartItem', 'mapUpgradeFees'],
+    keywords: ['cart item', 'line item', 'upgrade fee', 'pricing', 'cost calculation', 'cart mapping']
+  },
 
-  { name: 'color-selection.ts (composable)', path: 'resources/js/composables/color-selection.ts', domain: 'Color',
+  {
+    name: 'color-selection.ts (composable)', path: 'resources/js/composables/color-selection.ts', domain: 'Color',
     role: 'Reusable composable for color picker logic shared across color panels.',
     keyExports: ['useColorSelection'],
-    keywords: ['color selection','color picker','pick color','select color','composable color'] },
+    keywords: ['color selection', 'color picker', 'pick color', 'select color', 'composable color']
+  },
 
   // ── BUILDER COMPONENTS ────────────────────────────────────────────────────
-  { name: 'ColorGroupPanel.vue', path: 'resources/js/Components/Builder/Colors/ColorGroupPanel.vue', domain: 'Color / UI',
+  {
+    name: 'ColorGroupPanel.vue', path: 'resources/js/Components/Builder/Colors/ColorGroupPanel.vue', domain: 'Color / UI',
     role: 'Zone-by-zone color assignment panel; shows body/sleeve/piping accordions and team color swatches.',
     keyExports: ['ColorGroupPanel'],
-    keywords: ['color group','zone color','body color','sleeve color','piping accordion','color panel','team color picker','manual order color','twill color','hybrid color'] },
+    keywords: ['color group', 'zone color', 'body color', 'sleeve color', 'piping accordion', 'color panel', 'team color picker', 'manual order color', 'twill color', 'hybrid color']
+  },
 
-  { name: 'ColorSelection.vue', path: 'resources/js/Components/Builder/Modals/ColorSelection.vue', domain: 'Color / UI',
+  {
+    name: 'ColorSelection.vue', path: 'resources/js/Components/Builder/Modals/ColorSelection.vue', domain: 'Color / UI',
     role: 'Modal for selecting brand colors; checkbox-based picker that saves team color choices.',
     keyExports: ['ColorSelection'],
-    keywords: ['color selection','brand color','color modal','color checkbox','save color','color picker modal'] },
+    keywords: ['color selection', 'brand color', 'color modal', 'color checkbox', 'save color', 'color picker modal']
+  },
 
-  { name: 'ColorConflictAlertModal.vue', path: 'resources/js/Components/Builder/Modals/ColorConflictAlertModal.vue', domain: 'Color / Validation',
+  {
+    name: 'ColorConflictAlertModal.vue', path: 'resources/js/Components/Builder/Modals/ColorConflictAlertModal.vue', domain: 'Color / Validation',
     role: 'Shows conflict warnings when brand logo visibility or color contrast rules are violated.',
     keyExports: ['ColorConflictAlertModal'],
-    keywords: ['conflict','contrast','color conflict','logo visibility','brand contrast','warning','clash','alert modal'] },
+    keywords: ['conflict', 'contrast', 'color conflict', 'logo visibility', 'brand contrast', 'warning', 'clash', 'alert modal']
+  },
 
-  { name: 'FabricPanel.vue', path: 'resources/js/Components/Builder/Fabric/FabricPanel.vue', domain: 'Fabric / UI',
+  {
+    name: 'FabricPanel.vue', path: 'resources/js/Components/Builder/Fabric/FabricPanel.vue', domain: 'Fabric / UI',
     role: 'Fabric selection accordion; shows fabric groups, recommended fabrics, and upgrade fees.',
     keyExports: ['FabricPanel'],
-    keywords: ['fabric panel','fabric group','upgrade fee','material selection','fabric accordion','suggested fabric','fabric weight','composition'] },
+    keywords: ['fabric panel', 'fabric group', 'upgrade fee', 'material selection', 'fabric accordion', 'suggested fabric', 'fabric weight', 'composition']
+  },
 
-  { name: 'TwillSelectionColor.vue', path: 'resources/js/Components/Builder/Modals/TwillSelectionColor.vue', domain: 'Color / Twill',
+  {
+    name: 'TwillSelectionColor.vue', path: 'resources/js/Components/Builder/Modals/TwillSelectionColor.vue', domain: 'Color / Twill',
     role: 'Color selection modal for tackle twill and hybrid products (up to 15 colors).',
     keyExports: ['TwillSelectionColor'],
-    keywords: ['twill','tackle twill','hybrid','15 colors','twill color','tackle color'] },
+    keywords: ['twill', 'tackle twill', 'hybrid', '15 colors', 'twill color', 'tackle color']
+  },
 
-  { name: 'TextPanel.vue', path: 'resources/js/Components/Builder/Text/TextPanel.vue', domain: 'Text / UI',
+  {
+    name: 'TextPanel.vue', path: 'resources/js/Components/Builder/Text/TextPanel.vue', domain: 'Text / UI',
     role: 'Main text customization panel: player names, numbers, team names, graduation year.',
     keyExports: ['TextPanel'],
-    keywords: ['text','player name','player number','team name','graduation year','name panel','number panel','text customization'] },
+    keywords: ['text', 'player name', 'player number', 'team name', 'graduation year', 'name panel', 'number panel', 'text customization']
+  },
 
-  { name: 'PlayerName.vue', path: 'resources/js/Components/Builder/Text/PlayerName.vue', domain: 'Text / UI',
+  {
+    name: 'PlayerName.vue', path: 'resources/js/Components/Builder/Text/PlayerName.vue', domain: 'Text / UI',
     role: 'Input component for individual player name application.',
     keyExports: ['PlayerName'],
-    keywords: ['player name','name input','roster name','athlete name'] },
+    keywords: ['player name', 'name input', 'roster name', 'athlete name']
+  },
 
-  { name: 'PlayerNumber.vue', path: 'resources/js/Components/Builder/Text/PlayerNumber.vue', domain: 'Text / UI',
+  {
+    name: 'PlayerNumber.vue', path: 'resources/js/Components/Builder/Text/PlayerNumber.vue', domain: 'Text / UI',
     role: 'Input component for player number application.',
     keyExports: ['PlayerNumber'],
-    keywords: ['player number','number input','jersey number','roster number'] },
+    keywords: ['player number', 'number input', 'jersey number', 'roster number']
+  },
 
-  { name: 'TeamName.vue', path: 'resources/js/Components/Builder/Text/TeamName.vue', domain: 'Text / UI',
+  {
+    name: 'TeamName.vue', path: 'resources/js/Components/Builder/Text/TeamName.vue', domain: 'Text / UI',
     role: 'Input component for team name text application on the garment.',
     keyExports: ['TeamName'],
-    keywords: ['team name','school name','club name','organization name','text application'] },
+    keywords: ['team name', 'school name', 'club name', 'organization name', 'text application']
+  },
 
-  { name: 'FontModal.vue', path: 'resources/js/Components/Builder/Modals/FontModal.vue', domain: 'Text / UI',
+  {
+    name: 'FontModal.vue', path: 'resources/js/Components/Builder/Modals/FontModal.vue', domain: 'Text / UI',
     role: 'Font selection modal for text applications.',
     keyExports: ['FontModal'],
-    keywords: ['font','typeface','font selection','font picker','font style','typography'] },
+    keywords: ['font', 'typeface', 'font selection', 'font picker', 'font style', 'typography']
+  },
 
-  { name: 'LogoPanel.vue', path: 'resources/js/Components/Builder/Logo/LogoPanel.vue', domain: 'Logo / UI',
+  {
+    name: 'LogoPanel.vue', path: 'resources/js/Components/Builder/Logo/LogoPanel.vue', domain: 'Logo / UI',
     role: 'Logo selection and placement panel: saved logos, brand logos, logo locations.',
     keyExports: ['LogoPanel'],
-    keywords: ['logo','logo panel','logo placement','logo location','logo library','brand logo','saved logo','logo upload'] },
+    keywords: ['logo', 'logo panel', 'logo placement', 'logo location', 'logo library', 'brand logo', 'saved logo', 'logo upload']
+  },
 
-  { name: 'ArtPanel.vue', path: 'resources/js/Components/Builder/Art/ArtPanel.vue', domain: 'Logo / UI',
+  {
+    name: 'ArtPanel.vue', path: 'resources/js/Components/Builder/Art/ArtPanel.vue', domain: 'Logo / UI',
     role: 'Art/logo upload panel: file upload, URL input, and load saved design options.',
     keyExports: ['ArtPanel'],
-    keywords: ['art','upload art','logo upload','custom art','artwork','design upload','art panel'] },
+    keywords: ['art', 'upload art', 'logo upload', 'custom art', 'artwork', 'design upload', 'art panel']
+  },
 
-  { name: 'PatternGroupPanel.vue', path: 'resources/js/Components/Builder/Pattern/PatternGroupPanel.vue', domain: 'Pattern / UI',
+  {
+    name: 'PatternGroupPanel.vue', path: 'resources/js/Components/Builder/Pattern/PatternGroupPanel.vue', domain: 'Pattern / UI',
     role: 'Pattern selection panel for sublimated and fabric pattern application.',
     keyExports: ['PatternGroupPanel'],
-    keywords: ['pattern','fabric pattern','background pattern','pattern panel','camouflage','design pattern'] },
+    keywords: ['pattern', 'fabric pattern', 'background pattern', 'pattern panel', 'camouflage', 'design pattern']
+  },
 
-  { name: 'PipingPanel.vue', path: 'resources/js/Components/Builder/Piping/PipingPanel.vue', domain: 'Embellishment / UI',
+  {
+    name: 'PipingPanel.vue', path: 'resources/js/Components/Builder/Piping/PipingPanel.vue', domain: 'Embellishment / UI',
     role: 'Piping selection panel: adds/removes piping trim on seams and borders.',
     keyExports: ['PipingPanel'],
-    keywords: ['piping','trim','seam trim','border trim','piping panel','piping color','piping size'] },
+    keywords: ['piping', 'trim', 'seam trim', 'border trim', 'piping panel', 'piping color', 'piping size']
+  },
 
-  { name: 'AddOnsPanel.vue', path: 'resources/js/Components/Builder/AddOns/AddOnsPanel.vue', domain: 'Embellishment / UI',
+  {
+    name: 'AddOnsPanel.vue', path: 'resources/js/Components/Builder/AddOns/AddOnsPanel.vue', domain: 'Embellishment / UI',
     role: 'Add-on embellishment selector panel: mascots, stock art, custom decorations.',
     keyExports: ['AddOnsPanel'],
-    keywords: ['add-on','addon','mascot','stock art','custom mascot','embellishment panel','decoration'] },
+    keywords: ['add-on', 'addon', 'mascot', 'stock art', 'custom mascot', 'embellishment panel', 'decoration']
+  },
 
-  { name: 'Application.vue', path: 'resources/js/Components/Builder/Application/Application.vue', domain: 'Applications / UI',
+  {
+    name: 'Application.vue', path: 'resources/js/Components/Builder/Application/Application.vue', domain: 'Applications / UI',
     role: 'Application editor panel: adjusts position, size, rotation, opacity for placed applications.',
     keyExports: ['Application'],
-    keywords: ['application editor','position','size','rotation','opacity','placement editor','application control'] },
+    keywords: ['application editor', 'position', 'size', 'rotation', 'opacity', 'placement editor', 'application control']
+  },
 
-  { name: 'ApplicationColors.vue', path: 'resources/js/Components/Builder/Application/ApplicationColors.vue', domain: 'Applications / UI',
+  {
+    name: 'ApplicationColors.vue', path: 'resources/js/Components/Builder/Application/ApplicationColors.vue', domain: 'Applications / UI',
     role: 'Color editor for individual applications (logos, text, emblems).',
     keyExports: ['ApplicationColors'],
-    keywords: ['application color','logo color','text color','emblem color','application fill','application stroke'] },
+    keywords: ['application color', 'logo color', 'text color', 'emblem color', 'application fill', 'application stroke']
+  },
 
-  { name: 'RosterPanel.vue', path: 'resources/js/Components/Builder/Roster/RosterPanel.vue', domain: 'Roster / UI',
+  {
+    name: 'RosterPanel.vue', path: 'resources/js/Components/Builder/Roster/RosterPanel.vue', domain: 'Roster / UI',
     role: 'Team roster upload and management panel: bulk name/number input.',
     keyExports: ['RosterPanel'],
-    keywords: ['roster','player roster','team roster','bulk names','bulk numbers','roster upload','roster import'] },
+    keywords: ['roster', 'player roster', 'team roster', 'bulk names', 'bulk numbers', 'roster upload', 'roster import']
+  },
 
-  { name: 'CartForm.vue', path: 'resources/js/Components/Builder/Cart/CartForm.vue', domain: 'Pricing/Cart / UI',
+  {
+    name: 'CartForm.vue', path: 'resources/js/Components/Builder/Cart/CartForm.vue', domain: 'Pricing/Cart / UI',
     role: 'Cart form component: maps uniform design to cart line items and triggers checkout.',
     keyExports: ['CartForm'],
-    keywords: ['cart form','add to cart','checkout','order form','cart submit','pricing form'] },
+    keywords: ['cart form', 'add to cart', 'checkout', 'order form', 'cart submit', 'pricing form']
+  },
 
-  { name: 'SaveAndShare.vue', path: 'resources/js/Components/Builder/Modals/SaveAndShare.vue', domain: 'Design / UI',
+  {
+    name: 'SaveAndShare.vue', path: 'resources/js/Components/Builder/Modals/SaveAndShare.vue', domain: 'Design / UI',
     role: 'Modal for saving the current design and generating a shareable link.',
     keyExports: ['SaveAndShare'],
-    keywords: ['save design','share design','save link','design link','export design','share link'] },
+    keywords: ['save design', 'share design', 'save link', 'design link', 'export design', 'share link']
+  },
 
   // ── BUILDER RESKIN COMPONENTS ─────────────────────────────────────────────
-  { name: 'BuilderReskin.vue', path: 'resources/js/Components/BuilderReskin/BuilderReskin.vue', domain: 'Canvas / UI',
+  {
+    name: 'BuilderReskin.vue', path: 'resources/js/Components/BuilderReskin/BuilderReskin.vue', domain: 'Canvas / UI',
     role: 'Modern redesigned builder layout: full canvas + sidebar tabs.',
     keyExports: ['BuilderReskin'],
-    keywords: ['builder reskin','new builder','reskin','modern builder','builder layout'] },
+    keywords: ['builder reskin', 'new builder', 'reskin', 'modern builder', 'builder layout']
+  },
 
-  { name: 'ApplicationEditor.vue', path: 'resources/js/Components/BuilderReskin/Applications/ApplicationEditor.vue', domain: 'Applications / UI',
+  {
+    name: 'ApplicationEditor.vue', path: 'resources/js/Components/BuilderReskin/Applications/ApplicationEditor.vue', domain: 'Applications / UI',
     role: 'Reskin application editor: controls for selected application in the new UI.',
     keyExports: ['ApplicationEditor'],
-    keywords: ['application editor','reskin editor','application controls','edit application'] },
+    keywords: ['application editor', 'reskin editor', 'application controls', 'edit application']
+  },
 
-  { name: 'ReskinPatternEditor.vue', path: 'resources/js/Components/BuilderReskin/Pattern/ReskinPatternEditor.vue', domain: 'Pattern / UI',
+  {
+    name: 'ReskinPatternEditor.vue', path: 'resources/js/Components/BuilderReskin/Pattern/ReskinPatternEditor.vue', domain: 'Pattern / UI',
     role: 'Reskin pattern editor: pattern color and position controls in the new UI.',
     keyExports: ['ReskinPatternEditor'],
-    keywords: ['pattern editor','reskin pattern','pattern controls'] },
+    keywords: ['pattern editor', 'reskin pattern', 'pattern controls']
+  },
 
   // ── APPROVAL COMPONENTS ───────────────────────────────────────────────────
-  { name: 'Approval/Index.vue', path: 'resources/js/Components/Approval/Index.vue', domain: 'Approval / UI',
+  {
+    name: 'Approval/Index.vue', path: 'resources/js/Components/Approval/Index.vue', domain: 'Approval / UI',
     role: 'Main approval view: displays design for customer review and approval.',
     keyExports: ['ApprovalIndex'],
-    keywords: ['approval view','design review','customer approval','approve design','review page'] },
+    keywords: ['approval view', 'design review', 'customer approval', 'approve design', 'review page']
+  },
 
-  { name: 'AskForChanges/Index.vue', path: 'resources/js/Components/Approval/AskForChanges/Index.vue', domain: 'Approval / UI',
+  {
+    name: 'AskForChanges/Index.vue', path: 'resources/js/Components/Approval/AskForChanges/Index.vue', domain: 'Approval / UI',
     role: 'Ask-for-changes flow: allows customer to annotate and submit change requests.',
     keyExports: ['AskForChanges'],
-    keywords: ['ask for changes','change request','revision request','feedback','annotation','design feedback'] },
+    keywords: ['ask for changes', 'change request', 'revision request', 'feedback', 'annotation', 'design feedback']
+  },
 
   // ── API LAYER ─────────────────────────────────────────────────────────────
-  { name: 'qx7.js (api)', path: 'resources/js/api/qx7.js', domain: 'Backend API',
+  {
+    name: 'qx7.js (api)', path: 'resources/js/api/qx7.js', domain: 'Backend API',
     role: 'QX7 backend API client: fetches brand styles, resources, fonts, patterns.',
-    keyExports: ['getBrandStylesResources','transformFonts','transformPatterns'],
-    keywords: ['qx7','brand style','api fetch','brand resources','api endpoint','backend api'] },
+    keyExports: ['getBrandStylesResources', 'transformFonts', 'transformPatterns'],
+    keywords: ['qx7', 'brand style', 'api fetch', 'brand resources', 'api endpoint', 'backend api']
+  },
 
-  { name: 'colors.js (api)', path: 'resources/js/api/colors.js', domain: 'Color / API',
+  {
+    name: 'colors.js (api)', path: 'resources/js/api/colors.js', domain: 'Color / API',
     role: 'Color API: fetches brand colors, sublimated colors, QX7 colors.',
-    keyExports: ['fetchColors','fetchSublimatedColors','fetchQx7Colors'],
-    keywords: ['color api','fetch colors','brand colors api','sublimated colors','color endpoint'] },
+    keyExports: ['fetchColors', 'fetchSublimatedColors', 'fetchQx7Colors'],
+    keywords: ['color api', 'fetch colors', 'brand colors api', 'sublimated colors', 'color endpoint']
+  },
 
-  { name: 'logos.js (api)', path: 'resources/js/api/logos.js', domain: 'Logo / API',
+  {
+    name: 'logos.js (api)', path: 'resources/js/api/logos.js', domain: 'Logo / API',
     role: 'Logo management API: CRUD for saved logos, favoriting, archiving.',
-    keyExports: ['getSavedLogos','addLogo','updateLogo','archiveSavedLogo','deleteSavedLogo'],
-    keywords: ['logo api','saved logos','logo crud','logo endpoint','logo management api'] },
+    keyExports: ['getSavedLogos', 'addLogo', 'updateLogo', 'archiveSavedLogo', 'deleteSavedLogo'],
+    keywords: ['logo api', 'saved logos', 'logo crud', 'logo endpoint', 'logo management api']
+  },
 
-  { name: 'carts.js (api)', path: 'resources/js/api/carts.js', domain: 'Pricing/Cart / API',
+  {
+    name: 'carts.js (api)', path: 'resources/js/api/carts.js', domain: 'Pricing/Cart / API',
     role: 'Cart management API: create, update, delete cart and cart items.',
-    keyExports: ['createCart','updateCart','deleteCart'],
-    keywords: ['cart api','cart endpoint','order api','add to cart api','cart management'] },
+    keyExports: ['createCart', 'updateCart', 'deleteCart'],
+    keywords: ['cart api', 'cart endpoint', 'order api', 'add to cart api', 'cart management']
+  },
 
-  { name: 'saved-designs.js (api)', path: 'resources/js/api/saved-designs.js', domain: 'Design / API',
+  {
+    name: 'saved-designs.js (api)', path: 'resources/js/api/saved-designs.js', domain: 'Design / API',
     role: 'Saved designs API: persist and retrieve design configurations.',
-    keyExports: ['saveDesign','loadDesign','deleteDesign'],
-    keywords: ['saved design api','design persistence','design api','save design endpoint'] },
+    keyExports: ['saveDesign', 'loadDesign', 'deleteDesign'],
+    keywords: ['saved design api', 'design persistence', 'design api', 'save design endpoint']
+  },
 
-  { name: 'pdf.js (api)', path: 'resources/js/api/pdf.js', domain: 'Export / API',
+  {
+    name: 'pdf.js (api)', path: 'resources/js/api/pdf.js', domain: 'Export / API',
     role: 'PDF generation API: builds payload and triggers PDF export of the design.',
     keyExports: ['generatePdfPayload'],
-    keywords: ['pdf','export pdf','design pdf','order sheet','spec sheet','pdf generation'] },
+    keywords: ['pdf', 'export pdf', 'design pdf', 'order sheet', 'spec sheet', 'pdf generation']
+  },
 
-  { name: 'vectorsoft.js (api)', path: 'resources/js/api/vectorsoft.js', domain: 'Logo / API',
+  {
+    name: 'vectorsoft.js (api)', path: 'resources/js/api/vectorsoft.js', domain: 'Logo / API',
     role: 'Vectorsoft integration API: logo digitizing and vector art services.',
-    keyExports: ['uploadToVectorsoft','getVectorsoftStatus'],
-    keywords: ['vectorsoft','vector art','logo digitizing','art digitizing','vector logo'] },
+    keyExports: ['uploadToVectorsoft', 'getVectorsoftStatus'],
+    keywords: ['vectorsoft', 'vector art', 'logo digitizing', 'art digitizing', 'vector logo']
+  },
 
   // ── ORDERS ──────────────────────────────────────────────────────────────────
-  { name: 'orders.js (store)', path: 'resources/js/stores/orders.js', domain: 'Orders',
+  {
+    name: 'orders.js (store)', path: 'resources/js/stores/orders.js', domain: 'Orders',
     role: 'Pinia store for order history: in-production / shipped tabs, pagination, search, sort, filter, pricing toggle.',
-    keyExports: ['useOrdersStore','setOrderQuotations','archiveOrderQuotation','deleteOrder','initSubmittedOrders','initShippedOrders','handleSearch','handleSort','handleFilter','handleDateFilter','setActiveTab','setPricingToggleOn','resetForTrackerMode'],
-    keywords: ['order','orders','order history','order tracker','in production','shipped','quotation','reorder','order status','order tracking','submitted order','order page','pricing toggle'] },
+    keyExports: ['useOrdersStore', 'setOrderQuotations', 'archiveOrderQuotation', 'deleteOrder', 'initSubmittedOrders', 'initShippedOrders', 'handleSearch', 'handleSort', 'handleFilter', 'handleDateFilter', 'setActiveTab', 'setPricingToggleOn', 'resetForTrackerMode'],
+    keywords: ['order', 'orders', 'order history', 'order tracker', 'in production', 'shipped', 'quotation', 'reorder', 'order status', 'order tracking', 'submitted order', 'order page', 'pricing toggle']
+  },
 
-  { name: 'orders.js (api)', path: 'resources/js/api/orders.js', domain: 'Orders / API',
+  {
+    name: 'orders.js (api)', path: 'resources/js/api/orders.js', domain: 'Orders / API',
     role: 'Order API: fetch in-production orders, split part item IDs, update/sync order shipping.',
-    keyExports: ['fetchOrdersInProduction','getSplitPartItemIdsByOrderItemId','updateOrderShipping','syncOrderShipping'],
-    keywords: ['order api','fetch orders','order shipping','sync order','order production','order endpoint'] },
+    keyExports: ['fetchOrdersInProduction', 'getSplitPartItemIdsByOrderItemId', 'updateOrderShipping', 'syncOrderShipping'],
+    keywords: ['order api', 'fetch orders', 'order shipping', 'sync order', 'order production', 'order endpoint']
+  },
 
-  { name: 'Pages/User/Order.vue', path: 'resources/js/Pages/User/Order.vue', domain: 'Orders / UI',
+  {
+    name: 'Pages/User/Order.vue', path: 'resources/js/Pages/User/Order.vue', domain: 'Orders / UI',
     role: 'End-user order history page (with OrderNew.vue / OrderOld.vue tracker variants).',
     keyExports: ['Order'],
-    keywords: ['order page','my orders','order history page','order list','user order','order tracker page'] },
+    keywords: ['order page', 'my orders', 'order history page', 'order list', 'user order', 'order tracker page']
+  },
 
-  { name: 'Orders/Dealer.vue', path: 'resources/js/Components/Orders/Dealer.vue', domain: 'Orders / Dealer',
+  {
+    name: 'Orders/Dealer.vue', path: 'resources/js/Components/Orders/Dealer.vue', domain: 'Orders / Dealer',
     role: 'Dealer order management: order tracker, pending internal approval, quotations (OrderTrackerNew/Old.vue).',
-    keyExports: ['Dealer','OrderTrackerNew','OrderTrackerOld','PendingInternalApproval','Quotations'],
-    keywords: ['dealer order','order tracker','pending approval','internal approval','dealer quotation','dealer orders'] },
+    keyExports: ['Dealer', 'OrderTrackerNew', 'OrderTrackerOld', 'PendingInternalApproval', 'Quotations'],
+    keywords: ['dealer order', 'order tracker', 'pending approval', 'internal approval', 'dealer quotation', 'dealer orders']
+  },
 
-  { name: 'CartItem/EditReorder.vue', path: 'resources/js/Pages/CartItem/EditReorder.vue', domain: 'Orders / Reorder',
+  {
+    name: 'CartItem/EditReorder.vue', path: 'resources/js/Pages/CartItem/EditReorder.vue', domain: 'Orders / Reorder',
     role: 'Reorder flow: edit / show / duplicate an existing order item (ShowReorder, ShowDuplicate).',
-    keyExports: ['EditReorder','ShowReorder','ShowDuplicate'],
-    keywords: ['reorder','re-order','duplicate order','edit reorder','order item','reorder item','duplicate item'] },
+    keyExports: ['EditReorder', 'ShowReorder', 'ShowDuplicate'],
+    keywords: ['reorder', 're-order', 'duplicate order', 'edit reorder', 'order item', 'reorder item', 'duplicate item']
+  },
 
   // ── SAVED DESIGNS ───────────────────────────────────────────────────────────
-  { name: 'saved-designs.js (store)', path: 'resources/js/stores/saved-designs.js', domain: 'Saved Designs',
+  {
+    name: 'saved-designs.js (store)', path: 'resources/js/stores/saved-designs.js', domain: 'Saved Designs',
     role: 'Pinia store for the saved-design gallery: fetch, paginate, filter by category/user/sport, search, sort, favorite, archive, delete.',
-    keyExports: ['useSavedDesignsStore','fetchSavedDesigns','fetchAllSavedDesigns','filterSavedDesignByCategory','filterSavedDesignBySports','filterSearchSavedDesign','sortSavedDesigns','favoriteDesign','archiveDesign','deleteDesign','createUniformConfig','fetchProductInfo'],
-    keywords: ['saved design','save design','saved designs','design gallery','design library','favorite design','archive design','my designs','load design','design list'] },
+    keyExports: ['useSavedDesignsStore', 'fetchSavedDesigns', 'fetchAllSavedDesigns', 'filterSavedDesignByCategory', 'filterSavedDesignBySports', 'filterSearchSavedDesign', 'sortSavedDesigns', 'favoriteDesign', 'archiveDesign', 'deleteDesign', 'createUniformConfig', 'fetchProductInfo'],
+    keywords: ['saved design', 'save design', 'saved designs', 'design gallery', 'design library', 'favorite design', 'archive design', 'my designs', 'load design', 'design list']
+  },
 
-  { name: 'saved-designs.js (api)', path: 'resources/js/api/saved-designs.js', domain: 'Saved Designs / API',
+  {
+    name: 'saved-designs.js (api)', path: 'resources/js/api/saved-designs.js', domain: 'Saved Designs / API',
     role: 'Saved-design API: CRUD, filter by category/sport/user, search, sort, favorite, archive, create/update design.',
-    keyExports: ['getSavedDesigns','getAllSavedDesign','filterByCategory','filterBySport','filterByUser','searchSavedDesigns','sortSavedDesigns','archiveSavedDesign','favoriteSavedDesign','deleteSavedDesign','createSaveDesign','updateSaveDesign'],
-    keywords: ['saved design api','create save design','update design','filter design','design persistence','save design endpoint'] },
+    keyExports: ['getSavedDesigns', 'getAllSavedDesign', 'filterByCategory', 'filterBySport', 'filterByUser', 'searchSavedDesigns', 'sortSavedDesigns', 'archiveSavedDesign', 'favoriteSavedDesign', 'deleteSavedDesign', 'createSaveDesign', 'updateSaveDesign'],
+    keywords: ['saved design api', 'create save design', 'update design', 'filter design', 'design persistence', 'save design endpoint']
+  },
 
-  { name: 'Pages/User/SavedDesign.vue', path: 'resources/js/Pages/User/SavedDesign.vue', domain: 'Saved Designs / UI',
+  {
+    name: 'Pages/User/SavedDesign.vue', path: 'resources/js/Pages/User/SavedDesign.vue', domain: 'Saved Designs / UI',
     role: 'Saved designs gallery page with filter/share modals (SavedDesignItems, ShareDesignModal, SelectFilterModal).',
-    keyExports: ['SavedDesign','SavedDesignItems','ShareDesignModal'],
-    keywords: ['saved design page','design gallery page','share design','design filter','saved design items','design grid'] },
+    keyExports: ['SavedDesign', 'SavedDesignItems', 'ShareDesignModal'],
+    keywords: ['saved design page', 'design gallery page', 'share design', 'design filter', 'saved design items', 'design grid']
+  },
 
   // ── CART / SHOPPING CART / MY CARTS ─────────────────────────────────────────
-  { name: 'shopping-cart.js (store)', path: 'resources/js/stores/shopping-cart.js', domain: 'Cart',
+  {
+    name: 'shopping-cart.js (store)', path: 'resources/js/stores/shopping-cart.js', domain: 'Cart',
     role: 'Active shopping cart: items, grand totals, MOQ tracking, discount validation, shipment dates, thumbnails, missing-info checks.',
-    keyExports: ['useShoppingCartStore','initialize','processCartItems','updateCart','validateDiscountCode','fetchDiscountDetails','fetchShipmentDates','setMissingRoster','setMissingApplicationSizes','setNoFabricSelectedItemsId','getGrandTotals','getAppliedDiscountCode'],
-    keywords: ['shopping cart','cart total','grand total','moq','minimum order','discount code','promo code','cart item','shipment date','missing roster','add to cart','cart checkout'] },
+    keyExports: ['useShoppingCartStore', 'initialize', 'processCartItems', 'updateCart', 'validateDiscountCode', 'fetchDiscountDetails', 'fetchShipmentDates', 'setMissingRoster', 'setMissingApplicationSizes', 'setNoFabricSelectedItemsId', 'getGrandTotals', 'getAppliedDiscountCode'],
+    keywords: ['shopping cart', 'cart total', 'grand total', 'moq', 'minimum order', 'discount code', 'promo code', 'cart item', 'shipment date', 'missing roster', 'add to cart', 'cart checkout']
+  },
 
-  { name: 'cart.js (store)', path: 'resources/js/stores/cart.js', domain: 'Cart',
+  {
+    name: 'cart.js (store)', path: 'resources/js/stores/cart.js', domain: 'Cart',
     role: 'Cart list + selection: cart list, selected cart, default cart, rush order detection, next cart name.',
-    keyExports: ['useCartStore','setCartList','setSelectedCart','setDefaultCart','fetchCarts','getNextCartName','hasActiveRushOrder'],
-    keywords: ['cart','cart list','selected cart','default cart','save cart','my cart','rush order','cart name'] },
+    keyExports: ['useCartStore', 'setCartList', 'setSelectedCart', 'setDefaultCart', 'fetchCarts', 'getNextCartName', 'hasActiveRushOrder'],
+    keywords: ['cart', 'cart list', 'selected cart', 'default cart', 'save cart', 'my cart', 'rush order', 'cart name']
+  },
 
-  { name: 'my-carts.js (store)', path: 'resources/js/stores/my-carts.js', domain: 'Cart / UI',
+  {
+    name: 'my-carts.js (store)', path: 'resources/js/stores/my-carts.js', domain: 'Cart / UI',
     role: 'My Carts page store: paginated carts + quote requests, search, sort, tabs.',
-    keyExports: ['useMyCartsStore','initCarts','initAllCarts','initQuotations','handleSort','handleSearch','refreshData','setActiveTab'],
-    keywords: ['my carts','saved carts','cart page','quote request','cart pagination','cart tab'] },
+    keyExports: ['useMyCartsStore', 'initCarts', 'initAllCarts', 'initQuotations', 'handleSort', 'handleSearch', 'refreshData', 'setActiveTab'],
+    keywords: ['my carts', 'saved carts', 'cart page', 'quote request', 'cart pagination', 'cart tab']
+  },
 
-  { name: 'cart-items.js (store)', path: 'resources/js/stores/cart-items.js', domain: 'Cart',
+  {
+    name: 'cart-items.js (store)', path: 'resources/js/stores/cart-items.js', domain: 'Cart',
     role: 'Cart item state: change logs, rejection form, active item, fixed logs by type.',
-    keyExports: ['useCartItemsStore','setCartItems','setActiveCartItem','setCartItemLogs','getRejectionDetails','getFixedLogsByType','isRejected'],
-    keywords: ['cart item','change log','rejection','rejected item','item log','fix request','cart item detail'] },
+    keyExports: ['useCartItemsStore', 'setCartItems', 'setActiveCartItem', 'setCartItemLogs', 'getRejectionDetails', 'getFixedLogsByType', 'isRejected'],
+    keywords: ['cart item', 'change log', 'rejection', 'rejected item', 'item log', 'fix request', 'cart item detail']
+  },
 
-  { name: 'carts.js (api)', path: 'resources/js/api/carts.js', domain: 'Cart / API',
+  {
+    name: 'carts.js (api)', path: 'resources/js/api/carts.js', domain: 'Cart / API',
     role: 'Cart API: paginated/minimized cart fetch, set default cart, paginated quotations.',
-    keyExports: ['fetchCartsPaginated','fetchCartsMinimized','setCartAsDefault','fetchQuotationsPaginated'],
-    keywords: ['cart api','fetch carts','default cart api','quotation api','cart endpoint'] },
+    keyExports: ['fetchCartsPaginated', 'fetchCartsMinimized', 'setCartAsDefault', 'fetchQuotationsPaginated'],
+    keywords: ['cart api', 'fetch carts', 'default cart api', 'quotation api', 'cart endpoint']
+  },
 
-  { name: 'Pages/ShoppingCart/ShoppingCart.vue', path: 'resources/js/Pages/ShoppingCart/ShoppingCart.vue', domain: 'Cart / UI',
+  {
+    name: 'Pages/ShoppingCart/ShoppingCart.vue', path: 'resources/js/Pages/ShoppingCart/ShoppingCart.vue', domain: 'Cart / UI',
     role: 'Main shopping cart page: items, approval, cart info, continue shopping, quote-request flow.',
-    keyExports: ['ShoppingCart','ApprovalPage','CartInformation','ShoppingCartItem'],
-    keywords: ['shopping cart page','cart page','cart approval','cart information','continue shopping','request submitted','cart item page'] },
+    keyExports: ['ShoppingCart', 'ApprovalPage', 'CartInformation', 'ShoppingCartItem'],
+    keywords: ['shopping cart page', 'cart page', 'cart approval', 'cart information', 'continue shopping', 'request submitted', 'cart item page']
+  },
 
   // ── CHECKOUT ────────────────────────────────────────────────────────────────
-  { name: 'checkout.js (store)', path: 'resources/js/stores/checkout.js', domain: 'Checkout',
+  {
+    name: 'checkout.js (store)', path: 'resources/js/stores/checkout.js', domain: 'Checkout',
     role: 'Full checkout flow: shipping/billing addresses, payment (card / terms / pro-code), customer & dealer selection, tax, order summary, sales-rep id.',
-    keyExports: ['useCheckoutStore','setShippingState','setBillingState','setTotalTaxByState','setPaymentType','setCardType','setOrderSummary','setCustomerInformation','setDealerSelectedCustomer','setAccountRepId','getShipping','getBilling','getSaleRepInformation','getPaymentTerms','getSalesRepId','getOrderSummary'],
-    keywords: ['checkout','payment','shipping','billing','address','credit card','payment terms','net terms','tax','order summary','place order','submit order','promo code','checkout page'] },
+    keyExports: ['useCheckoutStore', 'setShippingState', 'setBillingState', 'setTotalTaxByState', 'setPaymentType', 'setCardType', 'setOrderSummary', 'setCustomerInformation', 'setDealerSelectedCustomer', 'setAccountRepId', 'getShipping', 'getBilling', 'getSaleRepInformation', 'getPaymentTerms', 'getSalesRepId', 'getOrderSummary'],
+    keywords: ['checkout', 'payment', 'shipping', 'billing', 'address', 'credit card', 'payment terms', 'net terms', 'tax', 'order summary', 'place order', 'submit order', 'promo code', 'checkout page']
+  },
 
-  { name: 'addresses.js (api)', path: 'resources/js/api/addresses.js', domain: 'Checkout / API',
+  {
+    name: 'addresses.js (api)', path: 'resources/js/api/addresses.js', domain: 'Checkout / API',
     role: 'Address book API: fetch saved addresses by user.',
     keyExports: ['fetchAddressesByUserId'],
-    keywords: ['address','address book','shipping address','billing address','saved address'] },
+    keywords: ['address', 'address book', 'shipping address', 'billing address', 'saved address']
+  },
 
-  { name: 'discount-code.js (api)', path: 'resources/js/api/discount-code.js', domain: 'Checkout / Pricing',
+  {
+    name: 'discount-code.js (api)', path: 'resources/js/api/discount-code.js', domain: 'Checkout / Pricing',
     role: 'Discount / promo code API: apply, remove, fetch discount details.',
-    keyExports: ['applyDiscount','removeDiscount','getDiscountDetails'],
-    keywords: ['discount','promo code','coupon','discount code','apply discount','voucher'] },
+    keyExports: ['applyDiscount', 'removeDiscount', 'getDiscountDetails'],
+    keywords: ['discount', 'promo code', 'coupon', 'discount code', 'apply discount', 'voucher']
+  },
 
-  { name: 'Checkout/Index.vue', path: 'resources/js/Pages/Checkout/Index.vue', domain: 'Checkout / UI',
+  {
+    name: 'Checkout/Index.vue', path: 'resources/js/Pages/Checkout/Index.vue', domain: 'Checkout / UI',
     role: 'Main checkout page with shipping/billing/payment components and Success / UnsuccessOrder result pages.',
-    keyExports: ['CheckoutIndex','Success','UnsuccessOrder'],
-    keywords: ['checkout page','checkout form','order confirmation','order success','payment page','checkout flow'] },
+    keyExports: ['CheckoutIndex', 'Success', 'UnsuccessOrder'],
+    keywords: ['checkout page', 'checkout form', 'order confirmation', 'order success', 'payment page', 'checkout flow']
+  },
 
-  { name: 'Checkout/PaymentWithCreditCard.vue', path: 'resources/js/Components/Checkout/PaymentWithCreditCard.vue', domain: 'Checkout / Payment',
+  {
+    name: 'Checkout/PaymentWithCreditCard.vue', path: 'resources/js/Components/Checkout/PaymentWithCreditCard.vue', domain: 'Checkout / Payment',
     role: 'Payment components: credit card, net terms, promo code, order summary, policy acceptance.',
-    keyExports: ['PaymentWithCreditCard','PaymentWithTerms','PromoCode','OrderSummary','Policy'],
-    keywords: ['credit card','payment','net terms','promo code','order summary','payment method','card payment','policy'] },
+    keyExports: ['PaymentWithCreditCard', 'PaymentWithTerms', 'PromoCode', 'OrderSummary', 'Policy'],
+    keywords: ['credit card', 'payment', 'net terms', 'promo code', 'order summary', 'payment method', 'card payment', 'policy']
+  },
 
   // ── SALES REP / DEALER ──────────────────────────────────────────────────────
-  { name: 'dealer.js (store)', path: 'resources/js/stores/dealer.js', domain: 'Sales Rep / Dealer',
+  {
+    name: 'dealer.js (store)', path: 'resources/js/stores/dealer.js', domain: 'Sales Rep / Dealer',
     role: 'Dealers + sales reps: filter by brand, find dealer / sales rep, dealer & rep near-me lookups.',
-    keyExports: ['useDealerStore','getDealers','setSalesReps','filterDealerByBrand','getSalesReps','dealerNearMe','findDealer','findSalesReps','salesRepsNearMe'],
-    keywords: ['dealer','sales rep','sales representative','sale ref','rep','dealer near me','find dealer','find rep','dealer brand','preferred dealer'] },
+    keyExports: ['useDealerStore', 'getDealers', 'setSalesReps', 'filterDealerByBrand', 'getSalesReps', 'dealerNearMe', 'findDealer', 'findSalesReps', 'salesRepsNearMe'],
+    keywords: ['dealer', 'sales rep', 'sales representative', 'sale ref', 'rep', 'dealer near me', 'find dealer', 'find rep', 'dealer brand', 'preferred dealer']
+  },
 
-  { name: 'user.js (api)', path: 'resources/js/api/user.js', domain: 'Sales Rep / API',
+  {
+    name: 'user.js (api)', path: 'resources/js/api/user.js', domain: 'Sales Rep / API',
     role: 'User/dealer/rep API: fetch users & teams, dealer cost, rep cost, search sales representatives.',
-    keyExports: ['fetchUsers','getProductProInfo','getTeams','fetchDealerCost','getRepCost','searchSalesRepresentatives'],
-    keywords: ['sales rep api','rep cost','dealer cost','search sales rep','product pro','dealer pricing','rep pricing'] },
+    keyExports: ['fetchUsers', 'getProductProInfo', 'getTeams', 'fetchDealerCost', 'getRepCost', 'searchSalesRepresentatives'],
+    keywords: ['sales rep api', 'rep cost', 'dealer cost', 'search sales rep', 'product pro', 'dealer pricing', 'rep pricing']
+  },
 
-  { name: 'cost-settings.js (store)', path: 'resources/js/stores/cost-settings.js', domain: 'Sales Rep / Pricing',
+  {
+    name: 'cost-settings.js (store)', path: 'resources/js/stores/cost-settings.js', domain: 'Sales Rep / Pricing',
     role: 'Determines dealer vs retail cost / pricing formula based on user role.',
     keyExports: ['useCostSettingsStore'],
-    keywords: ['cost setting','dealer cost','retail cost','rep cost','pricing formula','cost formula','markup'] },
+    keywords: ['cost setting', 'dealer cost', 'retail cost', 'rep cost', 'pricing formula', 'cost formula', 'markup']
+  },
 
   // ── END USER / USER ─────────────────────────────────────────────────────────
-  { name: 'user.js (store)', path: 'resources/js/stores/user.js', domain: 'End User',
+  {
+    name: 'user.js (store)', path: 'resources/js/stores/user.js', domain: 'End User',
     role: 'User profile + role gates (end-user, dealer, sales-rep, admin, brand manager, product-pro), associated users/customers, orders, sales-rep linkage.',
-    keyExports: ['useUserStore','initUser','fetchAssociatedUsers','isEndUser','isDealer','isSalesRep','isManagingRep','isAdmin','isBrandManager','isProductPro','getUserRole','getSalesRepId','getAssociatedCustomer'],
-    keywords: ['end user','enduser','customer','user role','dealer','sales rep','account','login','logged in','guest','customer account','user profile','role','permission'] },
+    keyExports: ['useUserStore', 'initUser', 'fetchAssociatedUsers', 'isEndUser', 'isDealer', 'isSalesRep', 'isManagingRep', 'isAdmin', 'isBrandManager', 'isProductPro', 'getUserRole', 'getSalesRepId', 'getAssociatedCustomer'],
+    keywords: ['end user', 'enduser', 'customer', 'user role', 'dealer', 'sales rep', 'account', 'login', 'logged in', 'guest', 'customer account', 'user profile', 'role', 'permission']
+  },
 
-  { name: 'Orders/Customer.vue', path: 'resources/js/Components/Orders/Customer.vue', domain: 'End User / UI',
+  {
+    name: 'Orders/Customer.vue', path: 'resources/js/Components/Orders/Customer.vue', domain: 'End User / UI',
     role: 'Customer-facing order history display (end-user view of orders).',
     keyExports: ['Customer'],
-    keywords: ['customer order','end user order','customer view','my orders','customer order history'] },
+    keywords: ['customer order', 'end user order', 'customer view', 'my orders', 'customer order history']
+  },
 
-  { name: 'Checkout/EndUser.vue', path: 'resources/js/Components/Checkout/EndUser.vue', domain: 'End User / UI',
+  {
+    name: 'Checkout/EndUser.vue', path: 'resources/js/Components/Checkout/EndUser.vue', domain: 'End User / UI',
     role: 'End-user checkout flow (vs dealer checkout); customer self-service ordering.',
     keyExports: ['EndUser'],
-    keywords: ['end user checkout','customer checkout','self service','guest checkout','enduser flow'] },
+    keywords: ['end user checkout', 'customer checkout', 'self service', 'guest checkout', 'enduser flow']
+  },
 
-  { name: 'Pages/User/Index.vue', path: 'resources/js/Pages/User/Index.vue', domain: 'End User / UI',
+  {
+    name: 'Pages/User/Index.vue', path: 'resources/js/Pages/User/Index.vue', domain: 'End User / UI',
     role: 'End-user account hub: dashboard, profile, address book, saved designs/logos, carts, orders.',
-    keyExports: ['UserIndex','Profile','Address','Customers'],
-    keywords: ['user dashboard','account page','profile','address book','my account','user page','customer dashboard'] },
+    keyExports: ['UserIndex', 'Profile', 'Address', 'Customers'],
+    keywords: ['user dashboard', 'account page', 'profile', 'address book', 'my account', 'user page', 'customer dashboard']
+  },
 
   // ── MANUAL ORDER ────────────────────────────────────────────────────────────
-  { name: 'manual-order.js (store)', path: 'resources/js/stores/manual-order.js', domain: 'Custom Pro / Manual Order',
+  {
+    name: 'manual-order.js (store)', path: 'resources/js/stores/manual-order.js', domain: 'Custom Pro / Manual Order',
     role: 'Manual (Custom Pro) order flow: main body color, add-ons, design-file upload, notes, fabric, estimated ship date.',
-    keyExports: ['useManualOrderStore','setMainBodyColor','setAddon','isManualOrderAllowed','saveDesignFile','getManualOrderEstimatedShipDate','setActiveFabric','initializeManualOrderCartItem'],
-    keywords: ['manual order','custom pro','design file','upload design','manual order file','main body color','manual fabric','custom order','bags'] },
+    keyExports: ['useManualOrderStore', 'setMainBodyColor', 'setAddon', 'isManualOrderAllowed', 'saveDesignFile', 'getManualOrderEstimatedShipDate', 'setActiveFabric', 'initializeManualOrderCartItem'],
+    keywords: ['manual order', 'custom pro', 'design file', 'upload design', 'manual order file', 'main body color', 'manual fabric', 'custom order', 'bags']
+  },
 ];
 
 // ─── Live file snippet reader (top 12 most architecturally critical files) ───
@@ -2516,8 +2821,8 @@ function extractCodeBlock(relPath, symbolName, contextLines = 40) {
 
   return {
     lineStart: startIdx + 1,
-    lineEnd:   end + 1,
-    code:      lines.slice(startIdx, end + 1).join('\n'),
+    lineEnd: end + 1,
+    code: lines.slice(startIdx, end + 1).join('\n'),
   };
 }
 
@@ -2540,10 +2845,10 @@ function readAffectedCodeBlocks(affectedModules) {
 
     if (fileBlocks.length > 0 || candidates.length > 0) {
       blocks.push({
-        name:      mod.name,
-        path:      mod.path,
-        severity:  mod.severity,
-        reason:    mod.explanation || '',
+        name: mod.name,
+        path: mod.path,
+        severity: mod.severity,
+        reason: mod.explanation || '',
         functions: fileBlocks,
         fileAvailable: fileBlocks.length > 0,
       });
@@ -2553,7 +2858,7 @@ function readAffectedCodeBlocks(affectedModules) {
 }
 
 // ─── Affected Modules Local Scanner ───────────────────────────────────────────
-function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent }) {
+function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent, styleFeatures = STYLE_FEATURES_SEED }) {
   // Build the fullest possible content corpus from every available BRD field
   const bugContent = bugs.map(b =>
     [b.title, b.description, b.criteria, b.rootCause].filter(Boolean).join(' ')
@@ -2580,7 +2885,7 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
     const matchedKws = mod.keywords.filter(kw => contentToScan.includes(kw));
     if (matchedKws.length === 0) continue;
 
-    const isCoreEngine = ['customizer.js','color.ts','application.ts','fabric.ts','uniform.ts','stage.ts'].includes(mod.name);
+    const isCoreEngine = ['customizer.js', 'color.ts', 'application.ts', 'fabric.ts', 'uniform.ts', 'stage.ts'].includes(mod.name);
     const severity = isCoreEngine ? 'High' : matchedKws.length >= 3 ? 'High' : 'Medium';
     scorePoints += severity === 'High' ? 15 : 10;
 
@@ -2616,27 +2921,27 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
 
   // Concept-based recommendations
   const concepts = [...affectedConcepts];
-  if (concepts.some(c => c.includes('Color')))     recommendations.push('Verify color zone mappings in color.ts remixColors() are updated for new zone definitions.');
-  if (concepts.some(c => c.includes('Fabric')))    recommendations.push('Ensure fabric upgrade fee triggers in customizer.js setupFabricGroup() handle new material rules.');
-  if (concepts.some(c => c.includes('Text')))      recommendations.push('Check font/layout constraints in TextPanel.vue and FontModal.vue for new text application rules.');
-  if (concepts.some(c => c.includes('Logo')))      recommendations.push('Validate logo placement hit areas in stageEvents.js and logo conflict checks in ColorConflictAlertModal.vue.');
+  if (concepts.some(c => c.includes('Color'))) recommendations.push('Verify color zone mappings in color.ts remixColors() are updated for new zone definitions.');
+  if (concepts.some(c => c.includes('Fabric'))) recommendations.push('Ensure fabric upgrade fee triggers in customizer.js setupFabricGroup() handle new material rules.');
+  if (concepts.some(c => c.includes('Text'))) recommendations.push('Check font/layout constraints in TextPanel.vue and FontModal.vue for new text application rules.');
+  if (concepts.some(c => c.includes('Logo'))) recommendations.push('Validate logo placement hit areas in stageEvents.js and logo conflict checks in ColorConflictAlertModal.vue.');
   if (concepts.some(c => c.includes('Embellishment'))) recommendations.push('Review embellishment layer order in application.ts and piping limits in piping.ts.');
-  if (concepts.some(c => c.includes('Canvas')))    recommendations.push('Test PixiJS stage rendering changes across all views (front/back/left/right) via perspective.ts.');
-  if (concepts.some(c => c.includes('Approval')))  recommendations.push('Update approval workflow in AskForChanges/Index.vue if new change-request fields are required.');
-  if (concepts.some(c => c.includes('Pricing')))   recommendations.push('Validate cart line item mapping in cart-items.ts and CartForm.vue for new pricing rules.');
-  if (concepts.some(c => c.includes('Roster')))    recommendations.push('Ensure roster bulk-upload parser in RosterPanel.vue handles new field requirements.');
+  if (concepts.some(c => c.includes('Canvas'))) recommendations.push('Test PixiJS stage rendering changes across all views (front/back/left/right) via perspective.ts.');
+  if (concepts.some(c => c.includes('Approval'))) recommendations.push('Update approval workflow in AskForChanges/Index.vue if new change-request fields are required.');
+  if (concepts.some(c => c.includes('Pricing'))) recommendations.push('Validate cart line item mapping in cart-items.ts and CartForm.vue for new pricing rules.');
+  if (concepts.some(c => c.includes('Roster'))) recommendations.push('Ensure roster bulk-upload parser in RosterPanel.vue handles new field requirements.');
 
   // ── Style-specific feature matching ────────────────────────────────────────
   const affectedStyleFeatures = [];
-  for (const sf of STYLE_FEATURES) {
+  for (const sf of styleFeatures) {
     const matchedKws = sf.keywords.filter(kw => contentToScan.includes(kw));
     if (matchedKws.length === 0) continue;
     const kwList = matchedKws.slice(0, 3).join(', ');
     affectedStyleFeatures.push({
-      feature:     sf.feature,
-      tab:         sf.tab,
-      status:      sf.status,
-      impact:      matchedKws.length >= 3 ? 'High' : 'Medium',
+      feature: sf.feature,
+      tab: sf.tab,
+      status: sf.status,
+      impact: matchedKws.length >= 3 ? 'High' : 'Medium',
       explanation: 'Analysis indicates this BRD involves ' + kwList + ', so this function will need review and testing as part of this requirement.',
     });
   }
@@ -2644,17 +2949,79 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
   const impactScore = Math.min(scorePoints, 100);
   const verdict = `Impact score ${impactScore}/100. ` +
     (impactScore > 60 ? `HIGH impact: touches core ${concepts.slice(0, 3).join(', ')} engines. Full regression testing required.`
-    : impactScore > 30 ? `MODERATE impact: affects ${concepts.slice(0, 3).join(', ')} layer(s). Targeted QA across affected panels.`
-    : `LOW impact: isolated to ${concepts.slice(0, 2).join(', ')} UI. Spot-check affected components.`);
+      : impactScore > 30 ? `MODERATE impact: affects ${concepts.slice(0, 3).join(', ')} layer(s). Targeted QA across affected panels.`
+        : `LOW impact: isolated to ${concepts.slice(0, 2).join(', ')} UI. Spot-check affected components.`);
 
   const affectedCodeBlocks = repoAvailable ? readAffectedCodeBlocks(affectedModules) : [];
   return { impactScore, verdict, affectedModules, affectedConcepts: concepts, recommendations: recommendations.slice(0, 6), affectedStyleFeatures, affectedCodeBlocks };
 }
 
+// ─── Default instructions for affected-modules prompt (editable by the user) ─
+const DEFAULT_AFFECTED_MODULES_INSTRUCTIONS = `═══════════════════════════════════════════════════════
+INSTRUCTIONS — ANALYSIS OUTPUT
+═══════════════════════════════════════════════════════
+You have now read:
+  ✓ Section 1 — The BRD requirement
+  ✓ Section 2 — AI Knowledge Base (domain rules and hardcoded logic relevant to this BRD)
+  ✓ Section 3 — Codebase module index (real file paths and roles)
+  ✓ Section 4 — Live code snippets (actual functions and exports in the repository)
+  ✓ Section 5 — Builder function registry
+
+Now produce your analysis using ONLY information found in those sections. Every file path, function name, and KB reference in your output must exist in the material above.
+
+PART A — Affected Files
+- List only files from Section 3 that are directly impacted by the BRD requirement
+- Each file must include the exact path from Section 3 and real function names from Section 4
+- Explain specifically HOW the requirement changes or touches that file — reference the KB context (Section 2) where it confirms the impact
+- Severity: High = core store/engine/factory logic | Medium = component, service, or store helper | Low = UI-only or config tweak
+
+PART B — Affected Builder Functions
+- List only functions from Section 5 that the BRD will change, add, or remove
+- Use the exact feature name and tab from Section 5
+- Explain HOW the BRD impacts that function — tie it back to KB entries or code snippets where applicable
+
+RULES:
+- Do NOT include files or functions that are not touched by this specific requirement
+- Do NOT invent paths, function names, or KB entries — only use what is in Sections 1–5
+- If the KB (Section 2) contains a hardcoded rule directly related to the BRD, it MUST appear in your verdict and relevant explanations
+- impactScore 0-100: reflects actual code surface area affected (High severity files raise the score)
+
+Output ONLY a single valid JSON object — no markdown, no text outside the JSON:
+
+{
+  "impactScore": <0-100>,
+  "verdict": "<one paragraph: summarise what the BRD changes, which KB rules are relevant, and which core files/functions are affected — use real names>",
+  "affectedModules": [
+    {
+      "name": "<filename from Section 3>",
+      "path": "<exact path from Section 3>",
+      "role": "<role of this file>",
+      "severity": "High|Medium|Low",
+      "explanation": "<specific explanation: what in this file changes, which function is touched, and why — tie to BRD requirement and KB context>",
+      "affectedFunctions": ["<real function name from Section 4 code snippets>"]
+    }
+  ],
+  "affectedConcepts": ["<domain concept derived from BRD + KB — e.g. 'TCG', 'Sideline Size Restriction', 'MDJ Color Init'>"],
+  "recommendations": ["<actionable step referencing real file or function names>"],
+  "affectedStyleFeatures": [
+    {
+      "feature": "<exact feature name from Section 5>",
+      "tab": "<exact tab from Section 5>",
+      "status": "<status from Section 5: new|stable|ongoing|assessment>",
+      "impact": "High|Medium|Low",
+      "explanation": "<how this BRD specifically impacts this feature — reference the KB entry or code line that confirms it>"
+    }
+  ]
+}`;
+
+app.get('/api/affected-modules-prompt-template', (_req, res) => {
+  res.json({ instructions: DEFAULT_AFFECTED_MODULES_INSTRUCTIONS });
+});
+
 // ─── Post Affected Modules Endpoint ──────────────────────────────────────────
 app.post('/api/ai/analyze-affected-modules', async (req, res) => {
   try {
-    const { brd, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent: uploadedDoc } = req.body;
+    const { brd, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent: uploadedDoc, customInstructions } = req.body;
 
     let docContent = uploadedDoc || null;
     if (!docContent && brd.googleDocsLink) {
@@ -2671,8 +3038,9 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
     }
 
     // If no AI provider has a valid key, go straight to the local scanner
+    const styleFeatures = await loadStyleFeatures();
     if (resolveProviderChain().length === 0) {
-      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, styleFeatures });
       return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'missing_all_ai_api_keys', docFetched: !!docContent });
     }
 
@@ -2689,41 +3057,31 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
     // Live file snippets from the actual repo
     const snippetSection = repoAvailable
       ? customizerContext.snippets.map(s =>
-          `### ${s.path}\n\`\`\`\n${s.snippet}\n\`\`\``
-        ).join('\n\n')
+        `### ${s.path}\n\`\`\`\n${s.snippet}\n\`\`\``
+      ).join('\n\n')
       : '(Repository not accessible — using module index only)';
 
     // Style-feature index for prompt — compact list Gemini can reference
-    const styleFeatureIndex = STYLE_FEATURES.map(sf =>
+    const styleFeatureIndex = styleFeatures.map(sf =>
       `• [${sf.tab}] ${sf.feature} (status: ${sf.status})`
     ).join('\n');
 
+    const instructions = customInstructions || DEFAULT_AFFECTED_MODULES_INSTRUCTIONS;
+
     const prompt = `You are a senior technical architect for a sports apparel customizer platform (QStrike / ProLook Builder).
-Your task: read the BRD below and identify (A) which codebase files are affected, AND (B) which style-specific product features from the feature registry are impacted.
+
+You will analyse a BRD (Business Requirements Document) by following a strict 3-step flow before producing any output:
+
+  STEP 1 — Read the BRD (Section 1) to fully understand WHAT is being built or changed.
+  STEP 2 — Cross-reference the AI Knowledge Base (Section 2) to find domain rules, hardcoded logic, brand-specific behaviours, and existing patterns that are relevant to this requirement.
+  STEP 3 — Scan the Codebase (Section 3 module index + Section 4 live code snippets) to identify the EXACT files and functions that implement or will be impacted by what you found in Steps 1 and 2.
+
+Only after completing all three steps, produce the output using the INSTRUCTIONS at the bottom.
+
+Your results must be grounded in the actual repository files and KB entries — do not guess or invent paths or function names.
 
 ═══════════════════════════════════════════════════════
-SECTION 1 — FULL CODEBASE MODULE INDEX (${CUSTOMIZER_MODULES.length} modules)
-═══════════════════════════════════════════════════════
-${moduleIndex}
-
-═══════════════════════════════════════════════════════
-SECTION 2 — LIVE FILE SNIPPETS (actual source code)
-═══════════════════════════════════════════════════════
-${snippetSection}
-
-═══════════════════════════════════════════════════════
-SECTION 3 — SYSTEM KNOWLEDGE BASE
-═══════════════════════════════════════════════════════
-${kbSections || 'No KB entries.'}
-
-═══════════════════════════════════════════════════════
-SECTION 4 — BUILDER FUNCTION REGISTRY (${STYLE_FEATURES.length} functions)
-These are the known builder functions and capabilities across all tabs. Identify which ones this BRD will affect.
-═══════════════════════════════════════════════════════
-${styleFeatureIndex}
-
-═══════════════════════════════════════════════════════
-SECTION 5 — BRD TO ANALYSE (full content)
+SECTION 1 — BRD REQUIREMENT (read this first — understand the requirement)
 ═══════════════════════════════════════════════════════
 Title:       ${brd.title}
 Status:      ${brd.status || '—'}
@@ -2741,69 +3099,52 @@ ${brd.description || 'No description provided.'}
 
 ── BUGS / LINKED REQUIREMENTS (${bugs.length}) ─────
 ${bugs.length
-  ? bugs.map(b =>
-      `[${(b.severity || 'medium').toUpperCase()}] ${b.title}\n` +
-      `  Status: ${b.status || 'open'} | Criteria: ${b.criteria || 'N/A'}\n` +
-      (b.description ? `  Details: ${b.description.slice(0, 400)}\n` : '') +
-      (b.rootCause   ? `  Root cause: ${b.rootCause.slice(0, 200)}\n` : '')
-    ).join('\n')
-  : 'No bugs logged.'}
+        ? bugs.map(b =>
+          `[${(b.severity || 'medium').toUpperCase()}] ${b.title}\n` +
+          `  Status: ${b.status || 'open'} | Criteria: ${b.criteria || 'N/A'}\n` +
+          (b.description ? `  Details: ${b.description.slice(0, 400)}\n` : '') +
+          (b.rootCause ? `  Root cause: ${b.rootCause.slice(0, 200)}\n` : '')
+        ).join('\n')
+        : 'No bugs logged.'}
 
 ── FULL SPECIFICATION ───────────────────────────────
 ${docContent
-  ? docContent.slice(0, 12000)
-  : brd.googleDocsLink
-    ? `(Google Doc present at ${brd.googleDocsLink} but could not be fetched — ensure the document is publicly shared.)`
-    : 'No specification document attached. Analyse based on title, description, and bugs above.'
-}
+        ? docContent.slice(0, 12000)
+        : brd.googleDocsLink
+          ? `(Google Doc present at ${brd.googleDocsLink} but could not be fetched — ensure the document is publicly shared.)`
+          : 'No specification document attached. Analyse based on title, description, and bugs above.'
+      }
 
 ═══════════════════════════════════════════════════════
-INSTRUCTIONS
+SECTION 2 — AI KNOWLEDGE BASE (read second — find domain rules relevant to the BRD above)
+After reading the BRD, scan every KB entry below. Extract entries whose subject matter overlaps with the BRD's requirements — these entries identify hardcoded behaviours, brand-specific rules, and existing system patterns your affected-file results must reference.
 ═══════════════════════════════════════════════════════
-Using ALL sections above:
+${kbSections || 'No KB entries.'}
 
-PART A — Codebase modules: identify which files are affected.
-- Use exact file names and paths from Section 1
-- Reference real function/export names in explanations
-- Severity: High (core engine) | Medium (component/store) | Low (UI tweak)
+═══════════════════════════════════════════════════════
+SECTION 3 — CODEBASE MODULE INDEX (read third — map BRD + KB findings to real files)
+Using the requirement (Section 1) and the KB context (Section 2), identify which of the ${CUSTOMIZER_MODULES.length} modules below are affected. Use exact file names and paths. Do not include files that are unrelated to the requirement.
+═══════════════════════════════════════════════════════
+${moduleIndex}
 
-PART B — Builder functions: identify which functions from Section 4 will be affected by this BRD.
-- Use the exact function name and tab from Section 4
-- Assign impact level: High | Medium | Low
-- Write a concise explanation of HOW this BRD will affect that function
+═══════════════════════════════════════════════════════
+SECTION 4 — LIVE CODE SNIPPETS (actual source code from repository)
+These are real code snippets pulled from the repository. Use them to confirm which functions, getters, and exports are impacted. Reference actual function names found here in your output.
+═══════════════════════════════════════════════════════
+${snippetSection}
 
-Output ONLY a single valid JSON object — no markdown, no text outside the JSON:
+═══════════════════════════════════════════════════════
+SECTION 5 — BUILDER FUNCTION REGISTRY (${styleFeatures.length} functions)
+These are the known builder features across all tabs. Cross-reference this against the BRD and KB to identify which features this requirement will affect.
+═══════════════════════════════════════════════════════
+${styleFeatureIndex}
 
-{
-  "impactScore": <0-100>,
-  "verdict": "<one paragraph overview referencing real module names and affected features>",
-  "affectedModules": [
-    {
-      "name": "<filename from Section 1>",
-      "path": "<exact path>",
-      "role": "<role>",
-      "severity": "High|Medium|Low",
-      "explanation": "<specific explanation with real function names>",
-      "affectedFunctions": ["functionName1", "functionName2"]
-    }
-  ],
-  "affectedConcepts": ["<domain concept>"],
-  "recommendations": ["<actionable recommendation with real function/file names>"],
-  "affectedStyleFeatures": [
-    {
-      "feature": "<exact function name from Section 4>",
-      "tab": "<tab/section from Section 4>",
-      "status": "<status from Section 4: new|stable|ongoing|assessment>",
-      "impact": "High|Medium|Low",
-      "explanation": "<how this BRD specifically impacts this function>"
-    }
-  ]
-}`;
+${instructions}`;
 
     // Try configured provider → fall back through the others on quota/error
     const r = await runAnalysisWithFallback(prompt);
     if (!r.provider) {
-      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, styleFeatures });
       return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'all_ai_providers_failed', docFetched: !!docContent });
     }
     const result = r;
@@ -2812,10 +3153,17 @@ Output ONLY a single valid JSON object — no markdown, no text outside the JSON
 
     let parsedJson = null;
     try {
-      const clean = (result.analysis || '').replace(/```json/g, '').replace(/```/g, '').trim();
+      let clean = (result.analysis || '').replace(/```json/g, '').replace(/```/g, '').trim();
+      // Some models prepend prose before the JSON object despite instructions —
+      // fall back to the outermost {...} span so leading/trailing text doesn't break parsing.
+      const start = clean.indexOf('{');
+      const end = clean.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) clean = clean.slice(start, end + 1);
       parsedJson = JSON.parse(clean);
-    } catch {
-      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+    } catch (parseErr) {
+      console.error(`⛔ [AI] ${usedProvider.toUpperCase()} returned unparseable JSON — falling back to local. Parse error: ${parseErr.message}`);
+      console.error(`   Raw response (first 500 chars): ${(result.analysis || '').slice(0, 500)}`);
+      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, styleFeatures });
       return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'ai_parse_error', docFetched: !!docContent });
     }
 
@@ -2832,7 +3180,8 @@ Output ONLY a single valid JSON object — no markdown, no text outside the JSON
   } catch (e) {
     try {
       const { brd, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent: uploadedDoc } = req.body;
-      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent: uploadedDoc });
+      const sfFallback = await loadStyleFeatures().catch(() => STYLE_FEATURES_SEED);
+      const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent: uploadedDoc, styleFeatures: sfFallback });
       return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'error_fallback', docFetched: !!uploadedDoc });
     } catch { return res.status(500).json({ error: e.message }); }
   }
@@ -2843,9 +3192,9 @@ Output ONLY a single valid JSON object — no markdown, no text outside the JSON
 // Returns connection status and whether credentials are configured
 app.get('/api/google/status', (_req, res) => {
   res.json({
-    connected:   !!googleTokens?.refresh_token,
-    configured:  !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET),
-    email:       googleTokens?.email || null,
+    connected: !!googleTokens?.refresh_token,
+    configured: !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET),
+    email: googleTokens?.email || null,
   });
 });
 
@@ -2855,12 +3204,12 @@ app.get('/api/google/auth-url', (_req, res) => {
     return res.status(400).json({ error: 'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are not set in .env' });
   }
   const params = new URLSearchParams({
-    client_id:    GOOGLE_CLIENT_ID,
+    client_id: GOOGLE_CLIENT_ID,
     redirect_uri: GOOGLE_REDIRECT_URI,
-    response_type:'code',
-    scope:        GOOGLE_SCOPE,
-    access_type:  'offline',
-    prompt:       'consent',
+    response_type: 'code',
+    scope: GOOGLE_SCOPE,
+    access_type: 'offline',
+    prompt: 'consent',
   });
   res.json({ url: `https://accounts.google.com/o/oauth2/auth?${params}` });
 });
@@ -2868,20 +3217,20 @@ app.get('/api/google/auth-url', (_req, res) => {
 // OAuth2 callback — exchanges the auth code for tokens and saves them
 app.get('/api/google/callback', async (req, res) => {
   const { code, error } = req.query;
-  console.log('[google/callback] received —', error ? `error: ${error}` : `code: ${code?.slice(0,12)}…`);
+  console.log('[google/callback] received —', error ? `error: ${error}` : `code: ${code?.slice(0, 12)}…`);
   if (error) return res.status(400).send(`<h2>Google denied access: ${error}</h2><p>Close this tab and try again.</p>`);
-  if (!code)  return res.status(400).send('<h2>Missing authorization code</h2>');
+  if (!code) return res.status(400).send('<h2>Missing authorization code</h2>');
 
   try {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id:     GOOGLE_CLIENT_ID,
+        client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
         code,
-        grant_type:    'authorization_code',
-        redirect_uri:  GOOGLE_REDIRECT_URI,
+        grant_type: 'authorization_code',
+        redirect_uri: GOOGLE_REDIRECT_URI,
       }),
     });
     if (!tokenRes.ok) {
@@ -2898,7 +3247,7 @@ app.get('/api/google/callback', async (req, res) => {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
       });
       if (infoRes.ok) { const info = await infoRes.json(); email = info.email; }
-    } catch {}
+    } catch { }
 
     saveGoogleTokens({
       ...tokens,
@@ -2926,13 +3275,13 @@ app.post('/api/google/test-doc', async (req, res) => {
   const { url } = req.body || {};
   if (!url) return res.status(400).json({ error: 'url is required' });
   const result = await fetchGoogleDocText(url);
-  const token  = await getGoogleAccessToken();
+  const token = await getGoogleAccessToken();
   res.json({
     ...result,
-    hasToken:  !!token,
+    hasToken: !!token,
     connected: !!googleTokens?.refresh_token,
     wordCount: result.text ? result.text.split(/\s+/).filter(Boolean).length : 0,
-    preview:   result.text ? result.text.slice(0, 300) : null,
+    preview: result.text ? result.text.slice(0, 300) : null,
   });
 });
 
@@ -2980,6 +3329,7 @@ app.post('/api/brd-backup/sync', async (_req, res) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 init()
+  .then(() => seedStyleFeatures())
   .then(() => {
     app.listen(PORT, () => {
       const aiStatus = resolveAIProvider();

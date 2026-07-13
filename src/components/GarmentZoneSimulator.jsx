@@ -11,14 +11,26 @@ const BUILDER_BASE = {
   cdn: 'https://resources.qstrike.net',
 };
 
-// Resolve brand_id for a given style ID from QX7
-async function resolveBrandId(styleId) {
+// Resolve brand_id + thumbnail URLs for a given style ID from QX7
+async function resolveBrandStyle(styleId) {
   try {
-    const res = await fetch(`${BUILDER_BASE.qx7_host}/api/brand_style/${styleId}/formatted`);
+    const res = await fetch(`${BUILDER_BASE.qx7_host}/api/brand_style/${styleId}/formatted`, {
+      signal: AbortSignal.timeout(4000),
+    });
     const data = await res.json();
-    return data?.brand_style?.brand_id || 55;
+    const bs = data?.brand_style || {};
+    return {
+      brandId: bs.brand_id || 55,
+      name: bs.brand_style_name || null,
+      thumbnails: {
+        front: bs.front_thumbnail || null,
+        back:  bs.back_thumbnail  || null,
+        left:  bs.left_thumbnail  || null,
+        right: bs.right_thumbnail || null,
+      },
+    };
   } catch {
-    return 55;
+    return { brandId: 55, name: null, thumbnails: { front: null, back: null, left: null, right: null } };
   }
 }
 
@@ -37,6 +49,7 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
   const [builderStatus, setBuilderStatus]   = useState('loading');
   const [view, setView]                     = useState('front');
   const [availViews, setAvailViews]         = useState([]);
+  const [thumbnails, setThumbnails]         = useState(null);
 
   // Fit + center a single view container, hiding the others
   const showView = (v) => {
@@ -106,14 +119,17 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
     setBuilderStatus('loading');
     setView('front');
     setAvailViews([]);
+    setThumbnails(null);
     uniformRef.current = null;
     while (layer.children.length > 0) layer.removeChildAt(0);
 
     const REQUEST_VIEWS = ['front', 'back', 'left', 'right'];
 
     (async () => {
+      let resolvedThumbs = null;
       try {
-        const brandId = await resolveBrandId(id);
+        const { brandId, thumbnails: thumbs } = await resolveBrandStyle(id);
+        resolvedThumbs = thumbs;
         if (!alive()) return;
 
         // Load + render ALL perspectives
@@ -135,6 +151,7 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
       } catch (err) {
         if (!alive()) return;
         console.warn(`[GarmentZoneSimulator] style #${id} failed:`, err.message);
+        setThumbnails(resolvedThumbs);
         setBuilderStatus('fallback');
       }
     })();
@@ -213,12 +230,61 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
     >
       <div ref={mountRef} className="w-full h-full" />
 
-      {/* Loading spinner — shown until the real uniform is rendered */}
-      {builderStatus !== 'ready' && (
+      {/* Loading spinner — shown only while actively loading */}
+      {builderStatus === 'loading' && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-50/50 dark:bg-slate-900/50 rounded-xl pointer-events-none">
           <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
+
+      {/* Fallback — show QX7 thumbnail images when available, otherwise a placeholder */}
+      {builderStatus === 'fallback' && (() => {
+        const thumbViews = VIEW_ORDER.filter(v => thumbnails?.[v]);
+        const activeThumb = thumbnails?.[view] || thumbnails?.[thumbViews[0]] || null;
+        const fallbackView = thumbnails?.[view] ? view : (thumbViews[0] || 'front');
+
+        if (activeThumb) {
+          return (
+            <div className="absolute inset-0 flex flex-col rounded-xl overflow-hidden">
+              <img
+                src={activeThumb}
+                alt={`Style #${brandStyleId} ${fallbackView}`}
+                className="w-full h-full object-contain bg-white dark:bg-slate-900"
+                draggable={false}
+              />
+              {/* View switcher for thumbnail mode */}
+              {thumbViews.length > 1 && (
+                <div className="absolute top-1 left-1/2 -translate-x-1/2 flex items-center gap-0.5 p-0.5 bg-slate-900/80 dark:bg-slate-950/80 rounded-lg backdrop-blur-sm">
+                  {thumbViews.map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setView(v)}
+                      className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wide transition-colors cursor-pointer ${
+                        (thumbnails?.[view] ? view : thumbViews[0]) === v ? 'bg-white text-slate-900' : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="absolute bottom-1 right-1 text-[9px] font-mono px-1.5 py-0.5 rounded pointer-events-none bg-slate-900/60 text-slate-300">
+                #{brandStyleId}
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-xl pointer-events-none gap-1">
+            <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            <span className="text-[10px] text-slate-400 font-mono">Preview unavailable</span>
+            <span className="text-[9px] text-slate-300 dark:text-slate-500">#{brandStyleId}</span>
+          </div>
+        );
+      })()}
 
       {/* Status badge — only when the real uniform is rendered */}
       {builderStatus === 'ready' && (

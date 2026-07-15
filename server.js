@@ -5,7 +5,7 @@ import { randomUUID, createHash } from 'crypto';
 import { config as dotenv } from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, existsSync, writeFileSync } from 'fs';
-import { join, resolve } from 'path';
+import { join, resolve, dirname } from 'path';
 
 dotenv(); // must run before any process.env reads below
 
@@ -76,12 +76,211 @@ loadGoogleTokens(); // load any stored tokens on startup
 const CUSTOMIZER_REPO = (process.env.CUSTOMIZER_REPO_PATH ||
   '/Users/qip-innovation/laravel-docker/core/src/customizer-core').replace(/\\/g, '/');
 
-function readRepoFile(relPath, maxChars = 3000) {
+// qstrike-builder package app — second code source for the analyzer. Files and
+// graph hits coming from here are labelled so the output distinguishes "this
+// repo" (customizer-core) from the package app.
+const QSTRIKE_BUILDER_REPO = (process.env.QSTRIKE_BUILDER_REPO_PATH ||
+  '/Users/qip-innovation/qstrike-builder').replace(/\\/g, '/');
+
+function readRepoFile(relPath, maxChars = 3000, repoRoot = CUSTOMIZER_REPO) {
   try {
-    const full = join(CUSTOMIZER_REPO, relPath);
+    const full = join(repoRoot, relPath);
     if (!existsSync(full)) return null;
     return readFileSync(full, 'utf-8').slice(0, maxChars);
   } catch { return null; }
+}
+
+// ─── Knowledge Graphs (graphify) ──────────────────────────────────────────────
+// graphify-built graph.json files (AST-extracted files/classes/functions +
+// calls/imports/inherits edges + community clusters). This is real extracted
+// structure, not the hand-tagged CUSTOMIZER_MODULES list below — used to catch
+// dependents a keyword match would miss and to pinpoint exact source lines for
+// code-block extraction. Two sources are indexed: the customizer-core repo and
+// the qstrike-builder package app; every hit carries its source label.
+const CUSTOMIZER_GRAPH_PATH = (process.env.CUSTOMIZER_GRAPH_PATH ||
+  join(CUSTOMIZER_REPO, 'graphify-out/graph.json')).replace(/\\/g, '/');
+const QSTRIKE_BUILDER_GRAPH_PATH = (process.env.QSTRIKE_BUILDER_GRAPH_PATH ||
+  join(QSTRIKE_BUILDER_REPO, 'graphify-out/graph.json')).replace(/\\/g, '/');
+
+function loadKnowledgeGraph(graphPath, sourceKey) {
+  try {
+    if (!existsSync(graphPath)) return null;
+    const raw = JSON.parse(readFileSync(graphPath, 'utf-8'));
+    const nodesById = new Map();
+    const nodesByFile = new Map();
+    for (const n of raw.nodes || []) {
+      nodesById.set(n.id, n);
+      const list = nodesByFile.get(n.source_file) || [];
+      list.push(n);
+      nodesByFile.set(n.source_file, list);
+    }
+    // graph.json is undirected (directed:false) — index both directions.
+    const adjacency = new Map();
+    for (const link of raw.links || []) {
+      if (!adjacency.has(link.source)) adjacency.set(link.source, []);
+      if (!adjacency.has(link.target)) adjacency.set(link.target, []);
+      adjacency.get(link.source).push({ relation: link.relation, nodeId: link.target });
+      adjacency.get(link.target).push({ relation: link.relation, nodeId: link.source });
+    }
+    let communityLabels = {};
+    const labelsPath = join(dirname(graphPath), '.graphify_labels.json');
+    if (existsSync(labelsPath)) {
+      try { communityLabels = JSON.parse(readFileSync(labelsPath, 'utf-8')); } catch { /* labels are optional */ }
+    }
+    return { nodesById, nodesByFile, adjacency, communityLabels };
+  } catch (e) {
+    console.error(`[graph] failed to load ${sourceKey} knowledge graph:`, e.message);
+    return null;
+  }
+}
+
+// Every graph source the analyzer walks. `key` travels on affected modules /
+// code blocks as the machine-readable source; `label` is the human-readable
+// attribution shown in the UI and AI prompt.
+const GRAPH_SOURCES = [
+  {
+    key: 'customizer-core',
+    label: 'this repo (customizer-core)',
+    repoPath: CUSTOMIZER_REPO,
+    graphPath: CUSTOMIZER_GRAPH_PATH,
+    graph: loadKnowledgeGraph(CUSTOMIZER_GRAPH_PATH, 'customizer-core'),
+  },
+  {
+    key: 'qstrike-builder',
+    label: 'qstrike-builder (package app)',
+    repoPath: QSTRIKE_BUILDER_REPO,
+    graphPath: QSTRIKE_BUILDER_GRAPH_PATH,
+    graph: loadKnowledgeGraph(QSTRIKE_BUILDER_GRAPH_PATH, 'qstrike-builder'),
+  },
+];
+
+function graphSourceByKey(key) {
+  return GRAPH_SOURCES.find(s => s.key === key) || GRAPH_SOURCES[0];
+}
+
+const graphAvailable = GRAPH_SOURCES.some(s => s.graph);
+for (const src of GRAPH_SOURCES) {
+  if (src.graph) {
+    console.log(`🕸️  [graph] loaded ${src.key} knowledge graph: ${src.graph.nodesById.size} nodes from ${src.graphPath}`);
+  } else {
+    console.log(`🕸️  [graph] no ${src.key} knowledge graph found at ${src.graphPath} — run 'graphify' on that repo to enable graph-augmented analysis`);
+  }
+}
+
+// Relations worth walking when looking for real dependents of a matched file —
+// structural containment ("contains") is excluded since it just re-surfaces the
+// same file's own members, not a related one.
+const GRAPH_TRAVERSAL_RELATIONS = new Set([
+  'calls', 'imports', 'imports_from', 'inherits', 'extends', 'implements', 'mixes_in', 'indirect_call', 'method',
+]);
+
+// Finds files in the customizer knowledge graph related to the BRD content —
+// seeded from already-matched module paths and from keyword/label overlap —
+// then expands a few hops over calls/imports/inherits edges to surface real
+// dependents (files that call/import a matched module) that a keyword-only
+// scan over CUSTOMIZER_MODULES can't see.
+function queryCustomizerGraphNeighborhood(contentToScan, seedPaths = [], { maxHops = 2, maxFiles = 15 } = {}) {
+  if (!graphAvailable) return [];
+
+  const allHits = [];
+  for (const src of GRAPH_SOURCES) {
+    if (!src.graph) continue;
+    const { nodesById, nodesByFile, adjacency, communityLabels } = src.graph;
+
+    const seedIds = new Set();
+    for (const path of seedPaths) {
+      for (const n of nodesByFile.get(path) || []) seedIds.add(n.id);
+    }
+    for (const n of nodesById.values()) {
+      if (n.norm_label && n.norm_label.length > 3 && contentToScan.includes(n.norm_label)) {
+        seedIds.add(n.id);
+      }
+    }
+    if (seedIds.size === 0) continue;
+
+    const visited = new Map(); // nodeId -> { hops, via }
+    for (const id of seedIds) visited.set(id, { hops: 0, via: 'seed' });
+    let frontier = [...seedIds];
+
+    for (let hop = 1; hop <= maxHops && frontier.length; hop++) {
+      const next = [];
+      for (const id of frontier) {
+        for (const { relation, nodeId } of adjacency.get(id) || []) {
+          if (visited.has(nodeId) || !GRAPH_TRAVERSAL_RELATIONS.has(relation)) continue;
+          visited.set(nodeId, { hops: hop, via: relation });
+          next.push(nodeId);
+        }
+      }
+      frontier = next;
+    }
+
+    // Group by file, keeping the closest hop reached and the relation that got us there.
+    const byFile = new Map();
+    for (const [id, { hops, via }] of visited) {
+      const node = nodesById.get(id);
+      if (!node?.source_file) continue;
+      const existing = byFile.get(node.source_file);
+      if (!existing || hops < existing.hops) {
+        byFile.set(node.source_file, {
+          file: node.source_file, hops, via, community: node.community,
+          communityLabel: communityLabels[String(node.community)] || null, labels: new Set(),
+          source: src.key, sourceLabel: src.label,
+        });
+      }
+      byFile.get(node.source_file).labels.add(node.label);
+    }
+    allHits.push([...byFile.values()].sort((a, b) => a.hops - b.hops));
+  }
+
+  // Round-robin merge across sources so the (much larger) customizer-core graph
+  // can't crowd qstrike-builder hits out of the maxFiles cap.
+  const merged = [];
+  for (let i = 0; merged.length < maxFiles && allHits.some(list => i < list.length); i++) {
+    for (const list of allHits) {
+      if (i < list.length && merged.length < maxFiles) merged.push(list[i]);
+    }
+  }
+  return merged
+    .sort((a, b) => a.hops - b.hops)
+    .map(f => ({ ...f, labels: [...f.labels].slice(0, 8) }));
+}
+
+// Builds the searchable text corpus used to match a BRD (+ bugs + doc) against
+// both the CUSTOMIZER_MODULES keyword registry and the knowledge graph's labels.
+function buildContentToScan({ brd, bugs = [], docContent }) {
+  const bugContent = bugs.map(b =>
+    [b.title, b.description, b.criteria, b.rootCause].filter(Boolean).join(' ')
+  ).join(' ');
+  return [
+    brd.title, brd.description, brd.feTicket, brd.beTicket, brd.anciliaryTicket,
+    brd.rndTicket, brd.baName, bugContent, docContent,
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+// Matches CUSTOMIZER_MODULES against a content string by keyword overlap.
+// Shared by the local rule-based scanner and the AI-prompt builder so both
+// paths agree on which modules are "matched" before graph seeding.
+function matchCustomizerModules(contentToScan) {
+  return CUSTOMIZER_MODULES
+    .map(mod => ({ mod, matchedKws: mod.keywords.filter(kw => contentToScan.includes(kw)) }))
+    .filter(m => m.matchedKws.length > 0);
+}
+
+// Looks up the exact source line for a symbol via the knowledge graph, so code-
+// block extraction doesn't have to guess with regex when the graph already knows.
+function lookupGraphSourceLine(relPath, symbolName, sourceKey = 'customizer-core') {
+  if (!symbolName) return null;
+  const graph = graphSourceByKey(sourceKey).graph;
+  if (!graph) return null;
+  const nodes = graph.nodesByFile.get(relPath);
+  if (!nodes) return null;
+  // Graph labels carry decoration ('.getBrandStyles()') — compare stripped forms
+  const strip = (s) => (s || '').toLowerCase().replace(/^\./, '').replace(/\(\)$/, '');
+  const needle = strip(symbolName);
+  const target = nodes.find(n => strip(n.norm_label) === needle || strip(n.label) === needle);
+  if (!target?.source_location) return null;
+  const m = /^L(\d+)$/.exec(target.source_location);
+  return m ? parseInt(m[1], 10) : null;
 }
 
 const app = express();
@@ -2787,8 +2986,8 @@ const repoAvailable = customizerContext.snippets.length > 0;
 // ─── Code-block extractor ──────────────────────────────────────────────────────
 // Reads a file from the customizer repo and extracts the code around a named symbol.
 // Returns { code, lineStart, lineEnd } or null if not found.
-function extractCodeBlock(relPath, symbolName, contextLines = 40) {
-  const content = readRepoFile(relPath, 999999); // read full file
+function extractCodeBlock(relPath, symbolName, contextLines = 40, sourceKey = 'customizer-core') {
+  const content = readRepoFile(relPath, 999999, graphSourceByKey(sourceKey).repoPath); // read full file
   if (!content) return null;
 
   const lines = content.split('\n');
@@ -2802,9 +3001,17 @@ function extractCodeBlock(relPath, symbolName, contextLines = 40) {
     new RegExp(`"${symbolName}"`),
   ];
 
+  // The graph already knows the exact definition line for this symbol —
+  // prefer it over regex guessing, and only fall back to pattern search
+  // when the file/symbol isn't in the graph (e.g. graph not built yet).
   let startIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (patterns.some(p => p.test(lines[i]))) { startIdx = i; break; }
+  const graphLine = lookupGraphSourceLine(relPath, symbolName, sourceKey);
+  if (graphLine != null && graphLine - 1 < lines.length) {
+    startIdx = graphLine - 1;
+  } else {
+    for (let i = 0; i < lines.length; i++) {
+      if (patterns.some(p => p.test(lines[i]))) { startIdx = i; break; }
+    }
   }
   if (startIdx === -1) return null;
 
@@ -2830,14 +3037,28 @@ function extractCodeBlock(relPath, symbolName, contextLines = 40) {
 function readAffectedCodeBlocks(affectedModules) {
   const blocks = [];
   for (const mod of affectedModules) {
+    const source = graphSourceByKey(mod.source);
     const functions = mod.affectedFunctions || [];
     // Always try at least the keyExports from the registry as a fallback
-    const registry = CUSTOMIZER_MODULES.find(m => m.name === mod.name || m.path === mod.path);
-    const candidates = functions.length > 0 ? functions : (registry?.keyExports?.slice(0, 4) || []);
+    // (registry only covers customizer-core paths)
+    const registry = source.key === 'customizer-core'
+      ? CUSTOMIZER_MODULES.find(m => m.name === mod.name || m.path === mod.path)
+      : null;
+    let candidates = functions.length > 0 ? functions : (registry?.keyExports?.slice(0, 4) || []);
+    // For non-registry sources, fall back to the graph's own symbols for that
+    // file — only real code symbols (skip JSON/config keys the graph also indexes)
+    if (candidates.length === 0 && source.graph && !/\.(json|ya?ml|lock)$/.test(mod.path)) {
+      candidates = (source.graph.nodesByFile.get(mod.path) || [])
+        .filter(n => n.source_location && n.file_type === 'code' && n.label !== mod.path.split('/').pop())
+        .slice(0, 4)
+        // graph labels carry decoration ('.getBrandStyles()') — strip to the bare
+        // symbol name the extractor and graph lookup expect
+        .map(n => n.label.replace(/^\./, '').replace(/\(\)$/, ''));
+    }
 
     const fileBlocks = [];
     for (const fn of candidates) {
-      const block = extractCodeBlock(mod.path, fn);
+      const block = extractCodeBlock(mod.path, fn, 40, source.key);
       if (block && block.code.trim().length > 10) {
         fileBlocks.push({ functionName: fn, ...block });
       }
@@ -2849,6 +3070,8 @@ function readAffectedCodeBlocks(affectedModules) {
         path: mod.path,
         severity: mod.severity,
         reason: mod.explanation || '',
+        source: source.key,
+        sourceLabel: source.label,
         functions: fileBlocks,
         fileAvailable: fileBlocks.length > 0,
       });
@@ -2859,32 +3082,15 @@ function readAffectedCodeBlocks(affectedModules) {
 
 // ─── Affected Modules Local Scanner ───────────────────────────────────────────
 function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent, styleFeatures = STYLE_FEATURES_SEED }) {
-  // Build the fullest possible content corpus from every available BRD field
-  const bugContent = bugs.map(b =>
-    [b.title, b.description, b.criteria, b.rootCause].filter(Boolean).join(' ')
-  ).join(' ');
-
-  const contentToScan = [
-    brd.title,
-    brd.description,
-    brd.feTicket,
-    brd.beTicket,
-    brd.anciliaryTicket,
-    brd.rndTicket,
-    brd.baName,
-    bugContent,
-    docContent,
-  ].filter(Boolean).join(' ').toLowerCase();
+  const contentToScan = buildContentToScan({ brd, bugs, docContent });
 
   const affectedModules = [];
   const affectedConcepts = new Set();
   const recommendations = [];
   let scorePoints = 10;
 
-  for (const mod of CUSTOMIZER_MODULES) {
-    const matchedKws = mod.keywords.filter(kw => contentToScan.includes(kw));
-    if (matchedKws.length === 0) continue;
-
+  const matched = matchCustomizerModules(contentToScan);
+  for (const { mod, matchedKws } of matched) {
     const isCoreEngine = ['customizer.js', 'color.ts', 'application.ts', 'fabric.ts', 'uniform.ts', 'stage.ts'].includes(mod.name);
     const severity = isCoreEngine ? 'High' : matchedKws.length >= 3 ? 'High' : 'Medium';
     scorePoints += severity === 'High' ? 15 : 10;
@@ -2894,9 +3100,42 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
       path: mod.path,
       role: mod.role,
       severity,
+      source: 'customizer-core',
+      sourceLabel: graphSourceByKey('customizer-core').label,
       explanation: `Analysis indicates this BRD touches ${matchedKws.slice(0, 4).join(', ')}. As part of the ${mod.domain} domain, this file should be reviewed and likely modified for this requirement.`
     });
     affectedConcepts.add(mod.domain);
+  }
+
+  // ── Knowledge-graph augmentation ──────────────────────────────────────────
+  // Catches real dependents (files that call/import a matched module) that the
+  // static keyword registry above has no way to see, by walking the actual
+  // extracted call/import/inherit edges from the customizer-core graphify graph.
+  if (graphAvailable) {
+    const seedPaths = affectedModules.map(m => m.path);
+    const graphHits = queryCustomizerGraphNeighborhood(contentToScan, seedPaths, { maxHops: 2, maxFiles: 15 });
+    // Registry seeds are always customizer-core; key by source so a same-named
+    // relative path in qstrike-builder isn't wrongly deduped against them.
+    const knownPaths = new Set(seedPaths.map(p => `customizer-core:${p}`));
+    for (const hit of graphHits) {
+      // hop 0 in customizer-core = a registry file already matched above; hop 0
+      // in other sources is a direct label match with no registry entry — keep it.
+      if ((hit.hops === 0 && hit.source === 'customizer-core') || knownPaths.has(`${hit.source}:${hit.file}`)) continue;
+      knownPaths.add(`${hit.source}:${hit.file}`);
+      const severity = hit.hops <= 1 ? 'Medium' : 'Low';
+      affectedModules.push({
+        name: hit.file.split('/').pop(),
+        path: hit.file,
+        role: hit.communityLabel ? `Part of the "${hit.communityLabel}" area of ${hit.sourceLabel}.` : `Related via the ${hit.sourceLabel} knowledge graph.`,
+        severity,
+        source: hit.source,
+        sourceLabel: hit.sourceLabel,
+        explanation: `Found via knowledge-graph traversal of ${hit.sourceLabel} (${hit.via}, ${hit.hops} hop${hit.hops > 1 ? 's' : ''} from a matched module) — related symbols: ${hit.labels.slice(0, 3).join(', ')}.`,
+        viaGraph: true,
+      });
+      scorePoints += severity === 'Medium' ? 8 : 4;
+      if (hit.communityLabel) affectedConcepts.add(hit.communityLabel);
+    }
   }
 
   // Also check KB entries for extra coverage
@@ -2913,6 +3152,8 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
       name: 'customizer.js', path: 'resources/js/stores/customizer.js',
       role: 'Primary Pinia store managing customizer state.',
       severity: 'Low',
+      source: 'customizer-core',
+      sourceLabel: graphSourceByKey('customizer-core').label,
       explanation: 'Analysis did not surface a specific domain for this BRD. General uniform changes typically begin in the central customizer store, so it should be reviewed first.'
     });
     affectedConcepts.add('Core Store');
@@ -2952,7 +3193,9 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
       : impactScore > 30 ? `MODERATE impact: affects ${concepts.slice(0, 3).join(', ')} layer(s). Targeted QA across affected panels.`
         : `LOW impact: isolated to ${concepts.slice(0, 2).join(', ')} UI. Spot-check affected components.`);
 
-  const affectedCodeBlocks = repoAvailable ? readAffectedCodeBlocks(affectedModules) : [];
+  // Not gated on repoAvailable (customizer-core snippets) — qstrike-builder
+  // blocks are readable even when the customizer repo isn't mounted.
+  const affectedCodeBlocks = readAffectedCodeBlocks(affectedModules);
   return { impactScore, verdict, affectedModules, affectedConcepts: concepts, recommendations: recommendations.slice(0, 6), affectedStyleFeatures, affectedCodeBlocks };
 }
 
@@ -2970,8 +3213,9 @@ You have now read:
 Now produce your analysis using ONLY information found in those sections. Every file path, function name, and KB reference in your output must exist in the material above.
 
 PART A — Affected Files
-- List only files from Section 3 that are directly impacted by the BRD requirement
-- Each file must include the exact path from Section 3 and real function names from Section 4
+- List only files from Section 3 or Section 3B that are directly impacted by the BRD requirement
+- Each file must include the exact path from Section 3/3B and real function names from Section 4
+- Set each file's "source" field: "customizer-core" for this repo's files, "qstrike-builder" for package-app files surfaced in Section 3B
 - Explain specifically HOW the requirement changes or touches that file — reference the KB context (Section 2) where it confirms the impact
 - Severity: High = core store/engine/factory logic | Medium = component, service, or store helper | Low = UI-only or config tweak
 
@@ -2993,10 +3237,11 @@ Output ONLY a single valid JSON object — no markdown, no text outside the JSON
   "verdict": "<one paragraph: summarise what the BRD changes, which KB rules are relevant, and which core files/functions are affected — use real names>",
   "affectedModules": [
     {
-      "name": "<filename from Section 3>",
-      "path": "<exact path from Section 3>",
+      "name": "<filename from Section 3 or 3B>",
+      "path": "<exact path from Section 3 or 3B>",
       "role": "<role of this file>",
       "severity": "High|Medium|Low",
+      "source": "customizer-core|qstrike-builder — where the file lives: 'customizer-core' for Section 3/4 files (this repo), or the source tag shown in Section 3B for graph-surfaced files (qstrike-builder = the package app)",
       "explanation": "<specific explanation: what in this file changes, which function is touched, and why — tie to BRD requirement and KB context>",
       "affectedFunctions": ["<real function name from Section 4 code snippets>"]
     }
@@ -3030,7 +3275,9 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
     }
 
     // ── Cache: identical BRD + content ⇒ identical stored output ──────────
-    const cacheKey = computeCacheKey('affected-modules', { brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+    // 'affected-modules-v2': bumped when multi-graph source labeling shipped so
+    // pre-change cached payloads (no source/sourceLabel fields) stop being served.
+    const cacheKey = computeCacheKey('affected-modules-v2', { brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
     const cachedResult = await getCachedAnalysis(cacheKey);
     if (cachedResult) {
       console.log(`💾 [cache] HIT for /analyze-affected-modules (${cacheKey.slice(0, 12)}…) — returning stored result`);
@@ -3054,6 +3301,23 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
       `• [${m.domain}] ${m.name} — ${m.path}\n  Role: ${m.role}\n  Key exports: ${m.keyExports.join(', ')}`
     ).join('\n\n');
 
+    // Knowledge-graph neighborhood: real extracted call/import/inherit edges from
+    // the customizer-core graphify graph — surfaces dependents of matched modules
+    // that the hand-tagged keyword registry above has no way to see.
+    const contentToScanForGraph = buildContentToScan({ brd, bugs, docContent });
+    const graphSeedPaths = matchCustomizerModules(contentToScanForGraph).map(m => m.mod.path);
+    const graphHits = graphAvailable
+      ? queryCustomizerGraphNeighborhood(contentToScanForGraph, graphSeedPaths, { maxHops: 2, maxFiles: 20 })
+      : [];
+    const graphSection = !graphAvailable
+      ? '(Knowledge graph not built — run graphify on the customizer-core and/or qstrike-builder repos to enable this section.)'
+      : graphHits.length
+        ? graphHits.map(h =>
+          `• [source: ${h.source}] ${h.file} (${h.hops} hop${h.hops > 1 ? 's' : ''} via "${h.via}"${h.communityLabel ? `, area: ${h.communityLabel}` : ''}) — from ${h.sourceLabel}\n  Related symbols: ${h.labels.slice(0, 6).join(', ')}`
+        ).join('\n\n')
+        : '(No graph neighbors found beyond the module index above.)';
+    console.log(`🕸️  [graph] ${graphSeedPaths.length} seed module(s) → ${graphHits.length} graph neighbor(s) for /analyze-affected-modules`);
+
     // Live file snippets from the actual repo
     const snippetSection = repoAvailable
       ? customizerContext.snippets.map(s =>
@@ -3074,7 +3338,7 @@ You will analyse a BRD (Business Requirements Document) by following a strict 3-
 
   STEP 1 — Read the BRD (Section 1) to fully understand WHAT is being built or changed.
   STEP 2 — Cross-reference the AI Knowledge Base (Section 2) to find domain rules, hardcoded logic, brand-specific behaviours, and existing patterns that are relevant to this requirement.
-  STEP 3 — Scan the Codebase (Section 3 module index + Section 4 live code snippets) to identify the EXACT files and functions that implement or will be impacted by what you found in Steps 1 and 2.
+  STEP 3 — Scan the Codebase (Section 3 module index + Section 3B knowledge-graph neighborhood + Section 4 live code snippets) to identify the EXACT files and functions that implement or will be impacted by what you found in Steps 1 and 2.
 
 Only after completing all three steps, produce the output using the INSTRUCTIONS at the bottom.
 
@@ -3128,6 +3392,13 @@ Using the requirement (Section 1) and the KB context (Section 2), identify which
 ${moduleIndex}
 
 ═══════════════════════════════════════════════════════
+SECTION 3B — KNOWLEDGE GRAPH NEIGHBORHOOD (real extracted relationships from the codebase graphs)
+These files were surfaced by walking actual calls/imports/inherits/method edges outward from modules matched above — they are real dependents, not keyword guesses. A file appearing here with "1 hop" is directly called/imported by (or calls/imports) a matched module; "2 hops" is one step further removed. Treat these as strong candidates for files that must also change, even if their name doesn't obviously match the BRD's wording.
+Each entry is tagged with its source: "customizer-core" = this repo, "qstrike-builder" = the package app. When you include one of these files in your output, copy its source tag into that module's "source" field so the result correctly attributes where the file lives.
+═══════════════════════════════════════════════════════
+${graphSection}
+
+═══════════════════════════════════════════════════════
 SECTION 4 — LIVE CODE SNIPPETS (actual source code from repository)
 These are real code snippets pulled from the repository. Use them to confirm which functions, getters, and exports are impacted. Reference actual function names found here in your output.
 ═══════════════════════════════════════════════════════
@@ -3167,10 +3438,16 @@ ${instructions}`;
       return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'ai_parse_error', docFetched: !!docContent });
     }
 
-    // Read actual code blocks from the local repo for each affected module
-    const affectedCodeBlocks = repoAvailable
-      ? readAffectedCodeBlocks(parsedJson.affectedModules || [])
-      : [];
+    // Normalize source attribution on AI-returned modules: only known source
+    // keys pass through; anything else falls back to customizer-core.
+    const validSources = new Set(GRAPH_SOURCES.map(s => s.key));
+    parsedJson.affectedModules = (parsedJson.affectedModules || []).map(m => {
+      const source = validSources.has(m.source) ? m.source : 'customizer-core';
+      return { ...m, source, sourceLabel: graphSourceByKey(source).label };
+    });
+
+    // Read actual code blocks from the local repos for each affected module
+    const affectedCodeBlocks = readAffectedCodeBlocks(parsedJson.affectedModules);
 
     const payload = { ...parsedJson, affectedCodeBlocks, mode: 'ai', provider: usedProvider, model: r.model || null, modeReason: fellBack, docFetched: !!docContent };
     // Persist so the same BRD + content returns the same output next time

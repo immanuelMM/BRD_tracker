@@ -17,6 +17,7 @@ import TeamLeadSettings from './components/TeamLeadSettings';
 import TShirtSizeSettings from './components/TShirtSizeSettings';
 import DevMemberSettings from './components/DevMemberSettings';
 import KnowledgeBasePage from './components/KnowledgeBasePage';
+import KnowledgeGraphView from './components/KnowledgeGraphView';
 import AnalyseAffectedModule from './components/AnalyseAffectedModule';
 import GoogleSettings from './components/GoogleSettings';
 
@@ -129,6 +130,18 @@ const NAV = [
           </svg>
         ),
       },
+      {
+        id: 'kb_graph', label: 'Knowledge Graph',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="5" cy="6" r="2" strokeWidth={1.8}/>
+            <circle cx="19" cy="6" r="2" strokeWidth={1.8}/>
+            <circle cx="12" cy="18" r="2" strokeWidth={1.8}/>
+            <circle cx="12" cy="10" r="2.4" strokeWidth={1.8}/>
+            <path strokeLinecap="round" strokeWidth={1.6} d="M6.7 7.2l3.3 1.7m4-1.7l-3.3 1.7M12 12.4v3.2"/>
+          </svg>
+        ),
+      },
     ],
   },
   {
@@ -151,7 +164,7 @@ const NAV = [
   },
 ];
 
-const PAGE_TITLES = { dashboard: 'Dashboard', brds: 'BRD Tracker', report: 'Reports', tshirt: 'T-Shirt Sizes', quarters: 'Quarter View', ba: 'BA View', pmnotes: 'PM Notes', workflow: 'Workflow', kb: 'AI Knowledge Base', affected_module: 'Analyse Affected Module', sql: 'SQL Explorer', settings: 'Settings' };
+const PAGE_TITLES = { dashboard: 'Dashboard', brds: 'BRD Tracker', report: 'Reports', tshirt: 'T-Shirt Sizes', quarters: 'Quarter View', ba: 'BA View', pmnotes: 'PM Notes', workflow: 'Workflow', kb: 'AI Knowledge Base', affected_module: 'Analyse Affected Module', kb_graph: 'Knowledge Graph', sql: 'SQL Explorer', settings: 'Settings' };
 
 
 function Notification({ msg, type }) {
@@ -376,6 +389,7 @@ export default function App() {
         devMembers={devMembers} notify={notify}
       />
     );
+    if (activeTab === 'kb_graph') return <KnowledgeGraphView entries={kbEntries} />;
     if (activeTab === 'sql') return <SQLExplorer />;
     if (activeTab === 'settings') return (
       <div className="space-y-8">

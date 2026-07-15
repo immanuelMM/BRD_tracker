@@ -170,9 +170,10 @@ function downloadResultsPDF(analysis, brd) {
 
     y += 7;
 
-    // Path
-    txt(mod.path || '', 7.5, 'normal', [100,116,139]);
-    doc.text(doc.splitTextToSize(mod.path || '', CW - 4)[0], ML + 2, y);
+    // Path (with source attribution when present)
+    const pathLine = (mod.path || '') + (mod.sourceLabel ? `   [${mod.sourceLabel}]` : '');
+    txt(pathLine, 7.5, 'normal', [100,116,139]);
+    doc.text(doc.splitTextToSize(pathLine, CW - 4)[0], ML + 2, y);
     y += 5;
 
     // Role
@@ -442,6 +443,7 @@ function downloadResultsDocx(analysis, brd) {
       style="padding:7px 9px;border:1px solid #cbd5e1;">
     <p style="margin:0;font-size:10.5pt;font-weight:bold;color:#0f172a;">${m.name}</p>
     <p style="margin:2px 0 0;font-size:7.5pt;font-family:Courier New,monospace;color:#64748b;">${m.path}</p>
+    ${m.sourceLabel ? `<p style="margin:2px 0 0;font-size:7.5pt;color:${m.source === 'qstrike-builder' ? '#7c3aed' : '#0284c7'};font-weight:bold;">${m.sourceLabel}</p>` : ''}
     ${m.role ? `<p style="margin:3px 0 0;font-size:8.5pt;color:#475569;font-style:italic;">${m.role}</p>` : ''}
   </td>
   <td bgcolor="${rowBg(i)}" valign="top"
@@ -1751,11 +1753,20 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">{mod.name}</h5>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 border rounded-full uppercase ${getSeverityStyle(mod.severity)}`}>
                                   {mod.severity} Impact
                                 </span>
+                                {mod.source && (
+                                  <span className={`text-[10px] font-semibold px-2 py-0.5 border rounded-full ${
+                                    mod.source === 'qstrike-builder'
+                                      ? 'bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-900/50 text-violet-600 dark:text-violet-300'
+                                      : 'bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-900/50 text-sky-600 dark:text-sky-300'
+                                  }`} title={mod.sourceLabel || mod.source}>
+                                    {mod.sourceLabel || mod.source}
+                                  </span>
+                                )}
                               </div>
                               <p className="text-[10px] font-mono text-slate-400 select-all cursor-copy" title="Copy Path">
                                 {mod.path}
@@ -1933,6 +1944,11 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
                                 </svg>
                                 <span className="text-[11px] font-mono text-emerald-400 truncate">{block.path}</span>
+                                {block.sourceLabel && (
+                                  <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                                    block.source === 'qstrike-builder' ? 'bg-violet-500/20 text-violet-300' : 'bg-sky-500/20 text-sky-300'
+                                  }`}>{block.sourceLabel}</span>
+                                )}
                               </div>
                               <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ml-2 ${
                                 block.severity === 'High' ? 'bg-red-500/20 text-red-400' :

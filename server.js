@@ -127,7 +127,7 @@ function loadKnowledgeGraph(graphPath, sourceKey) {
     if (existsSync(labelsPath)) {
       try { communityLabels = JSON.parse(readFileSync(labelsPath, 'utf-8')); } catch { /* labels are optional */ }
     }
-    return { nodesById, nodesByFile, adjacency, communityLabels };
+    return { nodesById, nodesByFile, adjacency, communityLabels, rawLinks: raw.links || [] };
   } catch (e) {
     console.error(`[graph] failed to load ${sourceKey} knowledge graph:`, e.message);
     return null;
@@ -1506,6 +1506,52 @@ app.delete('/api/knowledge-base/:id', async (req, res) => {
       .query('DELETE FROM knowledge_base WHERE id = @id');
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Code Knowledge Graphs (for the Knowledge Graph page) ─────────────────────
+// Serves a file-level aggregation of a graphify repo graph: one node per source
+// file (majority community of its symbols, symbol list) and deduplicated
+// file↔file edges with weights. Full symbol graphs (9k+ nodes) are too heavy
+// for the browser; file level keeps the same architecture picture at ~1/7 size.
+app.get('/api/code-graph/:key', (req, res) => {
+  const src = GRAPH_SOURCES.find(s => s.key === req.params.key);
+  if (!src) return res.status(404).json({ error: `unknown graph source '${req.params.key}'` });
+  if (!src.graph) return res.status(404).json({ error: `knowledge graph not built for ${src.key} — run graphify on that repo` });
+
+  const { nodesById, nodesByFile, communityLabels, rawLinks } = src.graph;
+
+  const files = [];
+  for (const [file, nodes] of nodesByFile) {
+    if (!file) continue;
+    const byCommunity = new Map();
+    for (const n of nodes) {
+      if (n.community != null) byCommunity.set(n.community, (byCommunity.get(n.community) || 0) + 1);
+    }
+    const community = [...byCommunity.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    const base = file.split('/').pop();
+    files.push({
+      id: file,
+      label: base,
+      path: file,
+      community,
+      communityLabel: communityLabels[String(community)] || null,
+      symbolCount: nodes.length,
+      symbols: nodes.filter(n => n.label !== base).slice(0, 12).map(n => n.label),
+    });
+  }
+
+  const pairs = new Map();
+  for (const l of rawLinks) {
+    const a = nodesById.get(l.source)?.source_file;
+    const b = nodesById.get(l.target)?.source_file;
+    if (!a || !b || a === b) continue;
+    const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+    const existing = pairs.get(key);
+    if (existing) existing.weight++;
+    else pairs.set(key, { from: a, to: b, relation: l.relation, weight: 1 });
+  }
+
+  res.json({ key: src.key, label: src.label, files, edges: [...pairs.values()], communityLabels });
 });
 
 // ─── Style Features ────────────────────────────────────────────────────────────

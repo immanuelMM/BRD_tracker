@@ -5,9 +5,9 @@
     "semantic_hash": "49c8473bcfcec3aef596a5fb04a6df06"
   },
   "package.json": {
-    "mtime": 1784093126.030472,
-    "ast_hash": "647dc1187e5fcaa2e51a6f9d60154bb1",
-    "semantic_hash": ""
+    "mtime": 1780901268.275648,
+    "ast_hash": "237f61ffddacaaaf212c5fecf2272661",
+    "semantic_hash": "237f61ffddacaaaf212c5fecf2272661"
   },
   "restart-sql.ps1": {
     "mtime": 1780901268.2793689,
@@ -15,9 +15,9 @@
     "semantic_hash": "093019bf8f6a93e9ca9021f5c812fed2"
   },
   "server.js": {
-    "mtime": 1784110684.1071324,
-    "ast_hash": "916d9fbad3cff7f8f0f988f63b6fad5b",
-    "semantic_hash": ""
+    "mtime": 1783398009.273993,
+    "ast_hash": "40dcf7e30f212749213e3a77ba28bd16",
+    "semantic_hash": "40dcf7e30f212749213e3a77ba28bd16"
   },
   "setup-sqlauth.ps1": {
     "mtime": 1780901268.2802033,
@@ -25,14 +25,14 @@
     "semantic_hash": "bcf1b1d2d30b75d8df475ef8726c3b7b"
   },
   "src/App.jsx": {
-    "mtime": 1784093256.4822297,
-    "ast_hash": "697cb554e1bc400d3175c1d9b5480f1b",
-    "semantic_hash": ""
+    "mtime": 1780901268.2805746,
+    "ast_hash": "8e7d59bc97c2d072e77ab62e02012396",
+    "semantic_hash": "8e7d59bc97c2d072e77ab62e02012396"
   },
   "src/components/AnalyseAffectedModule.jsx": {
-    "mtime": 1784092191.81143,
-    "ast_hash": "3aa3c46c6226eb0a753d00154ba3f469",
-    "semantic_hash": ""
+    "mtime": 1782261645.4859228,
+    "ast_hash": "043b9259533377dcd9cf14276a04f283",
+    "semantic_hash": "043b9259533377dcd9cf14276a04f283"
   },
   "src/components/BAPage.jsx": {
     "mtime": 1781062958.4317954,
@@ -80,9 +80,9 @@
     "semantic_hash": "e4a4540325472a590f8790b6f3954d7b"
   },
   "src/components/GarmentZoneSimulator.jsx": {
-    "mtime": 1784108993.4649167,
-    "ast_hash": "847fdcbd1f656c75d6b6e69aad08827d",
-    "semantic_hash": ""
+    "mtime": 1780904067.1825452,
+    "ast_hash": "a182587c2e1d227d1983164bbd066467",
+    "semantic_hash": "a182587c2e1d227d1983164bbd066467"
   },
   "src/components/GoogleSettings.jsx": {
     "mtime": 1780901268.2846544,
@@ -185,9 +185,9 @@
     "semantic_hash": "11b5eb13beb007fab450ed41427558b3"
   },
   "docs/ARCHITECTURE.md": {
-    "mtime": 1784092164.7867486,
-    "ast_hash": "32e7f4d8d0df7903ed051973289cb21f",
-    "semantic_hash": ""
+    "mtime": 1780901268.2738457,
+    "ast_hash": "5fbe154a0d34ed5538d0a45ac9e51f34",
+    "semantic_hash": "5fbe154a0d34ed5538d0a45ac9e51f34"
   },
   "docs/TECH_STACK.md": {
     "mtime": 1780901268.274085,
@@ -223,20 +223,5 @@
     "mtime": 1780901268.2812862,
     "ast_hash": "9960a24288958394ac50e57ff638b036",
     "semantic_hash": "9960a24288958394ac50e57ff638b036"
-  },
-  ".claude/settings.json": {
-    "mtime": 1784122636.69808,
-    "ast_hash": "6f7849fdddc4400892caf74cb781da55",
-    "semantic_hash": ""
-  },
-  "src/components/KnowledgeGraphView.jsx": {
-    "mtime": 1784110899.3151062,
-    "ast_hash": "c7eda23be8f732f6dd16a6cb511b31f2",
-    "semantic_hash": ""
-  },
-  "CLAUDE.md": {
-    "mtime": 1784122636.694592,
-    "ast_hash": "82efb97a359f5c7290bf2513d14686be",
-    "semantic_hash": ""
   }
 }

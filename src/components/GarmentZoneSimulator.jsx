@@ -35,6 +35,8 @@ async function resolveBrandStyle(styleId) {
 }
 
 const VIEW_ORDER = ['front', 'back', 'left', 'right'];
+// Natural spin sequence for auto-rotation (like turning the garment around)
+const ROTATE_ORDER = ['front', 'right', 'back', 'left'];
 
 const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
   { brandStyleId = 123, setHoveredZone, width = 200, height = 240 },
@@ -50,6 +52,7 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
   const [view, setView]                     = useState('front');
   const [availViews, setAvailViews]         = useState([]);
   const [thumbnails, setThumbnails]         = useState(null);
+  const [autoRotate, setAutoRotate]         = useState(true);
 
   // Fit + center a single view container, hiding the others
   const showView = (v) => {
@@ -70,10 +73,14 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
     if (active) {
       const b = active.getBounds();
       if (b.width > 0 && b.height > 0) {
-        const scale = Math.min((cw * 0.92) / b.width, (ch * 0.92) / b.height);
+        // Reserve space at the top so the garment clears the perspective
+        // switcher bar instead of rendering underneath it
+        const topPad = 28;
+        const availH = ch - topPad;
+        const scale = Math.min((cw * 0.92) / b.width, (availH * 0.92) / b.height);
         uniform.stage.scale.set(scale);
         uniform.stage.x = (cw - b.width  * scale) / 2 - b.x * scale;
-        uniform.stage.y = (ch - b.height * scale) / 2 - b.y * scale;
+        uniform.stage.y = topPad + (availH - b.height * scale) / 2 - b.y * scale;
       }
     }
   };
@@ -164,6 +171,39 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
     if (builderStatus === 'ready') showView(view);
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-rotate through the available perspectives (front → right → back → left)
+  useEffect(() => {
+    const views = builderStatus === 'ready'
+      ? availViews
+      : builderStatus === 'fallback'
+        ? VIEW_ORDER.filter(v => thumbnails?.[v])
+        : [];
+    const order = ROTATE_ORDER.filter(v => views.includes(v));
+    if (!autoRotate || order.length < 2) return;
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      setView(prev => order[(order.indexOf(prev) + 1) % order.length]);
+    }, 2500);
+    return () => clearInterval(t);
+  }, [autoRotate, builderStatus, availViews, thumbnails]);
+
+  // Shared ▶/⏸ control for both the real-render and thumbnail view switchers
+  const RotateToggle = () => (
+    <button
+      onClick={() => setAutoRotate(a => !a)}
+      title={autoRotate ? 'Pause auto-rotate' : 'Auto-rotate views'}
+      className={`px-1.5 py-0.5 rounded-md text-[9px] transition-colors cursor-pointer ${
+        autoRotate ? 'bg-emerald-500/90 text-white' : 'text-white/60 hover:text-white'
+      }`}
+    >
+      {autoRotate ? (
+        <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      ) : (
+        <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8V4z"/></svg>
+      )}
+    </button>
+  );
+
   // Expose capture helpers for the 3D view
   useImperativeHandle(ref, () => ({
     // Single current frame
@@ -249,7 +289,7 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
               <img
                 src={activeThumb}
                 alt={`Style #${brandStyleId} ${fallbackView}`}
-                className="w-full h-full object-contain bg-white dark:bg-slate-900"
+                className="w-full h-full object-contain bg-white dark:bg-slate-900 pt-9 pb-1"
                 draggable={false}
               />
               {/* View switcher for thumbnail mode */}
@@ -258,7 +298,7 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
                   {thumbViews.map((v) => (
                     <button
                       key={v}
-                      onClick={() => setView(v)}
+                      onClick={() => { setAutoRotate(false); setView(v); }}
                       className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wide transition-colors cursor-pointer ${
                         (thumbnails?.[view] ? view : thumbViews[0]) === v ? 'bg-white text-slate-900' : 'text-white/60 hover:text-white'
                       }`}
@@ -266,6 +306,7 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
                       {v}
                     </button>
                   ))}
+                  <RotateToggle />
                 </div>
               )}
               <div className="absolute bottom-1 right-1 text-[9px] font-mono px-1.5 py-0.5 rounded pointer-events-none bg-slate-900/60 text-slate-300">
@@ -299,7 +340,7 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
           {availViews.map((v) => (
             <button
               key={v}
-              onClick={() => setView(v)}
+              onClick={() => { setAutoRotate(false); setView(v); }}
               className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wide transition-colors cursor-pointer ${
                 view === v ? 'bg-white text-slate-900' : 'text-white/60 hover:text-white'
               }`}
@@ -307,6 +348,7 @@ const GarmentZoneSimulator = forwardRef(function GarmentZoneSimulator(
               {v}
             </button>
           ))}
+          <RotateToggle />
         </div>
       )}
     </div>

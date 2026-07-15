@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Network } from 'vis-network/standalone';
+import { Network, DataSet } from 'vis-network/standalone';
+
+// Mixes a hex color toward white — used for the twinkle flare
+function lighten(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (v) => Math.min(255, Math.round(v + (255 - v) * amt));
+  const r = ch((n >> 16) & 255), g = ch((n >> 8) & 255), b = ch(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
 
 // ─── graphify-style palette (tableau10, same family as graphify-out/graph.html) ─
 const PALETTE = [
@@ -119,6 +127,50 @@ function buildGraph(entries) {
   return { nodes, edges, categories, colorOf };
 }
 
+// Builds nodes + edges from a /api/code-graph/:key payload — one node per source
+// file colored by its graphify community, edges are real extracted call/import
+// relationships collapsed to file level (width = how many symbol links).
+function buildRepoGraph(data) {
+  const rawCat = (f) => f.communityLabel || (f.community != null ? `Community ${f.community}` : 'Ungrouped');
+
+  // graphify communities can be very fine-grained (hundreds) — keep the largest
+  // 14 as named groups and bucket the long tail as "Other" so the legend stays usable
+  const counts = new Map();
+  for (const f of data.files) counts.set(rawCat(f), (counts.get(rawCat(f)) || 0) + 1);
+  const top = new Set([...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([c]) => c));
+  const catOf = (f) => (top.has(rawCat(f)) ? rawCat(f) : 'Other');
+
+  const categories = [...new Set(data.files.map(catOf))].sort((a, b) =>
+    a === 'Other' ? 1 : b === 'Other' ? -1 : (counts.get(b) || 0) - (counts.get(a) || 0));
+  const colorOf = Object.fromEntries(categories.map((c, i) => [c, c === 'Other' ? '#5a5a72' : PALETTE[i % PALETTE.length]]));
+
+  const nodes = data.files.map(f => ({
+    id: f.id,
+    label: f.label.length > 30 ? f.label.slice(0, 28) + '…' : f.label,
+    shape: 'dot',
+    size: Math.max(7, Math.min(22, 6 + Math.sqrt(f.symbolCount) * 2.2)),
+    color: { background: colorOf[catOf(f)], border: '#0f0f1a' },
+    font: { color: '#c0c0d0', size: 11, face: 'inherit' },
+    kind: 'entry',
+    category: catOf(f),
+    detail: { title: f.path, meta: rawCat(f), body: f.symbols.join(', '), count: f.symbolCount },
+  }));
+
+  const edges = data.edges.map(e => ({
+    from: e.from, to: e.to, relation: e.relation,
+    width: Math.min(4, 0.8 + Math.log2(e.weight + 1)),
+    color: { color: '#2a2a4e' },
+  }));
+
+  return { nodes, edges, categories, colorOf };
+}
+
+const GRAPH_TABS = [
+  { id: 'kb', label: 'Knowledge Base' },
+  { id: 'customizer-core', label: 'Customizer' },
+  { id: 'qstrike-builder', label: 'QStrike Builder' },
+];
+
 export default function KnowledgeGraphView({ entries, onOpenEntry }) {
   const containerRef = useRef(null);
   const networkRef = useRef(null);
@@ -130,8 +182,30 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
   const [physics, setPhysics] = useState(true);
   const [viewing, setViewing] = useState(null);            // entry shown in the full-content modal
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [graphTab, setGraphTab] = useState('kb');          // 'kb' | 'customizer-core' | 'qstrike-builder'
+  const [repoGraphs, setRepoGraphs] = useState({});        // key -> { status, data, error }
 
-  const graph = useMemo(() => buildGraph(entries), [entries]);
+  // Fetch a repo code-graph the first time its tab is opened
+  useEffect(() => {
+    if (graphTab === 'kb' || repoGraphs[graphTab]) return;
+    setRepoGraphs(p => ({ ...p, [graphTab]: { status: 'loading' } }));
+    fetch(`/api/code-graph/${graphTab}`)
+      .then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error || r.statusText); return d; })
+      .then(d => setRepoGraphs(p => ({ ...p, [graphTab]: { status: 'ready', data: d } })))
+      .catch(e => setRepoGraphs(p => ({ ...p, [graphTab]: { status: 'error', error: e.message } })));
+  }, [graphTab, repoGraphs]);
+
+  // Clear selection/filters when switching between the three graphs
+  useEffect(() => {
+    setSelected(null); setNeighbors([]); setDimmedCats(new Set()); setSearch('');
+  }, [graphTab]);
+
+  const graph = useMemo(() => {
+    if (graphTab === 'kb') return buildGraph(entries);
+    const rg = repoGraphs[graphTab];
+    if (rg?.status === 'ready') return buildRepoGraph(rg.data);
+    return { nodes: [], edges: [], categories: [], colorOf: {} };
+  }, [entries, graphTab, repoGraphs]);
   const entriesById = useMemo(() => new Map(entries.map(e => [e.id, e])), [entries]);
 
   // (re)build the network when data or category filter changes
@@ -141,12 +215,18 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
     const visibleIds = new Set(visibleNodes.map(n => n.id));
     const visibleEdges = graph.edges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to));
 
-    const network = new Network(containerRef.current, { nodes: visibleNodes, edges: visibleEdges }, {
+    // DataSets so nodes/edges can be live-updated for the twinkle animation
+    const nodesDS = new DataSet(visibleNodes.map(n => ({ ...n })));
+    const edgesDS = new DataSet(visibleEdges.map((e, i) => ({ id: `e${i}`, ...e })));
+
+    const network = new Network(containerRef.current, { nodes: nodesDS, edges: edgesDS }, {
+      // improvedLayout is O(n²)-ish — skip it for large repo graphs
+      layout: { improvedLayout: visibleNodes.length <= 400 },
       physics: {
         enabled: physics,
         solver: 'forceAtlas2Based',
-        forceAtlas2Based: { gravitationalConstant: -60, springLength: 110, springConstant: 0.06, damping: 0.5 },
-        stabilization: { iterations: 150, fit: true },
+        forceAtlas2Based: { gravitationalConstant: -60, springLength: 110, springConstant: 0.06, damping: 0.4 },
+        stabilization: { iterations: visibleNodes.length > 400 ? 80 : 150, fit: true },
       },
       interaction: { hover: true, tooltipDelay: 120 },
       edges: { smooth: { type: 'continuous' } },
@@ -169,7 +249,79 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
       setNeighbors(nb);
     });
 
-    return () => network.destroy();
+    // ── "Living brain" animation ─────────────────────────────────────────────
+    // Twinkle: every beat a few random nodes flare up (brighter, bigger, with a
+    // colored glow) then settle back — like synapses firing.
+    const entryIds = visibleNodes.filter(n => n.kind === 'entry').map(n => n.id);
+    const flaring = new Set();
+    const timeouts = new Set();
+    const later = (fn, ms) => { const t = setTimeout(() => { timeouts.delete(t); fn(); }, ms); timeouts.add(t); };
+
+    const twinkle = setInterval(() => {
+      if (!entryIds.length || document.hidden) return;
+      const count = 1 + Math.floor(Math.random() * 3);
+      for (let k = 0; k < count; k++) {
+        const id = entryIds[Math.floor(Math.random() * entryIds.length)];
+        if (flaring.has(id)) continue;
+        const orig = graph.nodes.find(n => n.id === id);
+        if (!orig) continue;
+        flaring.add(id);
+        const base = orig.color.background;
+        // star-like sparkle: barely grows, core goes white-hot, wide soft glow
+        try {
+          nodesDS.update({
+            id, size: orig.size * 1.15,
+            color: { background: lighten(base, 0.9), border: '#ffffff' },
+            shadow: { enabled: true, color: lighten(base, 0.6), size: 30, x: 0, y: 0 },
+            font: { ...orig.font, color: '#ffffff' },
+          });
+        } catch { /* dataset may be gone mid-teardown */ }
+        // brief bright peak, then a dimmer afterglow before settling back
+        later(() => {
+          try {
+            nodesDS.update({
+              id, size: orig.size * 1.05,
+              color: { background: lighten(base, 0.35), border: lighten(base, 0.7) },
+              shadow: { enabled: true, color: base, size: 14, x: 0, y: 0 },
+              font: orig.font,
+            });
+          } catch { /* ignore */ }
+        }, 260 + Math.random() * 140);
+        later(() => {
+          flaring.delete(id);
+          try { nodesDS.update({ id, size: orig.size, color: orig.color, shadow: { enabled: false }, font: orig.font }); } catch { /* ignore */ }
+        }, 750 + Math.random() * 300);
+      }
+      // occasionally pulse a relationship edge along with the nodes
+      if (Math.random() < 0.45) {
+        const rel = edgesDS.get({ filter: e => e.relation !== 'contains' });
+        if (rel.length) {
+          const e = rel[Math.floor(Math.random() * rel.length)];
+          try { edgesDS.update({ id: e.id, width: 3.5, color: { color: '#8ab4e8' } }); } catch { /* ignore */ }
+          later(() => { try { edgesDS.update({ id: e.id, width: e.relation === 'mentions' ? 2 : 1.5, color: e.color }); } catch { /* ignore */ } }, 700);
+        }
+      }
+    }, 850);
+
+    // Drift: gently nudge a few nodes so the springs keep the whole layout
+    // breathing instead of freezing solid (only while physics is on).
+    const drift = physics ? setInterval(() => {
+      if (!entryIds.length || document.hidden) return;
+      const ids = Array.from({ length: Math.min(3, entryIds.length) },
+        () => entryIds[Math.floor(Math.random() * entryIds.length)]);
+      const pos = network.getPositions(ids);
+      for (const id of ids) {
+        if (!pos[id]) continue;
+        network.moveNode(id, pos[id].x + (Math.random() - 0.5) * 26, pos[id].y + (Math.random() - 0.5) * 26);
+      }
+    }, 2200) : null;
+
+    return () => {
+      clearInterval(twinkle);
+      if (drift) clearInterval(drift);
+      for (const t of timeouts) clearTimeout(t);
+      network.destroy();
+    };
   }, [graph, dimmedCats, physics]);
 
   const focusNode = (id) => {
@@ -220,26 +372,51 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
     ? graph.nodes.filter(n => n.kind === 'entry' && n.label.toLowerCase().includes(search.toLowerCase())).slice(0, 12)
     : [];
 
-  const selectedEntry = selected && selected.kind === 'entry' ? entriesById.get(selected.id) : null;
+  const isKB = graphTab === 'kb';
+  const selectedEntry = isKB && selected && selected.kind === 'entry' ? entriesById.get(selected.id) : null;
+  const selectedDetail = selected?.detail || null;
   const entryCount = graph.nodes.filter(n => n.kind === 'entry').length;
   const relEdgeCount = graph.edges.filter(e => e.relation !== 'contains').length;
-
-  if (!entries.length) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-[#0f0f1a] text-slate-400 min-h-[420px]">
-        <p className="text-sm font-medium">No knowledge base entries yet</p>
-        <p className="text-xs mt-1 text-slate-500">Add entries in the Knowledge Base tab to see them as a graph.</p>
-      </div>
-    );
-  }
+  const repoState = isKB ? null : repoGraphs[graphTab];
+  const unitWord = isKB ? 'entries' : 'files';
+  const groupWord = isKB ? 'categories' : 'communities';
 
   return (
+    <div className="flex-1 min-h-0 flex flex-col gap-3">
+      {/* Graph switcher — Knowledge Base / Customizer / QStrike Builder */}
+      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 self-start">
+        {GRAPH_TABS.map(t => (
+          <button key={t.id} onClick={() => setGraphTab(t.id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${graphTab === t.id ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
     <div ref={rootRef}
       className={`flex-1 flex overflow-hidden border border-slate-200 dark:border-slate-800 ${isFullscreen ? 'rounded-none w-full h-full' : 'rounded-2xl min-h-[560px] h-[calc(100vh-215px)]'}`}
       style={{ background: '#0f0f1a' }}>
       {/* Graph canvas */}
       <div className="flex-1 min-w-0 relative">
         <div ref={containerRef} className="absolute inset-0" />
+        {isKB && !entries.length && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <p className="text-sm font-medium" style={{ color: '#888' }}>No knowledge base entries yet</p>
+            <p className="text-xs mt-1" style={{ color: '#555' }}>Add entries in the Knowledge Base tab to see them as a graph.</p>
+          </div>
+        )}
+        {repoState?.status === 'loading' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
+            <div className="w-7 h-7 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#4E79A7', borderTopColor: 'transparent' }} />
+            <p className="text-xs" style={{ color: '#888' }}>Loading {GRAPH_TABS.find(t => t.id === graphTab)?.label} code graph…</p>
+          </div>
+        )}
+        {repoState?.status === 'error' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center pointer-events-none">
+            <p className="text-sm font-medium" style={{ color: '#E15759' }}>Couldn't load this graph</p>
+            <p className="text-xs mt-1" style={{ color: '#888' }}>{repoState.error}</p>
+          </div>
+        )}
         <button onClick={toggleFullscreen}
           title={isFullscreen ? 'Exit full screen (Esc)' : 'Full screen'}
           className="absolute top-3 right-3 z-10 p-2 rounded-lg border transition-colors hover:bg-[#2a2a4e]"
@@ -290,7 +467,18 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
             <p className="text-xs italic" style={{ color: '#555' }}>Click a node to inspect it.</p>
           ) : (
             <div className="text-[13px] leading-relaxed" style={{ color: '#ccc' }}>
-              <div className="mb-1"><b style={{ color: '#e0e0e0' }}>{selected.kind === 'category' ? `Category: ${selected.category}` : entriesById.get(selected.id)?.title}</b></div>
+              <div className="mb-1 break-words"><b style={{ color: '#e0e0e0' }}>{selected.kind === 'category' ? `${isKB ? 'Category' : 'Community'}: ${selected.category}` : (selectedDetail ? selectedDetail.title : entriesById.get(selected.id)?.title)}</b></div>
+              {selectedDetail && (
+                <>
+                  <div className="mb-1 text-xs">
+                    <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ background: graph.colorOf[selected.category] }} />
+                    {selected.category} · {selectedDetail.count} symbol{selectedDetail.count === 1 ? '' : 's'}
+                  </div>
+                  {selectedDetail.body && (
+                    <p className="text-xs mb-2 break-words font-mono" style={{ color: '#9a9ab0' }}>{selectedDetail.body}</p>
+                  )}
+                </>
+              )}
               {selectedEntry && (
                 <>
                   <div className="mb-1 text-xs">
@@ -329,14 +517,14 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
         {/* Legend */}
         <div className="flex-1 overflow-y-auto p-3">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[11px] uppercase tracking-wider" style={{ color: '#aaa' }}>Categories</h3>
+            <h3 className="text-[11px] uppercase tracking-wider" style={{ color: '#aaa' }}>{isKB ? 'Categories' : 'Communities'}</h3>
             <label className="flex items-center gap-1.5 text-[11px] cursor-pointer" style={{ color: '#888' }}>
               <input type="checkbox" checked={physics} onChange={(e) => setPhysics(e.target.checked)} />
               physics
             </label>
           </div>
           {graph.categories.map(cat => {
-            const count = entries.filter(e => (e.category || 'General') === cat).length;
+            const count = graph.nodes.filter(n => n.kind === 'entry' && n.category === cat).length;
             return (
               <div key={cat} onClick={() => toggleCategory(cat)}
                 className={`flex items-center gap-2 py-1 px-1 rounded cursor-pointer text-xs hover:bg-[#2a2a4e] ${dimmedCats.has(cat) ? 'opacity-35' : ''}`}
@@ -347,16 +535,23 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
               </div>
             );
           })}
-          <p className="mt-3 text-[11px] leading-relaxed" style={{ color: '#555' }}>
-            <span style={{ color: '#B07AA1' }}>━</span> mentions &nbsp;
-            <span style={{ color: '#3a3a5e' }}>╌</span> related (shared terms) &nbsp;
-            ◆ category hub. Click a category to hide/show it.
-          </p>
+          {isKB ? (
+            <p className="mt-3 text-[11px] leading-relaxed" style={{ color: '#555' }}>
+              <span style={{ color: '#B07AA1' }}>━</span> mentions &nbsp;
+              <span style={{ color: '#3a3a5e' }}>╌</span> related (shared terms) &nbsp;
+              ◆ category hub. Click a category to hide/show it.
+            </p>
+          ) : (
+            <p className="mt-3 text-[11px] leading-relaxed" style={{ color: '#555' }}>
+              One dot per source file, sized by symbol count. Edges are real call/import
+              relationships extracted by graphify. Click a community to hide/show it.
+            </p>
+          )}
         </div>
 
         {/* Stats */}
         <div className="px-3.5 py-2.5 border-t text-[11px]" style={{ borderColor: '#2a2a4e', color: '#555' }}>
-          {entryCount} entries · {graph.categories.length} categories · {relEdgeCount} relationships
+          {entryCount} {unitWord} · {graph.categories.length} {groupWord} · {relEdgeCount} relationships
         </div>
       </div>
 
@@ -381,6 +576,7 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

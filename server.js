@@ -1435,13 +1435,20 @@ app.get('/api/export', async (req, res) => {
   try {
     const { recordset: brds } = await pool.request().query('SELECT * FROM brds ORDER BY createdAt');
     const { recordset: bugs } = await pool.request().query('SELECT * FROM bugs ORDER BY createdAt');
-    res.json({ brds, bugs });
+    // Everything below feeds computeCacheKey — exporting it means an import on
+    // another machine reproduces the same cache keys and hits the same stored
+    // AI results instead of re-running the analysis.
+    const { recordset: teamLeads } = await pool.request().query('SELECT * FROM team_leads ORDER BY sortOrder');
+    const { recordset: brdTechLeads } = await pool.request().query('SELECT * FROM brd_tech_leads ORDER BY sortOrder');
+    const { recordset: knowledgeBase } = await pool.request().query('SELECT * FROM knowledge_base ORDER BY sortOrder');
+    const { recordset: aiCache } = await pool.request().query('SELECT * FROM ai_analysis_cache ORDER BY createdAt');
+    res.json({ brds, bugs, teamLeads, brdTechLeads, knowledgeBase, aiCache });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/import', async (req, res) => {
   try {
-    const { brds = [], bugs = [] } = req.body;
+    const { brds = [], bugs = [], teamLeads, brdTechLeads, knowledgeBase, aiCache } = req.body;
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
     try {
@@ -1463,14 +1470,24 @@ app.post('/api/import', async (req, res) => {
           .input('baName', NV(255), b.baName || '')
           .input('techLead', NV(255), b.techLead || '')
           .input('tshirtSize', NV(10), b.tshirtSize || '')
+          .input('extendedQuarters', NV(), b.extendedQuarters || '')
+          .input('beTicket', NV(), b.beTicket || '')
+          .input('feTicket', NV(), b.feTicket || '')
+          .input('anciliaryTicket', NV(), b.anciliaryTicket || '')
+          .input('rndTicket', NV(), b.rndTicket || '')
+          .input('devAssignee', NV(), b.devAssignee || '')
           .input('createdAt', BIG, b.createdAt || Date.now())
           .input('updatedAt', BIG, b.updatedAt || Date.now())
           .query(`INSERT INTO brds
             (id,title,description,quarter,year,sprintStart,sprintEnd,status,
-             googleDocsLink,jiraLink,bugLogLink,baName,techLead,tshirtSize,createdAt,updatedAt)
+             googleDocsLink,jiraLink,bugLogLink,baName,techLead,tshirtSize,
+             extendedQuarters,beTicket,feTicket,anciliaryTicket,rndTicket,devAssignee,
+             createdAt,updatedAt)
             VALUES
             (@id,@title,@description,@quarter,@year,@sprintStart,@sprintEnd,@status,
-             @googleDocsLink,@jiraLink,@bugLogLink,@baName,@techLead,@tshirtSize,@createdAt,@updatedAt)`);
+             @googleDocsLink,@jiraLink,@bugLogLink,@baName,@techLead,@tshirtSize,
+             @extendedQuarters,@beTicket,@feTicket,@anciliaryTicket,@rndTicket,@devAssignee,
+             @createdAt,@updatedAt)`);
       }
       for (const bug of bugs) {
         await new sql.Request(transaction)
@@ -1481,12 +1498,78 @@ app.post('/api/import', async (req, res) => {
           .input('severity', NV(50), bug.severity || 'medium')
           .input('description', NV(), bug.description || '')
           .input('status', NV(50), bug.status || 'open')
+          .input('jiraLink', NV(), bug.jiraLink || '')
+          .input('rootCause', NV(), bug.rootCause || '')
+          .input('storyTicket', NV(), bug.storyTicket || '')
           .input('createdAt', BIG, bug.createdAt || Date.now())
-          .query(`INSERT INTO bugs (id,brdId,title,criteria,severity,description,status,createdAt)
-                  VALUES (@id,@brdId,@title,@criteria,@severity,@description,@status,@createdAt)`);
+          .query(`INSERT INTO bugs (id,brdId,title,criteria,severity,description,status,jiraLink,rootCause,storyTicket,createdAt)
+                  VALUES (@id,@brdId,@title,@criteria,@severity,@description,@status,@jiraLink,@rootCause,@storyTicket,@createdAt)`);
+      }
+      // Sections below only exist in newer export files — older files simply
+      // skip them, so old backups still import fine.
+      if (Array.isArray(teamLeads)) {
+        await new sql.Request(transaction).query('DELETE FROM team_leads');
+        for (const tl of teamLeads) {
+          await new sql.Request(transaction)
+            .input('id', NV(36), tl.id || randomUUID())
+            .input('name', NV(255), tl.name || '')
+            .input('sortOrder', INT, tl.sortOrder || 0)
+            .input('createdAt', BIG, tl.createdAt || Date.now())
+            .query('INSERT INTO team_leads (id,name,sortOrder,createdAt) VALUES (@id,@name,@sortOrder,@createdAt)');
+        }
+      }
+      if (Array.isArray(brdTechLeads)) {
+        for (const btl of brdTechLeads) {
+          await new sql.Request(transaction)
+            .input('id', NV(36), btl.id || randomUUID())
+            .input('brdId', NV(36), btl.brdId || '')
+            .input('teamLeadId', NV(36), btl.teamLeadId || '')
+            .input('expertise', NV(255), btl.expertise || '')
+            .input('sortOrder', INT, btl.sortOrder || 0)
+            .input('createdAt', BIG, btl.createdAt || Date.now())
+            .query(`INSERT INTO brd_tech_leads (id,brdId,teamLeadId,expertise,sortOrder,createdAt)
+                    VALUES (@id,@brdId,@teamLeadId,@expertise,@sortOrder,@createdAt)`);
+        }
+      }
+      if (Array.isArray(knowledgeBase)) {
+        await new sql.Request(transaction).query('DELETE FROM knowledge_base');
+        for (const k of knowledgeBase) {
+          await new sql.Request(transaction)
+            .input('id', NV(36), k.id || randomUUID())
+            .input('title', NV(255), k.title || '')
+            .input('category', NV(100), k.category || 'General')
+            .input('content', NV(), k.content || '')
+            .input('sortOrder', INT, k.sortOrder || 0)
+            .input('createdAt', BIG, k.createdAt || Date.now())
+            .input('updatedAt', BIG, k.updatedAt || Date.now())
+            .query(`INSERT INTO knowledge_base (id,title,category,content,sortOrder,createdAt,updatedAt)
+                    VALUES (@id,@title,@category,@content,@sortOrder,@createdAt,@updatedAt)`);
+        }
+      }
+      // Cached AI results are merged (not wiped) so an import never loses
+      // analyses the local machine already paid for.
+      if (Array.isArray(aiCache)) {
+        for (const c of aiCache) {
+          if (!c.cacheKey || !c.result) continue;
+          await new sql.Request(transaction)
+            .input('k', NV(64), c.cacheKey)
+            .input('e', NV(50), c.endpoint || 'analyze')
+            .input('p', NV(30), c.provider || 'ai')
+            .input('r', NV(), c.result)
+            .input('c', BIG, c.createdAt || Date.now())
+            .query(`MERGE ai_analysis_cache AS t
+                    USING (SELECT @k AS cacheKey) AS s ON t.cacheKey = s.cacheKey
+                    WHEN MATCHED THEN UPDATE SET result=@r, provider=@p, endpoint=@e, createdAt=@c
+                    WHEN NOT MATCHED THEN INSERT (cacheKey,endpoint,provider,result,createdAt)
+                      VALUES (@k,@e,@p,@r,@c);`);
+        }
       }
       await transaction.commit();
-      res.json({ ok: true, brds: brds.length, bugs: bugs.length });
+      res.json({
+        ok: true, brds: brds.length, bugs: bugs.length,
+        teamLeads: teamLeads?.length || 0, brdTechLeads: brdTechLeads?.length || 0,
+        knowledgeBase: knowledgeBase?.length || 0, aiCache: aiCache?.length || 0,
+      });
     } catch (e) {
       await transaction.rollback();
       throw e;
@@ -3654,10 +3737,16 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
     }
 
     // ── Cache: identical BRD + content ⇒ identical stored output ──────────
-    // 'affected-modules-v4': bumped when BRD-based test scenario generation
-    // shipped so older cached payloads (no testScenarios) stop being served.
     const cacheKey = computeCacheKey('affected-modules-v4', { brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
-    const cachedResult = await getCachedAnalysis(cacheKey);
+    let cachedResult = await getCachedAnalysis(cacheKey);
+    if (!cachedResult) {
+      // Entries stored before the v4 key bump live under the v2 key. Their
+      // payloads only lack mentionedSymbols, which the UI never reads, so they
+      // are still servable — migrate them to the current key on first hit.
+      const legacyKey = computeCacheKey('affected-modules-v2', { brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+      cachedResult = await getCachedAnalysis(legacyKey);
+      if (cachedResult) await saveCachedAnalysis(cacheKey, 'affected-modules', cachedResult.provider, cachedResult);
+    }
     if (cachedResult) {
       console.log(`💾 [cache] HIT for /analyze-affected-modules (${cacheKey.slice(0, 12)}…) — returning stored result`);
       return res.json({ ...cachedResult, cached: true });

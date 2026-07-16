@@ -1,7 +1,7 @@
 # Graph Report - BRD_tracker  (2026-07-16)
 
 ## Corpus Check
-- 42 files · ~89,022 words
+- 42 files · ~89,502 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3d88987e`
+- Built from commit: `3559b228`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

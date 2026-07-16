@@ -15,8 +15,8 @@
     "semantic_hash": "093019bf8f6a93e9ca9021f5c812fed2"
   },
   "server.js": {
-    "mtime": 1784124704.1043162,
-    "ast_hash": "cde0030001a88fe932b429330e2708ac",
+    "mtime": 1784173238.8215013,
+    "ast_hash": "42de4a9802aaec1f187eb2147c620e97",
     "semantic_hash": ""
   },
   "setup-sqlauth.ps1": {

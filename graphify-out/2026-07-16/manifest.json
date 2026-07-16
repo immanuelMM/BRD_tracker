@@ -15,8 +15,8 @@
     "semantic_hash": "093019bf8f6a93e9ca9021f5c812fed2"
   },
   "server.js": {
-    "mtime": 1784123263.7354763,
-    "ast_hash": "329370be3f3722837057c498c882724f",
+    "mtime": 1784172771.2505453,
+    "ast_hash": "432b4b0572e23315dedac8b5778ed3fb",
     "semantic_hash": ""
   },
   "setup-sqlauth.ps1": {
@@ -25,13 +25,13 @@
     "semantic_hash": "bcf1b1d2d30b75d8df475ef8726c3b7b"
   },
   "src/App.jsx": {
-    "mtime": 1784093256.4822297,
-    "ast_hash": "697cb554e1bc400d3175c1d9b5480f1b",
+    "mtime": 1784126950.4943092,
+    "ast_hash": "a6da2ae193243409a63055cacb65d78c",
     "semantic_hash": ""
   },
   "src/components/AnalyseAffectedModule.jsx": {
-    "mtime": 1784092191.81143,
-    "ast_hash": "3aa3c46c6226eb0a753d00154ba3f469",
+    "mtime": 1784124744.2133043,
+    "ast_hash": "3656c7780e9c486491ff09f879aab89f",
     "semantic_hash": ""
   },
   "src/components/BAPage.jsx": {
@@ -230,13 +230,18 @@
     "semantic_hash": ""
   },
   "src/components/KnowledgeGraphView.jsx": {
-    "mtime": 1784110899.3151062,
-    "ast_hash": "c7eda23be8f732f6dd16a6cb511b31f2",
+    "mtime": 1784126391.552005,
+    "ast_hash": "385f0e2306d898bd2514968afc9d93f8",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
     "mtime": 1784122636.694592,
     "ast_hash": "82efb97a359f5c7290bf2513d14686be",
+    "semantic_hash": ""
+  },
+  "src/components/TestScenarioPage.jsx": {
+    "mtime": 1784125085.6542857,
+    "ast_hash": "25bd72e908dd444bf004d940f29ae41d",
     "semantic_hash": ""
   }
 }

@@ -1738,6 +1738,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                       </span>
                     )}
                   </button>
+
                 </div>
 
                 {/* TAB WINDOW CONTENT */}

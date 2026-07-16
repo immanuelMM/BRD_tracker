@@ -1223,10 +1223,32 @@
       "norm_label": "matchcustomizermodules()"
     },
     {
+      "label": "mentionedInContent()",
+      "file_type": "code",
+      "source_file": "server.js",
+      "source_location": "L277",
+      "_origin": "ast",
+      "id": "server_mentionedincontent",
+      "community": 2,
+      "community_name": "AI Analysis Backend",
+      "norm_label": "mentionedincontent()"
+    },
+    {
+      "label": "findMentionedSymbols()",
+      "file_type": "code",
+      "source_file": "server.js",
+      "source_location": "L288",
+      "_origin": "ast",
+      "id": "server_findmentionedsymbols",
+      "community": 2,
+      "community_name": "AI Analysis Backend",
+      "norm_label": "findmentionedsymbols()"
+    },
+    {
       "label": "lookupGraphSourceLine()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L271",
+      "source_location": "L315",
       "_origin": "ast",
       "id": "server_lookupgraphsourceline",
       "community": 2,
@@ -1237,7 +1259,7 @@
       "label": "app",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L286",
+      "source_location": "L330",
       "_origin": "ast",
       "id": "server_app",
       "community": 2,
@@ -1248,7 +1270,7 @@
       "label": "AI_PROVIDER",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L297",
+      "source_location": "L341",
       "_origin": "ast",
       "id": "server_ai_provider",
       "community": 2,
@@ -1259,7 +1281,7 @@
       "label": "[DB_HOST, DB_INSTANCE]",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L310",
+      "source_location": "L354",
       "_origin": "ast",
       "id": "server_db_host_db_instance",
       "community": 2,
@@ -1270,7 +1292,7 @@
       "label": "NV()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L313",
+      "source_location": "L357",
       "_origin": "ast",
       "id": "server_nv",
       "community": 2,
@@ -1281,7 +1303,7 @@
       "label": "dbConfig()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L320",
+      "source_location": "L364",
       "_origin": "ast",
       "id": "server_dbconfig",
       "community": 2,
@@ -1292,7 +1314,7 @@
       "label": "init()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L347",
+      "source_location": "L391",
       "_origin": "ast",
       "id": "server_init",
       "community": 2,
@@ -1303,7 +1325,7 @@
       "label": "seedStyleFeatures()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L728",
+      "source_location": "L788",
       "_origin": "ast",
       "id": "server_seedstylefeatures",
       "community": 2,
@@ -1314,7 +1336,7 @@
       "label": "loadStyleFeatures()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L753",
+      "source_location": "L813",
       "_origin": "ast",
       "id": "server_loadstylefeatures",
       "community": 2,
@@ -1325,7 +1347,7 @@
       "label": "_insertBRD()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L763",
+      "source_location": "L823",
       "_origin": "ast",
       "id": "server_insertbrd",
       "community": 2,
@@ -1336,7 +1358,7 @@
       "label": "_insertBug()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L797",
+      "source_location": "L857",
       "_origin": "ast",
       "id": "server_insertbug",
       "community": 2,
@@ -1347,7 +1369,7 @@
       "label": "fetchGoogleDocText()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1616",
+      "source_location": "L1824",
       "_origin": "ast",
       "id": "server_fetchgoogledoctext",
       "community": 2,
@@ -1358,7 +1380,7 @@
       "label": "localAnalyzeBRD()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1685",
+      "source_location": "L1893",
       "_origin": "ast",
       "id": "server_localanalyzebrd",
       "community": 2,
@@ -1369,7 +1391,7 @@
       "label": "PLACEHOLDER_API_KEYS",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1860",
+      "source_location": "L2068",
       "_origin": "ast",
       "id": "server_placeholder_api_keys",
       "community": 2,
@@ -1380,7 +1402,7 @@
       "label": "keyStatus()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1867",
+      "source_location": "L2075",
       "_origin": "ast",
       "id": "server_keystatus",
       "community": 2,
@@ -1391,7 +1413,7 @@
       "label": "localReasonForProvider()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1874",
+      "source_location": "L2082",
       "_origin": "ast",
       "id": "server_localreasonforprovider",
       "community": 2,
@@ -1402,7 +1424,7 @@
       "label": "resolveAIProvider()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1880",
+      "source_location": "L2088",
       "_origin": "ast",
       "id": "server_resolveaiprovider",
       "community": 2,
@@ -1413,7 +1435,7 @@
       "label": "resolveProviderChain()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1906",
+      "source_location": "L2114",
       "_origin": "ast",
       "id": "server_resolveproviderchain",
       "community": 2,
@@ -1424,7 +1446,7 @@
       "label": "callProvider()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1921",
+      "source_location": "L2129",
       "_origin": "ast",
       "id": "server_callprovider",
       "community": 2,
@@ -1435,7 +1457,7 @@
       "label": "computeCacheKey()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1929",
+      "source_location": "L2137",
       "_origin": "ast",
       "id": "server_computecachekey",
       "community": 2,
@@ -1446,7 +1468,7 @@
       "label": "getCachedAnalysis()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1948",
+      "source_location": "L2156",
       "_origin": "ast",
       "id": "server_getcachedanalysis",
       "community": 2,
@@ -1457,7 +1479,7 @@
       "label": "saveCachedAnalysis()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1957",
+      "source_location": "L2165",
       "_origin": "ast",
       "id": "server_savecachedanalysis",
       "community": 2,
@@ -1468,7 +1490,7 @@
       "label": "runAnalysisWithFallback()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L1975",
+      "source_location": "L2183",
       "_origin": "ast",
       "id": "server_runanalysiswithfallback",
       "community": 2,
@@ -1479,7 +1501,7 @@
       "label": "buildAnalysisPrompt()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L2001",
+      "source_location": "L2209",
       "_origin": "ast",
       "id": "server_buildanalysisprompt",
       "community": 2,
@@ -1490,7 +1512,7 @@
       "label": "analyzeWithAnthropic()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L2055",
+      "source_location": "L2263",
       "_origin": "ast",
       "id": "server_analyzewithanthropic",
       "community": 2,
@@ -1501,7 +1523,7 @@
       "label": "analyzeWithOpenAI()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L2066",
+      "source_location": "L2274",
       "_origin": "ast",
       "id": "server_analyzewithopenai",
       "community": 2,
@@ -1512,7 +1534,7 @@
       "label": "GEMINI_FALLBACK_MODELS",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L2107",
+      "source_location": "L2315",
       "_origin": "ast",
       "id": "server_gemini_fallback_models",
       "community": 2,
@@ -1523,7 +1545,7 @@
       "label": "geminiModelChain()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L2111",
+      "source_location": "L2319",
       "_origin": "ast",
       "id": "server_geminimodelchain",
       "community": 2,
@@ -1534,7 +1556,7 @@
       "label": "callGeminiModel()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L2118",
+      "source_location": "L2326",
       "_origin": "ast",
       "id": "server_callgeminimodel",
       "community": 2,
@@ -1545,7 +1567,7 @@
       "label": "analyzeWithGemini()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L2147",
+      "source_location": "L2355",
       "_origin": "ast",
       "id": "server_analyzewithgemini",
       "community": 2,
@@ -1556,7 +1578,7 @@
       "label": "STYLE_FEATURES_SEED",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L2276",
+      "source_location": "L2484",
       "_origin": "ast",
       "id": "server_style_features_seed",
       "community": 2,
@@ -1567,7 +1589,7 @@
       "label": "CUSTOMIZER_MODULES",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L2346",
+      "source_location": "L2554",
       "_origin": "ast",
       "id": "server_customizer_modules",
       "community": 2,
@@ -1578,7 +1600,7 @@
       "label": "CRITICAL_FILES",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L2999",
+      "source_location": "L3207",
       "_origin": "ast",
       "id": "server_critical_files",
       "community": 2,
@@ -1589,7 +1611,7 @@
       "label": "buildCustomizerContext()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L3019",
+      "source_location": "L3227",
       "_origin": "ast",
       "id": "server_buildcustomizercontext",
       "community": 2,
@@ -1600,7 +1622,7 @@
       "label": "customizerContext",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L3029",
+      "source_location": "L3237",
       "_origin": "ast",
       "id": "server_customizercontext",
       "community": 2,
@@ -1611,7 +1633,7 @@
       "label": "extractCodeBlock()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L3035",
+      "source_location": "L3243",
       "_origin": "ast",
       "id": "server_extractcodeblock",
       "community": 2,
@@ -1622,7 +1644,7 @@
       "label": "readAffectedCodeBlocks()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L3083",
+      "source_location": "L3291",
       "_origin": "ast",
       "id": "server_readaffectedcodeblocks",
       "community": 2,
@@ -1633,7 +1655,7 @@
       "label": "localAnalyzeAffectedModules()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L3130",
+      "source_location": "L3338",
       "_origin": "ast",
       "id": "server_localanalyzeaffectedmodules",
       "community": 2,
@@ -1641,10 +1663,21 @@
       "norm_label": "localanalyzeaffectedmodules()"
     },
     {
+      "label": "buildFallbackTestScenarios()",
+      "file_type": "code",
+      "source_file": "server.js",
+      "source_location": "L3492",
+      "_origin": "ast",
+      "id": "server_buildfallbacktestscenarios",
+      "community": 2,
+      "community_name": "AI Analysis Backend",
+      "norm_label": "buildfallbacktestscenarios()"
+    },
+    {
       "label": "writeBRDLocalBackup()",
       "file_type": "code",
       "source_file": "server.js",
-      "source_location": "L3612",
+      "source_location": "L3961",
       "_origin": "ast",
       "id": "server_writebrdlocalbackup",
       "community": 2,
@@ -1677,7 +1710,7 @@
       "label": "ThemeContext",
       "file_type": "code",
       "source_file": "src/App.jsx",
-      "source_location": "L24",
+      "source_location": "L25",
       "_origin": "ast",
       "id": "src_app_themecontext",
       "community": 1,
@@ -1688,7 +1721,7 @@
       "label": "useTheme()",
       "file_type": "code",
       "source_file": "src/App.jsx",
-      "source_location": "L25",
+      "source_location": "L26",
       "_origin": "ast",
       "id": "src_app_usetheme",
       "community": 0,
@@ -1699,7 +1732,7 @@
       "label": "NAV",
       "file_type": "code",
       "source_file": "src/App.jsx",
-      "source_location": "L27",
+      "source_location": "L28",
       "_origin": "ast",
       "id": "src_app_nav",
       "community": 1,
@@ -1710,7 +1743,7 @@
       "label": "PAGE_TITLES",
       "file_type": "code",
       "source_file": "src/App.jsx",
-      "source_location": "L167",
+      "source_location": "L178",
       "_origin": "ast",
       "id": "src_app_page_titles",
       "community": 1,
@@ -1721,7 +1754,7 @@
       "label": "Notification()",
       "file_type": "code",
       "source_file": "src/App.jsx",
-      "source_location": "L170",
+      "source_location": "L181",
       "_origin": "ast",
       "id": "src_app_notification",
       "community": 1,
@@ -1732,7 +1765,7 @@
       "label": "App()",
       "file_type": "code",
       "source_file": "src/App.jsx",
-      "source_location": "L182",
+      "source_location": "L193",
       "_origin": "ast",
       "id": "src_app_app",
       "community": 1,
@@ -1867,8 +1900,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_components_brddetail",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "brddetail.jsx"
     },
     {
@@ -1878,8 +1911,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "src_components_brddetail_parsetickets",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "parsetickets()"
     },
     {
@@ -1889,8 +1922,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "src_components_brddetail_expertise_options",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "expertise_options"
     },
     {
@@ -1900,8 +1933,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "src_components_brddetail_severityconfig",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "severityconfig"
     },
     {
@@ -1911,8 +1944,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "src_components_brddetail_criteriaconfig",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "criteriaconfig"
     },
     {
@@ -1922,8 +1955,8 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "src_components_brddetail_severitybadge",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 0,
+      "community_name": "BRD Form & BA Page",
       "norm_label": "severitybadge()"
     },
     {
@@ -1933,8 +1966,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "src_components_brddetail_criteriabadge",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "criteriabadge()"
     },
     {
@@ -1944,8 +1977,8 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "src_components_brddetail_bugstatuslabel",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "bugstatuslabel()"
     },
     {
@@ -1955,8 +1988,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "src_components_brddetail_bugstatuscls",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "bugstatuscls()"
     },
     {
@@ -2109,8 +2142,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_components_bugform",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 0,
+      "community_name": "BRD Form & BA Page",
       "norm_label": "bugform.jsx"
     },
     {
@@ -2120,8 +2153,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "src_components_bugform_empty",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 0,
+      "community_name": "BRD Form & BA Page",
       "norm_label": "empty"
     },
     {
@@ -2131,8 +2164,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "src_components_bugform_bug_status",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 0,
+      "community_name": "BRD Form & BA Page",
       "norm_label": "bug_status"
     },
     {
@@ -2142,8 +2175,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "src_components_bugform_bugform",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 0,
+      "community_name": "BRD Form & BA Page",
       "norm_label": "bugform()"
     },
     {
@@ -2153,8 +2186,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_components_criteriasettings",
-      "community": 1,
-      "community_name": "App Shell & Navigation",
+      "community": 13,
+      "community_name": "CriteriaSettings.jsx",
       "norm_label": "criteriasettings.jsx"
     },
     {
@@ -2164,8 +2197,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_components_criteriasettings_slugify",
-      "community": 1,
-      "community_name": "App Shell & Navigation",
+      "community": 13,
+      "community_name": "CriteriaSettings.jsx",
       "norm_label": "slugify()"
     },
     {
@@ -2175,8 +2208,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "src_components_criteriasettings_criteriasettings",
-      "community": 1,
-      "community_name": "App Shell & Navigation",
+      "community": 13,
+      "community_name": "CriteriaSettings.jsx",
       "norm_label": "criteriasettings()"
     },
     {
@@ -2598,10 +2631,32 @@
       "norm_label": "buildrepograph()"
     },
     {
+      "label": "buildFunctionGraph()",
+      "file_type": "code",
+      "source_file": "src/components/KnowledgeGraphView.jsx",
+      "source_location": "L171",
+      "_origin": "ast",
+      "id": "src_components_knowledgegraphview_buildfunctiongraph",
+      "community": 32,
+      "community_name": "Node.js Runtime",
+      "norm_label": "buildfunctiongraph()"
+    },
+    {
+      "label": "buildKBFunctionGraph()",
+      "file_type": "code",
+      "source_file": "src/components/KnowledgeGraphView.jsx",
+      "source_location": "L228",
+      "_origin": "ast",
+      "id": "src_components_knowledgegraphview_buildkbfunctiongraph",
+      "community": 32,
+      "community_name": "Node.js Runtime",
+      "norm_label": "buildkbfunctiongraph()"
+    },
+    {
       "label": "GRAPH_TABS",
       "file_type": "code",
       "source_file": "src/components/KnowledgeGraphView.jsx",
-      "source_location": "L168",
+      "source_location": "L284",
       "_origin": "ast",
       "id": "src_components_knowledgegraphview_graph_tabs",
       "community": 32,
@@ -2612,7 +2667,7 @@
       "label": "KnowledgeGraphView()",
       "file_type": "code",
       "source_file": "src/components/KnowledgeGraphView.jsx",
-      "source_location": "L174",
+      "source_location": "L292",
       "_origin": "ast",
       "id": "src_components_knowledgegraphview_knowledgegraphview",
       "community": 32,
@@ -2857,8 +2912,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_components_sqlexplorer",
-      "community": 13,
-      "community_name": "SQL Explorer",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "sqlexplorer.jsx"
     },
     {
@@ -2868,8 +2923,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "src_components_sqlexplorer_presets",
-      "community": 13,
-      "community_name": "SQL Explorer",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "presets"
     },
     {
@@ -2879,8 +2934,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "src_components_sqlexplorer_severity_color",
-      "community": 13,
-      "community_name": "SQL Explorer",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "severity_color"
     },
     {
@@ -2890,8 +2945,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "src_components_sqlexplorer_status_color",
-      "community": 13,
-      "community_name": "SQL Explorer",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "status_color"
     },
     {
@@ -2901,8 +2956,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "src_components_sqlexplorer_cellstyle",
-      "community": 13,
-      "community_name": "SQL Explorer",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "cellstyle()"
     },
     {
@@ -2912,8 +2967,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "src_components_sqlexplorer_sqlexplorer",
-      "community": 13,
-      "community_name": "SQL Explorer",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "sqlexplorer()"
     },
     {
@@ -2923,8 +2978,8 @@
       "source_location": "L230",
       "_origin": "ast",
       "id": "src_components_sqlexplorer_schemapanel",
-      "community": 13,
-      "community_name": "SQL Explorer",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "schemapanel()"
     },
     {
@@ -3022,8 +3077,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_components_tshirtsizesettings",
-      "community": 16,
-      "community_name": "T-Shirt Size Settings",
+      "community": 9,
+      "community_name": "TShirtSizeSettings.jsx",
       "norm_label": "tshirtsizesettings.jsx"
     },
     {
@@ -3033,8 +3088,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "src_components_tshirtsizesettings_risk_options",
-      "community": 16,
-      "community_name": "T-Shirt Size Settings",
+      "community": 9,
+      "community_name": "TShirtSizeSettings.jsx",
       "norm_label": "risk_options"
     },
     {
@@ -3044,8 +3099,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "src_components_tshirtsizesettings_dayslabel",
-      "community": 16,
-      "community_name": "T-Shirt Size Settings",
+      "community": 9,
+      "community_name": "TShirtSizeSettings.jsx",
       "norm_label": "dayslabel()"
     },
     {
@@ -3055,8 +3110,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "src_components_tshirtsizesettings_tshirtsizesettings",
-      "community": 16,
-      "community_name": "T-Shirt Size Settings",
+      "community": 9,
+      "community_name": "TShirtSizeSettings.jsx",
       "norm_label": "tshirtsizesettings()"
     },
     {
@@ -3080,6 +3135,72 @@
       "community": 1,
       "community_name": "App Shell & Navigation",
       "norm_label": "teamleadsettings()"
+    },
+    {
+      "label": "TestScenarioPage.jsx",
+      "file_type": "code",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_components_testscenariopage",
+      "community": 4,
+      "community_name": "Backend Dependencies",
+      "norm_label": "testscenariopage.jsx"
+    },
+    {
+      "label": "CATEGORY_BY_EXT",
+      "file_type": "code",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "src_components_testscenariopage_category_by_ext",
+      "community": 4,
+      "community_name": "Backend Dependencies",
+      "norm_label": "category_by_ext"
+    },
+    {
+      "label": "TYPE_STYLES",
+      "file_type": "code",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "src_components_testscenariopage_type_styles",
+      "community": 4,
+      "community_name": "Backend Dependencies",
+      "norm_label": "type_styles"
+    },
+    {
+      "label": "PRIORITY_STYLES",
+      "file_type": "code",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L17",
+      "_origin": "ast",
+      "id": "src_components_testscenariopage_priority_styles",
+      "community": 4,
+      "community_name": "Backend Dependencies",
+      "norm_label": "priority_styles"
+    },
+    {
+      "label": "extractFileText()",
+      "file_type": "code",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L25",
+      "_origin": "ast",
+      "id": "src_components_testscenariopage_extractfiletext",
+      "community": 4,
+      "community_name": "Backend Dependencies",
+      "norm_label": "extractfiletext()"
+    },
+    {
+      "label": "TestScenarioPage()",
+      "file_type": "code",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L41",
+      "_origin": "ast",
+      "id": "src_components_testscenariopage_testscenariopage",
+      "community": 4,
+      "community_name": "Backend Dependencies",
+      "norm_label": "testscenariopage()"
     },
     {
       "label": "WorkflowPage.jsx",
@@ -3308,8 +3429,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "src_utils_constants_bug_severity",
-      "community": 9,
-      "community_name": "BRD Detail & Criteria",
+      "community": 0,
+      "community_name": "BRD Form & BA Page",
       "norm_label": "bug_severity"
     },
     {
@@ -3803,8 +3924,8 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "src_utils_db_analyzeaffectedmodules",
-      "community": 7,
-      "community_name": "Report Export (PDF/DOCX)",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "analyzeaffectedmodules()"
     },
     {
@@ -4023,8 +4144,8 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "src_utils_db_runquery",
-      "community": 13,
-      "community_name": "SQL Explorer",
+      "community": 1,
+      "community_name": "App Shell & Navigation",
       "norm_label": "runquery()"
     },
     {
@@ -4819,8 +4940,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "react + vite template",
-      "id": "readme_react_vite_template",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "readme_react_vite_template"
     },
     {
       "label": "@vitejs/plugin-react",
@@ -4833,8 +4954,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "@vitejs/plugin-react",
-      "id": "readme_vitejs_plugin_react",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "readme_vitejs_plugin_react"
     },
     {
       "label": "@vitejs/plugin-react-swc",
@@ -4847,8 +4968,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "@vitejs/plugin-react-swc",
-      "id": "readme_vitejs_plugin_react_swc",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "readme_vitejs_plugin_react_swc"
     },
     {
       "label": "typescript-eslint",
@@ -4861,8 +4982,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "typescript-eslint",
-      "id": "readme_typescript_eslint",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "readme_typescript_eslint"
     },
     {
       "label": "BRD Tracker LocalStorage Backup Page",
@@ -4875,8 +4996,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "brd tracker localstorage backup page",
-      "id": "backup_localstorage_html",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "backup_localstorage_html"
     },
     {
       "label": "getData",
@@ -4889,8 +5010,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "getdata",
-      "id": "backup_localstorage_html_getdata",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "backup_localstorage_html_getdata"
     },
     {
       "label": "downloadBackup",
@@ -4903,8 +5024,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "downloadbackup",
-      "id": "backup_localstorage_html_downloadbackup",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "backup_localstorage_html_downloadbackup"
     },
     {
       "label": "showContents",
@@ -4917,8 +5038,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "showcontents",
-      "id": "backup_localstorage_html_showcontents",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "backup_localstorage_html_showcontents"
     },
     {
       "label": "uploadToDatabase",
@@ -4931,8 +5052,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "uploadtodatabase",
-      "id": "backup_localstorage_html_uploadtodatabase",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "backup_localstorage_html_uploadtodatabase"
     },
     {
       "label": "brd_tracker_db localStorage key",
@@ -4945,8 +5066,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "brd_tracker_db localstorage key",
-      "id": "backup_localstorage_html_brd_tracker_db_key",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "backup_localstorage_html_brd_tracker_db_key"
     },
     {
       "label": "brd_tracker_migrated_mssql localStorage flag",
@@ -4959,8 +5080,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "brd_tracker_migrated_mssql localstorage flag",
-      "id": "backup_localstorage_html_migrate_key",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "backup_localstorage_html_migrate_key"
     },
     {
       "label": "POST /api/migrate endpoint",
@@ -4973,8 +5094,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "post /api/migrate endpoint",
-      "id": "backup_localstorage_html_api_migrate_endpoint",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "backup_localstorage_html_api_migrate_endpoint"
     },
     {
       "label": "BRD Insight Application",
@@ -4987,8 +5108,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "brd insight application",
-      "id": "docs_architecture_brd_insight",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_brd_insight"
     },
     {
       "label": "customizer-core repo (QStrike/ProLook)",
@@ -5001,8 +5122,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "customizer-core repo (qstrike/prolook)",
-      "id": "docs_architecture_customizer_core",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_customizer_core"
     },
     {
       "label": "server.js (Express API)",
@@ -5015,8 +5136,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "server.js (express api)",
-      "id": "docs_architecture_server_js",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_server_js"
     },
     {
       "label": "SQL Server brd_tracker database",
@@ -5029,8 +5150,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "sql server brd_tracker database",
-      "id": "docs_architecture_sql_server_brd_tracker_db",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_sql_server_brd_tracker_db"
     },
     {
       "label": "AI providers (Gemini/OpenAI/Anthropic)",
@@ -5043,8 +5164,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "ai providers (gemini/openai/anthropic)",
-      "id": "docs_architecture_ai_providers",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_ai_providers"
     },
     {
       "label": "Google Drive API / OAuth2",
@@ -5057,8 +5178,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "google drive api / oauth2",
-      "id": "docs_architecture_google_drive_api",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_google_drive_api"
     },
     {
       "label": "@qstrike/builder package",
@@ -5071,8 +5192,8 @@
       "contributor": null,
       "community": 12,
       "norm_label": "@qstrike/builder package",
-      "id": "docs_architecture_qstrike_builder",
-      "community_name": "Garment Simulator (2D/3D)"
+      "community_name": "Garment Simulator (2D/3D)",
+      "id": "docs_architecture_qstrike_builder"
     },
     {
       "label": "GarmentZoneSimulator.jsx (PixiJS)",
@@ -5085,8 +5206,8 @@
       "contributor": null,
       "community": 12,
       "norm_label": "garmentzonesimulator.jsx (pixijs)",
-      "id": "docs_architecture_garment_zone_simulator",
-      "community_name": "Garment Simulator (2D/3D)"
+      "community_name": "Garment Simulator (2D/3D)",
+      "id": "docs_architecture_garment_zone_simulator"
     },
     {
       "label": "Garment3DView.jsx (Three.js)",
@@ -5099,8 +5220,8 @@
       "contributor": null,
       "community": 12,
       "norm_label": "garment3dview.jsx (three.js)",
-      "id": "docs_architecture_garment3dview",
-      "community_name": "Garment Simulator (2D/3D)"
+      "community_name": "Garment Simulator (2D/3D)",
+      "id": "docs_architecture_garment3dview"
     },
     {
       "label": "SQLExplorer.jsx",
@@ -5113,8 +5234,8 @@
       "contributor": null,
       "community": 19,
       "norm_label": "sqlexplorer.jsx",
-      "id": "docs_architecture_sql_explorer",
-      "community_name": "In-Browser SQLite"
+      "community_name": "In-Browser SQLite",
+      "id": "docs_architecture_sql_explorer"
     },
     {
       "label": "GoogleSettings.jsx",
@@ -5127,8 +5248,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "googlesettings.jsx",
-      "id": "docs_architecture_google_settings",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_google_settings"
     },
     {
       "label": "KnowledgeBasePage.jsx",
@@ -5141,8 +5262,8 @@
       "contributor": null,
       "community": 25,
       "norm_label": "knowledgebasepage.jsx",
-      "id": "docs_architecture_knowledge_base_page",
-      "community_name": "Knowledge Base Entry"
+      "community_name": "Knowledge Base Entry",
+      "id": "docs_architecture_knowledge_base_page"
     },
     {
       "label": "AnalyseAffectedModule.jsx",
@@ -5155,8 +5276,8 @@
       "contributor": null,
       "community": 21,
       "norm_label": "analyseaffectedmodule.jsx",
-      "id": "docs_architecture_analyse_affected_module",
-      "community_name": "Affected Module Analysis"
+      "community_name": "Affected Module Analysis",
+      "id": "docs_architecture_analyse_affected_module"
     },
     {
       "label": "App.jsx (shell)",
@@ -5169,8 +5290,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "app.jsx (shell)",
-      "id": "docs_architecture_app_jsx",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "docs_architecture_app_jsx"
     },
     {
       "label": "main.jsx (React entry)",
@@ -5183,8 +5304,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "main.jsx (react entry)",
-      "id": "docs_architecture_main_jsx",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "docs_architecture_main_jsx"
     },
     {
       "label": "src/utils/db.js (API client)",
@@ -5197,8 +5318,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "src/utils/db.js (api client)",
-      "id": "docs_architecture_db_js",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "docs_architecture_db_js"
     },
     {
       "label": "src/utils/constants.js",
@@ -5211,8 +5332,8 @@
       "contributor": null,
       "community": 22,
       "norm_label": "src/utils/constants.js",
-      "id": "docs_architecture_constants_js",
-      "community_name": "App Constants"
+      "community_name": "App Constants",
+      "id": "docs_architecture_constants_js"
     },
     {
       "label": "src/utils/pdfGenerator.js",
@@ -5225,8 +5346,8 @@
       "contributor": null,
       "community": 17,
       "norm_label": "src/utils/pdfgenerator.js",
-      "id": "docs_architecture_pdfgenerator_js",
-      "community_name": "Document Export Subsystem"
+      "community_name": "Document Export Subsystem",
+      "id": "docs_architecture_pdfgenerator_js"
     },
     {
       "label": "src/utils/excelExport.js",
@@ -5239,8 +5360,8 @@
       "contributor": null,
       "community": 24,
       "norm_label": "src/utils/excelexport.js",
-      "id": "docs_architecture_excelexport_js",
-      "community_name": "Excel Export Utility"
+      "community_name": "Excel Export Utility",
+      "id": "docs_architecture_excelexport_js"
     },
     {
       "label": "vite.config.js (API proxy)",
@@ -5253,8 +5374,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "vite.config.js (api proxy)",
-      "id": "docs_architecture_vite_config_js",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "docs_architecture_vite_config_js"
     },
     {
       "label": "brds table",
@@ -5267,8 +5388,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "brds table",
-      "id": "docs_architecture_table_brds",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_table_brds"
     },
     {
       "label": "bugs table",
@@ -5281,8 +5402,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "bugs table",
-      "id": "docs_architecture_table_bugs",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_table_bugs"
     },
     {
       "label": "bug_criteria table",
@@ -5295,8 +5416,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "bug_criteria table",
-      "id": "docs_architecture_table_bug_criteria",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_table_bug_criteria"
     },
     {
       "label": "team_leads table",
@@ -5309,8 +5430,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "team_leads table",
-      "id": "docs_architecture_table_team_leads",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_table_team_leads"
     },
     {
       "label": "brd_tech_leads table",
@@ -5323,8 +5444,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "brd_tech_leads table",
-      "id": "docs_architecture_table_brd_tech_leads",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_table_brd_tech_leads"
     },
     {
       "label": "tshirt_sizes table",
@@ -5337,8 +5458,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "tshirt_sizes table",
-      "id": "docs_architecture_table_tshirt_sizes",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_table_tshirt_sizes"
     },
     {
       "label": "dev_members table",
@@ -5351,8 +5472,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "dev_members table",
-      "id": "docs_architecture_table_dev_members",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_table_dev_members"
     },
     {
       "label": "knowledge_base table",
@@ -5365,8 +5486,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "knowledge_base table",
-      "id": "docs_architecture_table_knowledge_base",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_table_knowledge_base"
     },
     {
       "label": "ai_analysis_cache table",
@@ -5379,8 +5500,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "ai_analysis_cache table",
-      "id": "docs_architecture_table_ai_analysis_cache",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_table_ai_analysis_cache"
     },
     {
       "label": "pm_notes table",
@@ -5393,8 +5514,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "pm_notes table",
-      "id": "docs_architecture_table_pm_notes",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_table_pm_notes"
     },
     {
       "label": "AI Analyzer subsystem",
@@ -5407,8 +5528,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "ai analyzer subsystem",
-      "id": "docs_architecture_ai_analyzer",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_ai_analyzer"
     },
     {
       "label": "POST /api/ai/analyze",
@@ -5421,8 +5542,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "post /api/ai/analyze",
-      "id": "docs_architecture_endpoint_ai_analyze",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_endpoint_ai_analyze"
     },
     {
       "label": "POST /api/ai/analyze-affected-modules",
@@ -5435,8 +5556,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "post /api/ai/analyze-affected-modules",
-      "id": "docs_architecture_endpoint_ai_analyze_affected_modules",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_endpoint_ai_analyze_affected_modules"
     },
     {
       "label": "runAnalysisWithFallback (provider fallback chain)",
@@ -5449,8 +5570,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "runanalysiswithfallback (provider fallback chain)",
-      "id": "docs_architecture_run_analysis_with_fallback",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_run_analysis_with_fallback"
     },
     {
       "label": "Gemini model chain (2.5-flash -> 2.5-flash-lite -> 2.0-flash -> flash-latest)",
@@ -5463,8 +5584,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "gemini model chain (2.5-flash -> 2.5-flash-lite -> 2.0-flash -> flash-latest)",
-      "id": "docs_architecture_gemini_model_chain",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_gemini_model_chain"
     },
     {
       "label": "CUSTOMIZER_MODULES registry (91 modules)",
@@ -5477,8 +5598,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "customizer_modules registry (91 modules)",
-      "id": "docs_architecture_customizer_modules_registry",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_customizer_modules_registry"
     },
     {
       "label": "CUSTOMIZER_REPO_PATH env var",
@@ -5491,8 +5612,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "customizer_repo_path env var",
-      "id": "docs_architecture_customizer_repo_path",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_customizer_repo_path"
     },
     {
       "label": "fetchGoogleDocText()",
@@ -5505,8 +5626,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "fetchgoogledoctext()",
-      "id": "docs_architecture_fetch_google_doc_text",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_fetch_google_doc_text"
     },
     {
       "label": "Document export subsystem (PDF/Word/Tech Spec)",
@@ -5519,8 +5640,8 @@
       "contributor": null,
       "community": 17,
       "norm_label": "document export subsystem (pdf/word/tech spec)",
-      "id": "docs_architecture_document_export",
-      "community_name": "Document Export Subsystem"
+      "community_name": "Document Export Subsystem",
+      "id": "docs_architecture_document_export"
     },
     {
       "label": "syncLocalBackup()",
@@ -5533,8 +5654,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "synclocalbackup()",
-      "id": "docs_architecture_sync_local_backup",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "docs_architecture_sync_local_backup"
     },
     {
       "label": "brd-local-backup.json",
@@ -5547,8 +5668,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "brd-local-backup.json",
-      "id": "docs_architecture_brd_local_backup_json",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "docs_architecture_brd_local_backup_json"
     },
     {
       "label": ".env / .env.example configuration",
@@ -5561,8 +5682,8 @@
       "contributor": null,
       "community": 23,
       "norm_label": ".env / .env.example configuration",
-      "id": "docs_architecture_env_file",
-      "community_name": "Env Configuration"
+      "community_name": "Env Configuration",
+      "id": "docs_architecture_env_file"
     },
     {
       "label": "Single-file backend design",
@@ -5575,8 +5696,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "single-file backend design",
-      "id": "docs_architecture_single_file_backend",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_single_file_backend"
     },
     {
       "label": "Graceful AI degradation",
@@ -5589,8 +5710,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "graceful ai degradation",
-      "id": "docs_architecture_graceful_ai_degradation",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_graceful_ai_degradation"
     },
     {
       "label": "Deterministic caching",
@@ -5603,8 +5724,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "deterministic caching",
-      "id": "docs_architecture_deterministic_caching",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_deterministic_caching"
     },
     {
       "label": "Codebase-grounded analysis",
@@ -5617,8 +5738,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "codebase-grounded analysis",
-      "id": "docs_architecture_codebase_grounded_analysis",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_codebase_grounded_analysis"
     },
     {
       "label": "Idempotent schema migrations",
@@ -5631,8 +5752,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "idempotent schema migrations",
-      "id": "docs_architecture_idempotent_schema_migrations",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_architecture_idempotent_schema_migrations"
     },
     {
       "label": "React 19",
@@ -5645,8 +5766,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "react 19",
-      "id": "docs_tech_stack_react19",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "docs_tech_stack_react19"
     },
     {
       "label": "Vite 8",
@@ -5659,8 +5780,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "vite 8",
-      "id": "docs_tech_stack_vite8",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "docs_tech_stack_vite8"
     },
     {
       "label": "Tailwind CSS v4",
@@ -5673,8 +5794,8 @@
       "contributor": null,
       "community": 35,
       "norm_label": "tailwind css v4",
-      "id": "docs_tech_stack_tailwind_v4",
-      "community_name": "Tailwind CSS Dependency"
+      "community_name": "Tailwind CSS Dependency",
+      "id": "docs_tech_stack_tailwind_v4"
     },
     {
       "label": "Recharts",
@@ -5687,8 +5808,8 @@
       "contributor": null,
       "community": 34,
       "norm_label": "recharts",
-      "id": "docs_tech_stack_recharts",
-      "community_name": "Recharts Dependency"
+      "community_name": "Recharts Dependency",
+      "id": "docs_tech_stack_recharts"
     },
     {
       "label": "PixiJS 7 (+ legacy)",
@@ -5701,8 +5822,8 @@
       "contributor": null,
       "community": 12,
       "norm_label": "pixijs 7 (+ legacy)",
-      "id": "docs_tech_stack_pixijs7",
-      "community_name": "Garment Simulator (2D/3D)"
+      "community_name": "Garment Simulator (2D/3D)",
+      "id": "docs_tech_stack_pixijs7"
     },
     {
       "label": "Three.js",
@@ -5715,8 +5836,8 @@
       "contributor": null,
       "community": 12,
       "norm_label": "three.js",
-      "id": "docs_tech_stack_threejs",
-      "community_name": "Garment Simulator (2D/3D)"
+      "community_name": "Garment Simulator (2D/3D)",
+      "id": "docs_tech_stack_threejs"
     },
     {
       "label": "@qstrike/builder (local dep)",
@@ -5729,8 +5850,8 @@
       "contributor": null,
       "community": 12,
       "norm_label": "@qstrike/builder (local dep)",
-      "id": "docs_tech_stack_qstrike_builder",
-      "community_name": "Garment Simulator (2D/3D)"
+      "community_name": "Garment Simulator (2D/3D)",
+      "id": "docs_tech_stack_qstrike_builder"
     },
     {
       "label": "jsPDF",
@@ -5743,8 +5864,8 @@
       "contributor": null,
       "community": 17,
       "norm_label": "jspdf",
-      "id": "docs_tech_stack_jspdf",
-      "community_name": "Document Export Subsystem"
+      "community_name": "Document Export Subsystem",
+      "id": "docs_tech_stack_jspdf"
     },
     {
       "label": "mammoth",
@@ -5757,8 +5878,8 @@
       "contributor": null,
       "community": 31,
       "norm_label": "mammoth",
-      "id": "docs_tech_stack_mammoth",
-      "community_name": "mammoth Dependency"
+      "community_name": "mammoth Dependency",
+      "id": "docs_tech_stack_mammoth"
     },
     {
       "label": "xlsx (SheetJS)",
@@ -5771,8 +5892,8 @@
       "contributor": null,
       "community": 36,
       "norm_label": "xlsx (sheetjs)",
-      "id": "docs_tech_stack_xlsx_sheetjs",
-      "community_name": "xlsx/SheetJS Dependency"
+      "community_name": "xlsx/SheetJS Dependency",
+      "id": "docs_tech_stack_xlsx_sheetjs"
     },
     {
       "label": "html2canvas",
@@ -5785,8 +5906,8 @@
       "contributor": null,
       "community": 30,
       "norm_label": "html2canvas",
-      "id": "docs_tech_stack_html2canvas",
-      "community_name": "html2canvas Dependency"
+      "community_name": "html2canvas Dependency",
+      "id": "docs_tech_stack_html2canvas"
     },
     {
       "label": "date-fns",
@@ -5799,8 +5920,8 @@
       "contributor": null,
       "community": 27,
       "norm_label": "date-fns",
-      "id": "docs_tech_stack_date_fns",
-      "community_name": "date-fns Dependency"
+      "community_name": "date-fns Dependency",
+      "id": "docs_tech_stack_date_fns"
     },
     {
       "label": "Express 5 + cors",
@@ -5813,8 +5934,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "express 5 + cors",
-      "id": "docs_tech_stack_express5",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_tech_stack_express5"
     },
     {
       "label": "mssql (SQL Server driver)",
@@ -5827,8 +5948,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "mssql (sql server driver)",
-      "id": "docs_tech_stack_mssql",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_tech_stack_mssql"
     },
     {
       "label": "dotenv",
@@ -5841,8 +5962,8 @@
       "contributor": null,
       "community": 28,
       "norm_label": "dotenv",
-      "id": "docs_tech_stack_dotenv",
-      "community_name": "dotenv Dependency"
+      "community_name": "dotenv Dependency",
+      "id": "docs_tech_stack_dotenv"
     },
     {
       "label": "@anthropic-ai/sdk",
@@ -5855,8 +5976,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "@anthropic-ai/sdk",
-      "id": "docs_tech_stack_anthropic_sdk",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_tech_stack_anthropic_sdk"
     },
     {
       "label": "sql.js (in-browser SQLite)",
@@ -5869,8 +5990,8 @@
       "contributor": null,
       "community": 19,
       "norm_label": "sql.js (in-browser sqlite)",
-      "id": "docs_tech_stack_sqljs",
-      "community_name": "In-Browser SQLite"
+      "community_name": "In-Browser SQLite",
+      "id": "docs_tech_stack_sqljs"
     },
     {
       "label": "concurrently",
@@ -5883,8 +6004,8 @@
       "contributor": null,
       "community": 26,
       "norm_label": "concurrently",
-      "id": "docs_tech_stack_concurrently",
-      "community_name": "Concurrently Dependency"
+      "community_name": "Concurrently Dependency",
+      "id": "docs_tech_stack_concurrently"
     },
     {
       "label": "ESLint",
@@ -5897,8 +6018,8 @@
       "contributor": null,
       "community": 29,
       "norm_label": "eslint",
-      "id": "docs_tech_stack_eslint",
-      "community_name": "ESLint Dependency"
+      "community_name": "ESLint Dependency",
+      "id": "docs_tech_stack_eslint"
     },
     {
       "label": "Playwright",
@@ -5911,8 +6032,8 @@
       "contributor": null,
       "community": 33,
       "norm_label": "playwright",
-      "id": "docs_tech_stack_playwright",
-      "community_name": "Playwright Dependency"
+      "community_name": "Playwright Dependency",
+      "id": "docs_tech_stack_playwright"
     },
     {
       "label": "runAnalysisWithFallback (tech stack description)",
@@ -5925,8 +6046,8 @@
       "contributor": null,
       "community": 5,
       "norm_label": "runanalysiswithfallback (tech stack description)",
-      "id": "docs_tech_stack_run_analysis_with_fallback",
-      "community_name": "AI Analyzer Subsystem Design"
+      "community_name": "AI Analyzer Subsystem Design",
+      "id": "docs_tech_stack_run_analysis_with_fallback"
     },
     {
       "label": "No router decision (single activeTab state)",
@@ -5939,8 +6060,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "no router decision (single activetab state)",
-      "id": "docs_tech_stack_no_router_decision",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "docs_tech_stack_no_router_decision"
     },
     {
       "label": "PixiJS pinned to v7",
@@ -5953,8 +6074,8 @@
       "contributor": null,
       "community": 12,
       "norm_label": "pixijs pinned to v7",
-      "id": "docs_tech_stack_pixijs_pinned_v7",
-      "community_name": "Garment Simulator (2D/3D)"
+      "community_name": "Garment Simulator (2D/3D)",
+      "id": "docs_tech_stack_pixijs_pinned_v7"
     },
     {
       "label": "Three.js lazy import",
@@ -5967,8 +6088,8 @@
       "contributor": null,
       "community": 12,
       "norm_label": "three.js lazy import",
-      "id": "docs_tech_stack_threejs_lazy_load",
-      "community_name": "Garment Simulator (2D/3D)"
+      "community_name": "Garment Simulator (2D/3D)",
+      "id": "docs_tech_stack_threejs_lazy_load"
     },
     {
       "label": "index.html (Vite entry HTML)",
@@ -5981,8 +6102,8 @@
       "contributor": null,
       "community": 6,
       "norm_label": "index.html (vite entry html)",
-      "id": "index_html",
-      "community_name": "LocalStorage Backup & Migration"
+      "community_name": "LocalStorage Backup & Migration",
+      "id": "index_html"
     },
     {
       "label": "Favicon Icon (Purple Arrow/Chevron Mark)",
@@ -5995,8 +6116,8 @@
       "contributor": null,
       "community": 38,
       "norm_label": "favicon icon (purple arrow/chevron mark)",
-      "id": "public_favicon_favicon_icon",
-      "community_name": "Favicon Brand Mark"
+      "community_name": "Favicon Brand Mark",
+      "id": "public_favicon_favicon_icon"
     },
     {
       "label": "Bluesky Icon Symbol",
@@ -6009,8 +6130,8 @@
       "contributor": null,
       "community": 14,
       "norm_label": "bluesky icon symbol",
-      "id": "public_icons_svg_bluesky_icon",
-      "community_name": "Social Icon Sprite Sheet"
+      "community_name": "Social Icon Sprite Sheet",
+      "id": "public_icons_svg_bluesky_icon"
     },
     {
       "label": "Discord Icon Symbol",
@@ -6023,8 +6144,8 @@
       "contributor": null,
       "community": 14,
       "norm_label": "discord icon symbol",
-      "id": "public_icons_svg_discord_icon",
-      "community_name": "Social Icon Sprite Sheet"
+      "community_name": "Social Icon Sprite Sheet",
+      "id": "public_icons_svg_discord_icon"
     },
     {
       "label": "Documentation Icon Symbol",
@@ -6037,8 +6158,8 @@
       "contributor": null,
       "community": 14,
       "norm_label": "documentation icon symbol",
-      "id": "public_icons_svg_documentation_icon",
-      "community_name": "Social Icon Sprite Sheet"
+      "community_name": "Social Icon Sprite Sheet",
+      "id": "public_icons_svg_documentation_icon"
     },
     {
       "label": "GitHub Icon Symbol",
@@ -6051,8 +6172,8 @@
       "contributor": null,
       "community": 14,
       "norm_label": "github icon symbol",
-      "id": "public_icons_svg_github_icon",
-      "community_name": "Social Icon Sprite Sheet"
+      "community_name": "Social Icon Sprite Sheet",
+      "id": "public_icons_svg_github_icon"
     },
     {
       "label": "Social (Community) Icon Symbol",
@@ -6065,8 +6186,8 @@
       "contributor": null,
       "community": 14,
       "norm_label": "social (community) icon symbol",
-      "id": "public_icons_svg_social_icon",
-      "community_name": "Social Icon Sprite Sheet"
+      "community_name": "Social Icon Sprite Sheet",
+      "id": "public_icons_svg_social_icon"
     },
     {
       "label": "X (Twitter) Icon Symbol",
@@ -6079,8 +6200,8 @@
       "contributor": null,
       "community": 14,
       "norm_label": "x (twitter) icon symbol",
-      "id": "public_icons_svg_x_icon",
-      "community_name": "Social Icon Sprite Sheet"
+      "community_name": "Social Icon Sprite Sheet",
+      "id": "public_icons_svg_x_icon"
     },
     {
       "label": "public/icons.svg Sprite Sheet",
@@ -6093,8 +6214,8 @@
       "contributor": null,
       "community": 14,
       "norm_label": "public/icons.svg sprite sheet",
-      "id": "public_icons_svg_sprite",
-      "community_name": "Social Icon Sprite Sheet"
+      "community_name": "Social Icon Sprite Sheet",
+      "id": "public_icons_svg_sprite"
     },
     {
       "label": "Hero Image (Purple Isometric Card Graphic)",
@@ -6107,8 +6228,8 @@
       "contributor": null,
       "community": 41,
       "norm_label": "hero image (purple isometric card graphic)",
-      "id": "src_assets_hero_hero_image",
-      "community_name": "Hero Brand Graphic"
+      "community_name": "Hero Brand Graphic",
+      "id": "src_assets_hero_hero_image"
     },
     {
       "label": "React Logo SVG Asset",
@@ -6121,8 +6242,8 @@
       "contributor": null,
       "community": 42,
       "norm_label": "react logo svg asset",
-      "id": "src_assets_react_svg",
-      "community_name": "React Logo Asset"
+      "community_name": "React Logo Asset",
+      "id": "src_assets_react_svg"
     },
     {
       "label": "Vite Logo (vite.svg)",
@@ -6135,8 +6256,8 @@
       "contributor": null,
       "community": 43,
       "norm_label": "vite logo (vite.svg)",
-      "id": "src_assets_vite_svg_vite_logo",
-      "community_name": "Vite Logo Asset"
+      "community_name": "Vite Logo Asset",
+      "id": "src_assets_vite_svg_vite_logo"
     }
   ],
   "links": [
@@ -6796,6 +6917,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L33",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_testscenariopage_extractfiletext",
+      "target": "package_dependencies_xlsx"
+    },
+    {
+      "relation": "references",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "src/utils/excelExport.js",
       "source_location": "L44",
       "weight": 1.0,
@@ -7129,7 +7262,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L297",
+      "source_location": "L341",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7140,7 +7273,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2055",
+      "source_location": "L2263",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7151,7 +7284,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2147",
+      "source_location": "L2355",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7162,7 +7295,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2066",
+      "source_location": "L2274",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7173,7 +7306,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L286",
+      "source_location": "L330",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7184,7 +7317,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2001",
+      "source_location": "L2209",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7206,7 +7339,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3019",
+      "source_location": "L3227",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7217,7 +7350,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2118",
+      "source_location": "L3492",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "server",
+      "target": "server_buildfallbacktestscenarios",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "server.js",
+      "source_location": "L2326",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7228,7 +7372,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1921",
+      "source_location": "L2129",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7250,7 +7394,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1929",
+      "source_location": "L2137",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7261,7 +7405,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2999",
+      "source_location": "L3207",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7283,7 +7427,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2346",
+      "source_location": "L2554",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7305,7 +7449,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3029",
+      "source_location": "L3237",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7316,7 +7460,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L310",
+      "source_location": "L354",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7327,7 +7471,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L320",
+      "source_location": "L364",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7338,7 +7482,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3035",
+      "source_location": "L3243",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7349,7 +7493,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1616",
+      "source_location": "L1824",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7360,7 +7504,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2107",
+      "source_location": "L288",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "server",
+      "target": "server_findmentionedsymbols",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "server.js",
+      "source_location": "L2315",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7371,7 +7526,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2111",
+      "source_location": "L2319",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7382,7 +7537,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1948",
+      "source_location": "L2156",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7459,7 +7614,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L347",
+      "source_location": "L391",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7470,7 +7625,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L763",
+      "source_location": "L823",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7481,7 +7636,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L797",
+      "source_location": "L857",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7492,7 +7647,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1867",
+      "source_location": "L2075",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7525,7 +7680,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L753",
+      "source_location": "L813",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7547,7 +7702,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3130",
+      "source_location": "L3338",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7558,7 +7713,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1685",
+      "source_location": "L1893",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7569,7 +7724,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1874",
+      "source_location": "L2082",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7580,7 +7735,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L271",
+      "source_location": "L315",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7602,7 +7757,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L313",
+      "source_location": "L277",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "server",
+      "target": "server_mentionedincontent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "server.js",
+      "source_location": "L357",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7613,7 +7779,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1860",
+      "source_location": "L2068",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7657,7 +7823,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3083",
+      "source_location": "L3291",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7690,7 +7856,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1880",
+      "source_location": "L2088",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7701,7 +7867,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1906",
+      "source_location": "L2114",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7712,7 +7878,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1975",
+      "source_location": "L2183",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7723,7 +7889,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1957",
+      "source_location": "L2165",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7745,7 +7911,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L728",
+      "source_location": "L788",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7756,7 +7922,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2276",
+      "source_location": "L2484",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7767,7 +7933,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3612",
+      "source_location": "L3961",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server",
@@ -7803,7 +7969,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1623",
+      "source_location": "L1831",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_fetchgoogledoctext",
@@ -7815,7 +7981,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3022",
+      "source_location": "L3230",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_buildcustomizercontext",
@@ -7827,7 +7993,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3036",
+      "source_location": "L3244",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_extractcodeblock",
@@ -7851,7 +8017,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3036",
+      "source_location": "L3244",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_extractcodeblock",
@@ -7863,7 +8029,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3150",
+      "source_location": "L3358",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_localanalyzeaffectedmodules",
@@ -7875,7 +8041,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L273",
+      "source_location": "L317",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_lookupgraphsourceline",
@@ -7887,7 +8053,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3086",
+      "source_location": "L3294",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_readaffectedcodeblocks",
@@ -7911,7 +8077,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3162",
+      "source_location": "L3402",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_localanalyzeaffectedmodules",
@@ -7923,7 +8089,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3131",
+      "source_location": "L3339",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_localanalyzeaffectedmodules",
@@ -7935,7 +8101,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3138",
+      "source_location": "L3346",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_localanalyzeaffectedmodules",
@@ -7947,7 +8113,31 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3054",
+      "source_location": "L298",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "server_findmentionedsymbols",
+      "target": "server_mentionedincontent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "server.js",
+      "source_location": "L3368",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "server_localanalyzeaffectedmodules",
+      "target": "server_findmentionedsymbols",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "server.js",
+      "source_location": "L3262",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_extractcodeblock",
@@ -7959,7 +8149,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1951",
+      "source_location": "L2159",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_getcachedanalysis",
@@ -7971,7 +8161,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L477",
+      "source_location": "L521",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_init",
@@ -7983,7 +8173,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L765",
+      "source_location": "L825",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_insertbrd",
@@ -7995,7 +8185,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L799",
+      "source_location": "L859",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_insertbug",
@@ -8007,7 +8197,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1960",
+      "source_location": "L2168",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_savecachedanalysis",
@@ -8019,7 +8209,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L739",
+      "source_location": "L799",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_seedstylefeatures",
@@ -8031,7 +8221,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L349",
+      "source_location": "L393",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_init",
@@ -8043,7 +8233,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L714",
+      "source_location": "L774",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_init",
@@ -8055,7 +8245,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L723",
+      "source_location": "L783",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_init",
@@ -8067,7 +8257,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L695",
+      "source_location": "L755",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_init",
@@ -8080,7 +8270,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server.js",
-      "source_location": "L1870",
+      "source_location": "L2078",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_keystatus",
@@ -8091,7 +8281,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1883",
+      "source_location": "L2091",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_resolveaiprovider",
@@ -8103,7 +8293,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1909",
+      "source_location": "L2117",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_resolveproviderchain",
@@ -8115,7 +8305,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1900",
+      "source_location": "L2108",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_resolveaiprovider",
@@ -8127,7 +8317,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1976",
+      "source_location": "L2184",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_runanalysiswithfallback",
@@ -8139,7 +8329,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1922",
+      "source_location": "L2130",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_callprovider",
@@ -8151,7 +8341,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1924",
+      "source_location": "L2132",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_callprovider",
@@ -8163,7 +8353,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1923",
+      "source_location": "L2131",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_callprovider",
@@ -8175,7 +8365,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L1987",
+      "source_location": "L2195",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_runanalysiswithfallback",
@@ -8187,7 +8377,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2148",
+      "source_location": "L2356",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_analyzewithgemini",
@@ -8199,7 +8389,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L2153",
+      "source_location": "L2361",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_analyzewithgemini",
@@ -8212,7 +8402,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server.js",
-      "source_location": "L3091",
+      "source_location": "L3299",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_readaffectedcodeblocks",
@@ -8223,7 +8413,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3107",
+      "source_location": "L3315",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_readaffectedcodeblocks",
@@ -8235,7 +8425,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "server.js",
-      "source_location": "L3244",
+      "source_location": "L3484",
       "weight": 1.0,
       "_origin": "ast",
       "source": "server_localanalyzeaffectedmodules",
@@ -8246,7 +8436,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/App.jsx",
-      "source_location": "L182",
+      "source_location": "L193",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app",
@@ -8257,7 +8447,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/App.jsx",
-      "source_location": "L27",
+      "source_location": "L28",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app",
@@ -8268,7 +8458,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/App.jsx",
-      "source_location": "L170",
+      "source_location": "L181",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app",
@@ -8279,7 +8469,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/App.jsx",
-      "source_location": "L167",
+      "source_location": "L178",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app",
@@ -8290,7 +8480,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/App.jsx",
-      "source_location": "L24",
+      "source_location": "L25",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app",
@@ -8301,7 +8491,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/App.jsx",
-      "source_location": "L25",
+      "source_location": "L26",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app",
@@ -8313,7 +8503,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/App.jsx",
-      "source_location": "L21",
+      "source_location": "L22",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app",
@@ -8325,7 +8515,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/App.jsx",
-      "source_location": "L21",
+      "source_location": "L22",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app",
@@ -8505,7 +8695,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/App.jsx",
-      "source_location": "L22",
+      "source_location": "L23",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app",
@@ -8517,7 +8707,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "src/App.jsx",
-      "source_location": "L22",
+      "source_location": "L23",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app",
@@ -8690,6 +8880,30 @@
       "_origin": "ast",
       "source": "src_app",
       "target": "src_components_teamleadsettings_teamleadsettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/App.jsx",
+      "source_location": "L21",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_app",
+      "target": "src_components_testscenariopage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/App.jsx",
+      "source_location": "L21",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_app",
+      "target": "src_components_testscenariopage_testscenariopage",
       "confidence_score": 1.0
     },
     {
@@ -9358,7 +9572,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L317",
+      "source_location": "L328",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9370,7 +9584,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L327",
+      "source_location": "L338",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9382,7 +9596,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L336",
+      "source_location": "L347",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9394,7 +9608,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L222",
+      "source_location": "L233",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9406,7 +9620,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L237",
+      "source_location": "L248",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9418,7 +9632,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L222",
+      "source_location": "L233",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9430,7 +9644,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L233",
+      "source_location": "L244",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9442,7 +9656,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L238",
+      "source_location": "L249",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9454,7 +9668,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L239",
+      "source_location": "L250",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9466,7 +9680,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L236",
+      "source_location": "L247",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9478,7 +9692,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L234",
+      "source_location": "L245",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9490,7 +9704,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L235",
+      "source_location": "L246",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9502,7 +9716,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L352",
+      "source_location": "L363",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9514,7 +9728,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L228",
+      "source_location": "L239",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9526,7 +9740,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L230",
+      "source_location": "L241",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9538,7 +9752,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L322",
+      "source_location": "L333",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -9550,7 +9764,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/App.jsx",
-      "source_location": "L316",
+      "source_location": "L327",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_app_app",
@@ -11746,11 +11960,33 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/KnowledgeGraphView.jsx",
+      "source_location": "L171",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_knowledgegraphview",
+      "target": "src_components_knowledgegraphview_buildfunctiongraph",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/KnowledgeGraphView.jsx",
       "source_location": "L52",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_components_knowledgegraphview",
       "target": "src_components_knowledgegraphview_buildgraph",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/KnowledgeGraphView.jsx",
+      "source_location": "L228",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_knowledgegraphview",
+      "target": "src_components_knowledgegraphview_buildkbfunctiongraph",
       "confidence_score": 1.0
     },
     {
@@ -11779,7 +12015,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/KnowledgeGraphView.jsx",
-      "source_location": "L168",
+      "source_location": "L284",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_components_knowledgegraphview",
@@ -11790,7 +12026,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/components/KnowledgeGraphView.jsx",
-      "source_location": "L174",
+      "source_location": "L292",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_components_knowledgegraphview",
@@ -11835,7 +12071,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/components/KnowledgeGraphView.jsx",
-      "source_location": "L274",
+      "source_location": "L400",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_components_knowledgegraphview_knowledgegraphview",
@@ -11871,7 +12107,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/components/KnowledgeGraphView.jsx",
-      "source_location": "L204",
+      "source_location": "L326",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_components_knowledgegraphview_knowledgegraphview",
@@ -11883,11 +12119,35 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/components/KnowledgeGraphView.jsx",
-      "source_location": "L206",
+      "source_location": "L331",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_components_knowledgegraphview_knowledgegraphview",
       "target": "src_components_knowledgegraphview_buildrepograph",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/KnowledgeGraphView.jsx",
+      "source_location": "L329",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_knowledgegraphview_knowledgegraphview",
+      "target": "src_components_knowledgegraphview_buildfunctiongraph",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/KnowledgeGraphView.jsx",
+      "source_location": "L330",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_knowledgegraphview_knowledgegraphview",
+      "target": "src_components_knowledgegraphview_buildkbfunctiongraph",
       "confidence_score": 1.0
     },
     {
@@ -11896,7 +12156,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/KnowledgeGraphView.jsx",
-      "source_location": "L411",
+      "source_location": "L539",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_components_knowledgegraphview_knowledgegraphview",
@@ -13187,6 +13447,109 @@
       "source": "src_components_teamleadsettings",
       "target": "src_components_teamleadsettings_teamleadsettings",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_testscenariopage",
+      "target": "src_components_testscenariopage_category_by_ext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L25",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_testscenariopage",
+      "target": "src_components_testscenariopage_extractfiletext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_testscenariopage",
+      "target": "src_components_testscenariopage_priority_styles",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L41",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_testscenariopage",
+      "target": "src_components_testscenariopage_testscenariopage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_testscenariopage",
+      "target": "src_components_testscenariopage_type_styles",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_testscenariopage",
+      "target": "src_utils_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_testscenariopage",
+      "target": "src_utils_db_fmttitle",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L77",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_testscenariopage_testscenariopage",
+      "target": "src_components_testscenariopage_extractfiletext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/components/TestScenarioPage.jsx",
+      "source_location": "L223",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_components_testscenariopage_testscenariopage",
+      "target": "src_utils_db_fmttitle"
     },
     {
       "relation": "contains",
@@ -17074,5 +17437,5 @@
       "source_file": "public/icons.svg"
     }
   ],
-  "built_at_commit": "1b28843435ba5b1523ae1be9b0d03745fe3bc3c5"
+  "built_at_commit": "3d88987edfea4b5178feff1f60a44c83d77ee4a9"
 }

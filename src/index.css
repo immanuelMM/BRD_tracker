@@ -53,3 +53,45 @@ body.dark {
 .transition-theme {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
+
+/* Construction-style floating badge (sidebar in-development tabs) */
+@keyframes kbFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+@keyframes kbStripes {
+  from { background-position: 0 0; }
+  to   { background-position: 8.5px 0; }
+}
+
+/* Walking construction worker (sidebar in-development tabs) */
+@keyframes kbWalk {
+  0%   { left: 2px;  transform: scaleX(1); }
+  48%  { left: calc(100% - 16px); transform: scaleX(1); }
+  52%  { left: calc(100% - 16px); transform: scaleX(-1); }
+  98%  { left: 2px; transform: scaleX(-1); }
+  100% { left: 2px; transform: scaleX(1); }
+}
+@keyframes kbWalkBob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-1.5px) rotate(2deg); }
+}
+
+/* Hammer swing for the walking worker */
+@keyframes kbHammer {
+  0%, 100% { transform: rotate(-80deg); }
+  40%      { transform: rotate(-5deg); }
+  55%      { transform: rotate(-10deg); }
+}
+
+/* Suffix tool set wiggle (sidebar in-development tabs) */
+@keyframes kbToolWiggle {
+  0%, 100% { transform: rotate(-8deg); }
+  50%      { transform: rotate(12deg); }
+}
+
+/* Stop-sign signaling motion (flagger worker on in-development tabs) */
+@keyframes kbSign {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  50%      { transform: rotate(-16deg) translateY(-1.5px); }
+}

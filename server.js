@@ -266,6 +266,50 @@ function matchCustomizerModules(contentToScan) {
     .filter(m => m.matchedKws.length > 0);
 }
 
+// Finds code symbols (functions/classes/methods) whose exact name appears
+// verbatim in the BRD text or uploaded spec document. A direct mention is the
+// strongest possible impact signal — stronger than keyword or graph proximity.
+// Only identifier-looking labels (mixed case or underscored, ≥6 chars) are
+// matched so plain English words like "pattern" or "headers" don't fire.
+// Whole-word substring check on lowercased content: the char on either side of
+// a match must not be part of an identifier, so "fetchBrandStyle" doesn't fire
+// inside "fetchBrandStyleResources".
+function mentionedInContent(content, needle) {
+  let idx = content.indexOf(needle);
+  while (idx !== -1) {
+    const before = idx === 0 ? '' : content[idx - 1];
+    const after = content[idx + needle.length] || '';
+    if (!/[a-z0-9_]/.test(before) && !/[a-z0-9_]/.test(after)) return true;
+    idx = content.indexOf(needle, idx + 1);
+  }
+  return false;
+}
+
+function findMentionedSymbols(contentToScan) {
+  const hits = [];
+  const seen = new Set();
+  for (const src of GRAPH_SOURCES) {
+    if (!src.graph) continue;
+    for (const n of src.graph.nodesById.values()) {
+      if (!n.source_file || !n.label) continue;
+      const bare = n.label.replace(/^\./, '').replace(/\(\)$/, '');
+      if (bare.length < 6) continue;
+      if (!/[A-Z]/.test(bare) && !bare.includes('_')) continue;
+      if (!mentionedInContent(contentToScan, bare.toLowerCase())) continue;
+      const key = `${src.key}:${n.source_file}:${bare}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const lineMatch = /^L(\d+)$/.exec(n.source_location || '');
+      hits.push({
+        source: src.key, sourceLabel: src.label,
+        file: n.source_file, symbol: bare,
+        line: lineMatch ? parseInt(lineMatch[1], 10) : null,
+      });
+    }
+  }
+  return hits;
+}
+
 // Looks up the exact source line for a symbol via the knowledge graph, so code-
 // block extraction doesn't have to guess with regex when the graph already knows.
 function lookupGraphSourceLine(relPath, symbolName, sourceKey = 'customizer-core') {
@@ -662,6 +706,22 @@ async function init() {
       provider  NVARCHAR(30),
       result    NVARCHAR(MAX) NOT NULL,
       createdAt BIGINT
+    )
+  `);
+
+  // Create test_scenario_kb table — separate knowledge base of uploaded test
+  // case documents (.md / .docx / .xlsx) used by the Test Scenarios page
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'test_scenario_kb')
+    CREATE TABLE test_scenario_kb (
+      id        NVARCHAR(36)  PRIMARY KEY,
+      title     NVARCHAR(255) NOT NULL DEFAULT '',
+      category  NVARCHAR(100) NOT NULL DEFAULT 'General',
+      fileName  NVARCHAR(255),
+      content   NVARCHAR(MAX),
+      sortOrder INT           NOT NULL DEFAULT 0,
+      createdAt BIGINT,
+      updatedAt BIGINT
     )
   `);
 
@@ -1552,6 +1612,154 @@ app.get('/api/code-graph/:key', (req, res) => {
   }
 
   res.json({ key: src.key, label: src.label, files, edges: [...pairs.values()], communityLabels });
+});
+
+// ─── Test Scenario Knowledge Base ──────────────────────────────────────────────
+// Separate KB of uploaded test-case documents (.md / .docx / .xlsx / .txt / .csv)
+// used by the Test Scenarios page — independent from the AI knowledge base.
+app.get('/api/test-scenario-kb', async (_req, res) => {
+  try {
+    const { recordset } = await pool.request()
+      .query('SELECT * FROM test_scenario_kb ORDER BY createdAt DESC');
+    res.json(recordset);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/test-scenario-kb', async (req, res) => {
+  try {
+    const { title, category, content, fileName, sortOrder } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'title and content are required' });
+    const id = randomUUID();
+    const now = Date.now();
+    await pool.request()
+      .input('id', NV(36), id)
+      .input('title', NV(255), title)
+      .input('category', NV(100), category || 'General')
+      .input('fileName', NV(255), fileName || null)
+      .input('content', NV(), content)
+      .input('sortOrder', INT, sortOrder ?? 0)
+      .input('createdAt', BIG, now)
+      .input('updatedAt', BIG, now)
+      .query(`INSERT INTO test_scenario_kb (id,title,category,fileName,content,sortOrder,createdAt,updatedAt)
+              VALUES (@id,@title,@category,@fileName,@content,@sortOrder,@createdAt,@updatedAt)`);
+    res.json({ id, title, category: category || 'General', fileName: fileName || null, content, sortOrder: sortOrder ?? 0, createdAt: now, updatedAt: now });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/test-scenario-kb/:id', async (req, res) => {
+  try {
+    const { title, category, content, fileName, sortOrder } = req.body;
+    const now = Date.now();
+    await pool.request()
+      .input('id', NV(36), req.params.id)
+      .input('title', NV(255), title || '')
+      .input('category', NV(100), category || 'General')
+      .input('fileName', NV(255), fileName || null)
+      .input('content', NV(), content || '')
+      .input('sortOrder', INT, sortOrder ?? 0)
+      .input('updatedAt', BIG, now)
+      .query(`UPDATE test_scenario_kb SET title=@title, category=@category, fileName=@fileName,
+              content=@content, sortOrder=@sortOrder, updatedAt=@updatedAt WHERE id=@id`);
+    res.json({ id: req.params.id, ...req.body, updatedAt: now });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/test-scenario-kb/:id', async (req, res) => {
+  try {
+    await pool.request()
+      .input('id', NV(36), req.params.id)
+      .query('DELETE FROM test_scenario_kb WHERE id = @id');
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Generate Test Scenarios (BRD + test-case KB + affected code) ─────────────
+app.post('/api/ai/generate-test-scenarios', async (req, res) => {
+  try {
+    const { brd, bugs = [], knowledgeBase = [], docContent: uploadedDoc } = req.body;
+    if (!brd?.title) return res.status(400).json({ error: 'brd is required' });
+
+    let docContent = uploadedDoc || null;
+    if (!docContent && brd.googleDocsLink) {
+      try { const { text } = await fetchGoogleDocText(brd.googleDocsLink); docContent = text; } catch { /* spec optional */ }
+    }
+
+    let testKB = [];
+    try {
+      const { recordset } = await pool.request().query('SELECT * FROM test_scenario_kb ORDER BY createdAt DESC');
+      testKB = recordset;
+    } catch { /* table may be empty/unavailable — scenarios still generate */ }
+
+    // Ground scenarios in the same affected-code scan the analyzer uses
+    const styleFeatures = await loadStyleFeatures().catch(() => STYLE_FEATURES_SEED);
+    const local = localAnalyzeAffectedModules({ brd, bugs, knowledgeBase, docContent, styleFeatures });
+
+    const kbFingerprint = testKB.map(t => `${t.id}:${t.updatedAt}`).join(',');
+    const cacheKey = computeCacheKey('test-scenarios-v1', { brd, bugs, knowledgeBase, docContent: `${docContent || ''}|${kbFingerprint}` });
+    const cached = await getCachedAnalysis(cacheKey);
+    if (cached) return res.json({ ...cached, cached: true });
+
+    const fallback = () => ({
+      testScenarios: buildFallbackTestScenarios({ brd, affectedModules: local.affectedModules, concepts: local.affectedConcepts, testKB }),
+      mode: 'local', provider: 'local', docFetched: !!docContent,
+    });
+
+    if (resolveProviderChain().length === 0) return res.json({ ...fallback(), modeReason: 'missing_all_ai_api_keys' });
+
+    const testKBSection = testKB.length
+      ? testKB.map(t => `### ${t.title} (${t.fileName || t.category})\n${(t.content || '').slice(0, 2500)}`).join('\n\n').slice(0, 30000)
+      : '(No registered test case documents yet.)';
+    const affectedSection = local.affectedModules.map(m =>
+      `• [${m.severity}] ${m.path} (${m.sourceLabel || 'this repo'})${m.affectedFunctions?.length ? ` — functions: ${m.affectedFunctions.join(', ')}` : ''}\n  ${m.explanation}`
+    ).join('\n');
+    const mentionSection = (local.mentionedSymbols || []).map(m => `• ${m.symbol} — ${m.file} [${m.source}]`).join('\n') || '(none)';
+
+    const prompt = `You are a senior QA architect for a sports apparel customizer platform (QStrike / ProLook Builder).
+Produce executable test case scenarios for the BRD below. Ground every scenario in: (1) the BRD requirement and its specification document, (2) the registered test-case knowledge base, and (3) the affected files/functions identified by code analysis.
+
+═══ SECTION 1 — BRD REQUIREMENT ═══
+Title: ${brd.title}
+Description: ${brd.description || '—'}
+Bugs: ${bugs.length ? bugs.map(b => `[${b.severity || 'medium'}] ${b.title} — ${b.criteria || ''}`).join(' | ') : 'none'}
+Specification document:
+${docContent ? docContent.slice(0, 10000) : '(none attached — derive scenarios from title/description/bugs)'}
+
+═══ SECTION 2 — REGISTERED TEST CASE KNOWLEDGE BASE ═══
+Reuse and adapt these registered test cases where they overlap the BRD; keep their intent and preconditions.
+${testKBSection}
+
+═══ SECTION 3 — AFFECTED FILES & FUNCTIONS (from code analysis) ═══
+${affectedSection || '(no modules matched)'}
+Symbols named verbatim in the BRD/spec:
+${mentionSection}
+
+═══ INSTRUCTIONS ═══
+- 5-12 scenarios, ordered by priority; every scenario traces to a BRD requirement, bug, or registered test case
+- Cover every High-severity affected file; add Regression scenarios for dependents; Edge Cases for hardcoded limits
+- Steps are concrete tester actions; expected results are verifiable
+Output ONLY valid JSON:
+{"testScenarios":[{"id":"TC-1","title":"...","type":"Functional|Regression|Edge Case|Integration","priority":"High|Medium|Low","requirement":"<BRD requirement / bug / registered case this verifies>","relatedFile":"<affected file path or null>","relatedFunctions":["..."],"preconditions":"...","steps":["..."],"expectedResult":"..."}]}`;
+
+    const r = await runAnalysisWithFallback(prompt);
+    if (!r.provider) return res.json({ ...fallback(), modeReason: 'all_ai_providers_failed' });
+
+    let parsed = null;
+    try {
+      let clean = (r.analysis || '').replace(/```json/g, '').replace(/```/g, '').trim();
+      const start = clean.indexOf('{'); const end = clean.lastIndexOf('}');
+      if (start !== -1 && end > start) clean = clean.slice(start, end + 1);
+      parsed = JSON.parse(clean);
+    } catch {
+      return res.json({ ...fallback(), modeReason: 'ai_parse_error' });
+    }
+
+    const payload = {
+      testScenarios: parsed.testScenarios || [],
+      mode: 'ai', provider: r.provider, model: r.model || null, docFetched: !!docContent,
+    };
+    await saveCachedAnalysis(cacheKey, 'test-scenarios', r.provider, payload);
+    return res.json(payload);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ─── Style Features ────────────────────────────────────────────────────────────
@@ -3153,6 +3361,38 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
     affectedConcepts.add(mod.domain);
   }
 
+  // ── Direct symbol mentions ────────────────────────────────────────────────
+  // The BRD text or uploaded spec document naming a function/class verbatim is
+  // the strongest impact signal there is — surface those files first, with the
+  // named symbols as affectedFunctions so their exact code gets extracted.
+  const mentioned = findMentionedSymbols(contentToScan);
+  const mentionsByFile = new Map();
+  for (const m of mentioned) {
+    const k = `${m.source}:${m.file}`;
+    if (!mentionsByFile.has(k)) mentionsByFile.set(k, { ...m, symbols: [] });
+    mentionsByFile.get(k).symbols.push(m.symbol);
+  }
+  for (const hit of mentionsByFile.values()) {
+    const existing = affectedModules.find(x => x.path === hit.file && (x.source || 'customizer-core') === hit.source);
+    if (existing) {
+      existing.affectedFunctions = [...new Set([...(existing.affectedFunctions || []), ...hit.symbols])];
+      existing.explanation += ` The BRD/spec directly names ${hit.symbols.slice(0, 3).join(', ')} from this file.`;
+      continue;
+    }
+    affectedModules.push({
+      name: hit.file.split('/').pop(),
+      path: hit.file,
+      role: 'Directly referenced in the BRD/spec content.',
+      severity: 'High',
+      source: hit.source,
+      sourceLabel: hit.sourceLabel,
+      affectedFunctions: hit.symbols.slice(0, 6),
+      explanation: `The BRD or its uploaded document directly names ${hit.symbols.slice(0, 4).join(', ')} — defined in this file.`,
+      viaMention: true,
+    });
+    scorePoints += 12;
+  }
+
   // ── Knowledge-graph augmentation ──────────────────────────────────────────
   // Catches real dependents (files that call/import a matched module) that the
   // static keyword registry above has no way to see, by walking the actual
@@ -3160,9 +3400,9 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
   if (graphAvailable) {
     const seedPaths = affectedModules.map(m => m.path);
     const graphHits = queryCustomizerGraphNeighborhood(contentToScan, seedPaths, { maxHops: 2, maxFiles: 15 });
-    // Registry seeds are always customizer-core; key by source so a same-named
-    // relative path in qstrike-builder isn't wrongly deduped against them.
-    const knownPaths = new Set(seedPaths.map(p => `customizer-core:${p}`));
+    // Key by each module's real source so registry (customizer-core) and
+    // mention-derived (either repo) files aren't re-added by the graph walk.
+    const knownPaths = new Set(affectedModules.map(m => `${m.source || 'customizer-core'}:${m.path}`));
     for (const hit of graphHits) {
       // hop 0 in customizer-core = a registry file already matched above; hop 0
       // in other sources is a direct label match with no registry entry — keep it.
@@ -3242,7 +3482,100 @@ function localAnalyzeAffectedModules({ brd, bugs = [], knowledgeBase, docContent
   // Not gated on repoAvailable (customizer-core snippets) — qstrike-builder
   // blocks are readable even when the customizer repo isn't mounted.
   const affectedCodeBlocks = readAffectedCodeBlocks(affectedModules);
-  return { impactScore, verdict, affectedModules, affectedConcepts: concepts, recommendations: recommendations.slice(0, 6), affectedStyleFeatures, affectedCodeBlocks };
+  return { impactScore, verdict, affectedModules, affectedConcepts: concepts, recommendations: recommendations.slice(0, 6), affectedStyleFeatures, affectedCodeBlocks, mentionedSymbols: mentioned };
+}
+
+// ─── Test scenario fallback generator (no-AI path) ───────────────────────────
+// Used by /api/ai/generate-test-scenarios when no provider is available. Builds
+// scenarios from what the BRD matched (verbatim mentions first, then severity),
+// plus scenarios lifted from the uploaded test-case knowledge base.
+function buildFallbackTestScenarios({ brd, affectedModules, concepts, testKB = [] }) {
+  const testScenarios = [];
+  let tc = 0;
+  const brdRef = brd.title || 'this BRD';
+  const scenarioMods = [...affectedModules].sort((a, b) =>
+    ((b.viaMention ? 2 : 0) + (b.severity === 'High' ? 1 : 0)) -
+    ((a.viaMention ? 2 : 0) + (a.severity === 'High' ? 1 : 0)));
+  for (const mod of scenarioMods.slice(0, 8)) {
+    tc++;
+    if (mod.viaMention) {
+      testScenarios.push({
+        id: `TC-${tc}`, title: `Verify ${mod.affectedFunctions?.[0] || mod.name} behaves per the spec`,
+        type: 'Functional', priority: 'High',
+        requirement: `The BRD/spec document directly references ${(mod.affectedFunctions || []).slice(0, 3).join(', ')}.`,
+        relatedFile: mod.path, relatedFunctions: mod.affectedFunctions || [],
+        preconditions: 'Builder loaded with a style that exercises this code path.',
+        steps: [`Trigger the flow that calls ${mod.affectedFunctions?.[0] || mod.name}`, 'Apply the change described in the BRD', 'Observe the resulting builder state'],
+        expectedResult: `Behaviour matches the requirement in "${brdRef}" with no console errors.`,
+      });
+    } else if (mod.viaGraph) {
+      testScenarios.push({
+        id: `TC-${tc}`, title: `Regression: ${mod.name} still works after the change`,
+        type: 'Regression', priority: mod.severity === 'Medium' ? 'Medium' : 'Low',
+        requirement: `${mod.name} is a real dependent (${mod.explanation.includes('hop') ? 'graph-linked' : 'related'}) of a changed module.`,
+        relatedFile: mod.path, relatedFunctions: mod.affectedFunctions || [],
+        preconditions: 'The BRD change implemented in the matched module(s).',
+        steps: [`Exercise the feature area covered by ${mod.name}`, 'Complete the normal user flow end-to-end'],
+        expectedResult: 'Existing behaviour is unchanged — no regressions introduced by the BRD change.',
+      });
+    } else {
+      testScenarios.push({
+        id: `TC-${tc}`, title: `Verify ${mod.name} handles "${brdRef}"`,
+        type: 'Functional', priority: mod.severity === 'High' ? 'High' : 'Medium',
+        requirement: mod.explanation,
+        relatedFile: mod.path, relatedFunctions: mod.affectedFunctions || [],
+        preconditions: 'Builder loaded with a representative brand style.',
+        steps: ['Open the builder area this module drives', 'Perform the change requested in the BRD', 'Save and reload to confirm persistence'],
+        expectedResult: 'The new behaviour matches the BRD; unrelated settings are untouched.',
+      });
+    }
+  }
+  // Edge cases from domain concepts with known hardcoded limits
+  if (concepts.some(c => /color/i.test(c))) {
+    testScenarios.push({
+      id: `TC-${++tc}`, title: 'Edge case: color limits still enforced', type: 'Edge Case', priority: 'Medium',
+      requirement: 'KB rule — twill color limits and zone mappings must survive the change.',
+      relatedFile: 'resources/js/core/customizer/color.ts', relatedFunctions: ['remixColors'],
+      preconditions: 'Style with maximum allowed colors applied.',
+      steps: ['Apply the BRD change on a style at its color limit', 'Attempt to exceed the limit'],
+      expectedResult: 'Limit validation still blocks the action with the correct message.',
+    });
+  }
+  if (concepts.some(c => /pricing|cart|checkout/i.test(c))) {
+    testScenarios.push({
+      id: `TC-${++tc}`, title: 'Integration: cart totals stay correct', type: 'Integration', priority: 'High',
+      requirement: 'Pricing/cart flows consume the changed module output.',
+      relatedFile: 'resources/js/stores/shopping-cart.js', relatedFunctions: ['getGrandTotals'],
+      preconditions: 'Cart containing an item configured with the BRD change.',
+      steps: ['Add the configured item to the cart', 'Proceed to checkout and review totals'],
+      expectedResult: 'Grand totals, MOQ and discounts calculate exactly as before the change.',
+    });
+  }
+
+  // Scenarios registered in the test-case knowledge base whose content overlaps
+  // the BRD text — surface them as ready-to-execute registered test cases.
+  const brdText = [brd.title, brd.description].filter(Boolean).join(' ').toLowerCase();
+  const brdWords = new Set(brdText.split(/\W+/).filter(w => w.length > 4));
+  for (const kb of testKB) {
+    const kbWords = `${kb.title} ${kb.content}`.toLowerCase().split(/\W+/).filter(w => w.length > 4);
+    const overlap = kbWords.filter(w => brdWords.has(w));
+    if (overlap.length < 2) continue;
+    const steps = (kb.content || '').split('\n')
+      .map(l => l.trim()).filter(l => /^(\d+[.)]|[-*•])\s+/.test(l))
+      .slice(0, 8).map(l => l.replace(/^(\d+[.)]|[-*•])\s+/, ''));
+    testScenarios.push({
+      id: `TC-${++tc}`, title: `Registered test case: ${kb.title}`,
+      type: 'Functional', priority: 'Medium',
+      requirement: `Registered in the test-case KB (${kb.fileName || kb.category}) and overlaps this BRD on: ${[...new Set(overlap)].slice(0, 4).join(', ')}.`,
+      relatedFile: null, relatedFunctions: [],
+      preconditions: 'Per the registered test case document.',
+      steps: steps.length ? steps : ['Follow the registered test case document step by step.'],
+      expectedResult: 'All steps pass as written in the registered test case.',
+    });
+    if (testScenarios.length >= 14) break;
+  }
+
+  return testScenarios;
 }
 
 // ─── Default instructions for affected-modules prompt (editable by the user) ─
@@ -3321,9 +3654,9 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
     }
 
     // ── Cache: identical BRD + content ⇒ identical stored output ──────────
-    // 'affected-modules-v2': bumped when multi-graph source labeling shipped so
-    // pre-change cached payloads (no source/sourceLabel fields) stop being served.
-    const cacheKey = computeCacheKey('affected-modules-v2', { brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
+    // 'affected-modules-v4': bumped when BRD-based test scenario generation
+    // shipped so older cached payloads (no testScenarios) stop being served.
+    const cacheKey = computeCacheKey('affected-modules-v4', { brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
     const cachedResult = await getCachedAnalysis(cacheKey);
     if (cachedResult) {
       console.log(`💾 [cache] HIT for /analyze-affected-modules (${cacheKey.slice(0, 12)}…) — returning stored result`);
@@ -3363,6 +3696,16 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
         ).join('\n\n')
         : '(No graph neighbors found beyond the module index above.)';
     console.log(`🕸️  [graph] ${graphSeedPaths.length} seed module(s) → ${graphHits.length} graph neighbor(s) for /analyze-affected-modules`);
+
+    // Symbols named verbatim in the BRD text / uploaded document — near-certain
+    // affected functions, handed to the model as their own section.
+    const mentionedSymbols = findMentionedSymbols(contentToScanForGraph);
+    const mentionSection = mentionedSymbols.length
+      ? mentionedSymbols.slice(0, 30).map(m =>
+        `• ${m.symbol}${m.line ? ` (L${m.line})` : ''} — ${m.file} [source: ${m.source}]`
+      ).join('\n')
+      : '(No exact code symbol names were found verbatim in the BRD text or document.)';
+    if (mentionedSymbols.length) console.log(`🎯 [mention] ${mentionedSymbols.length} symbol(s) named verbatim in BRD/doc content`);
 
     // Live file snippets from the actual repo
     const snippetSection = repoAvailable
@@ -3445,6 +3788,12 @@ Each entry is tagged with its source: "customizer-core" = this repo, "qstrike-bu
 ${graphSection}
 
 ═══════════════════════════════════════════════════════
+SECTION 3C — SYMBOLS NAMED VERBATIM IN THE BRD / SPEC DOCUMENT
+These function/class names from the codebase appear word-for-word in the BRD text or its uploaded specification document. A verbatim mention is the strongest impact evidence available — each one MUST appear in your output: include its file in affectedModules (with the correct "source" tag) and the symbol itself in that module's affectedFunctions, unless the surrounding document context clearly shows it is unaffected.
+═══════════════════════════════════════════════════════
+${mentionSection}
+
+═══════════════════════════════════════════════════════
 SECTION 4 — LIVE CODE SNIPPETS (actual source code from repository)
 These are real code snippets pulled from the repository. Use them to confirm which functions, getters, and exports are impacted. Reference actual function names found here in your output.
 ═══════════════════════════════════════════════════════
@@ -3495,7 +3844,7 @@ ${instructions}`;
     // Read actual code blocks from the local repos for each affected module
     const affectedCodeBlocks = readAffectedCodeBlocks(parsedJson.affectedModules);
 
-    const payload = { ...parsedJson, affectedCodeBlocks, mode: 'ai', provider: usedProvider, model: r.model || null, modeReason: fellBack, docFetched: !!docContent };
+    const payload = { ...parsedJson, affectedCodeBlocks, mentionedSymbols, mode: 'ai', provider: usedProvider, model: r.model || null, modeReason: fellBack, docFetched: !!docContent };
     // Persist so the same BRD + content returns the same output next time
     await saveCachedAnalysis(cacheKey, 'affected-modules', usedProvider, payload);
     return res.json(payload);

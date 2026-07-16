@@ -165,8 +165,126 @@ function buildRepoGraph(data) {
   return { nodes, edges, categories, colorOf };
 }
 
+// Builds nodes + edges from the style-features registry — one node per builder
+// function, grouped under diamond hubs per builder tab, dashed edges between
+// functions that share keywords.
+function buildFunctionGraph(features) {
+  const tabs = [...new Set(features.map(f => f.tab || 'General'))].sort();
+  const colorOf = Object.fromEntries(tabs.map((t, i) => [t, PALETTE[i % PALETTE.length]]));
+
+  const nodes = [];
+  const edges = [];
+  for (const t of tabs) {
+    nodes.push({
+      id: `tab:${t}`, label: t, shape: 'diamond', size: 20,
+      color: { background: colorOf[t], border: '#ffffff' },
+      font: { color: '#e0e0e0', size: 15, face: 'inherit' },
+      kind: 'category', category: t,
+    });
+  }
+  for (const f of features) {
+    const tab = f.tab || 'General';
+    const kws = Array.isArray(f.keywords) ? f.keywords : [];
+    nodes.push({
+      id: `fn:${f.id}`,
+      label: f.feature.length > 32 ? f.feature.slice(0, 30) + '…' : f.feature,
+      shape: 'dot',
+      size: Math.max(8, Math.min(18, 7 + kws.length * 1.2)),
+      color: { background: colorOf[tab], border: '#0f0f1a' },
+      font: { color: '#c0c0d0', size: 11, face: 'inherit' },
+      kind: 'entry',
+      category: tab,
+      detail: { title: f.feature, meta: tab, body: `status: ${f.status || 'stable'}${kws.length ? ` · keywords: ${kws.join(', ')}` : ''}`, count: kws.length },
+    });
+    edges.push({ from: `tab:${tab}`, to: `fn:${f.id}`, relation: 'contains', color: { color: '#2a2a4e' }, width: 1 });
+  }
+
+  // dashed "related" edges between functions sharing keywords (cap 3 per node)
+  const relCount = new Map();
+  for (let i = 0; i < features.length; i++) {
+    for (let j = i + 1; j < features.length; j++) {
+      const a = features[i], b = features[j];
+      const ka = new Set((a.keywords || []).map(k => k.toLowerCase()));
+      const shared = (b.keywords || []).filter(k => ka.has(k.toLowerCase()));
+      if (!shared.length) continue;
+      if ((relCount.get(a.id) || 0) >= 3 || (relCount.get(b.id) || 0) >= 3) continue;
+      relCount.set(a.id, (relCount.get(a.id) || 0) + 1);
+      relCount.set(b.id, (relCount.get(b.id) || 0) + 1);
+      edges.push({
+        from: `fn:${a.id}`, to: `fn:${b.id}`, relation: 'related', sharedTerms: shared.slice(0, 5),
+        color: { color: '#3a3a5e' }, width: 1.5, dashes: [4, 4],
+      });
+    }
+  }
+
+  return { nodes, edges, categories: tabs, colorOf };
+}
+
+// Combined relation view: KB entries (dots, colored by category) and builder
+// functions (yellow squares) in one graph. A solid purple edge means the KB
+// entry names the function outright; a dashed edge means the entry's text
+// contains 2+ of the function's keywords. Functions left unconnected have no
+// KB coverage — an insight in itself.
+function buildKBFunctionGraph(entries, features) {
+  const kbCats = [...new Set(entries.map(e => e.category || 'General'))].sort();
+  const colorOf = Object.fromEntries(kbCats.map((c, i) => [c, PALETTE[i % PALETTE.length]]));
+  const FN_CAT = 'Builder Functions';
+  colorOf[FN_CAT] = '#EDC948';
+
+  const nodes = [];
+  const edges = [];
+
+  for (const e of entries) {
+    const cat = e.category || 'General';
+    nodes.push({
+      id: e.id,
+      label: e.title.length > 34 ? e.title.slice(0, 32) + '…' : e.title,
+      shape: 'dot',
+      size: Math.max(9, Math.min(18, 8 + Math.sqrt((e.content || '').length) / 6)),
+      color: { background: colorOf[cat], border: '#0f0f1a' },
+      font: { color: '#c0c0d0', size: 11, face: 'inherit' },
+      kind: 'entry', category: cat,
+      detail: { title: e.title, meta: cat, body: (e.content || '').slice(0, 300), count: null },
+    });
+  }
+  for (const f of features) {
+    const kws = Array.isArray(f.keywords) ? f.keywords : [];
+    nodes.push({
+      id: `fn:${f.id}`,
+      label: f.feature.length > 30 ? f.feature.slice(0, 28) + '…' : f.feature,
+      shape: 'square',
+      size: 8,
+      color: { background: colorOf[FN_CAT], border: '#0f0f1a' },
+      font: { color: '#c0c0d0', size: 10, face: 'inherit' },
+      kind: 'entry', category: FN_CAT,
+      detail: { title: f.feature, meta: `${f.tab || 'General'} · ${f.status || 'stable'}`, body: kws.join(', '), count: kws.length },
+    });
+  }
+
+  for (const e of entries) {
+    const text = `${e.title} ${e.content}`.toLowerCase();
+    for (const f of features) {
+      const kws = Array.isArray(f.keywords) ? f.keywords : [];
+      const nameHit = f.feature && f.feature.length > 5 && text.includes(f.feature.toLowerCase());
+      const kwHits = kws.filter(k => k.length > 3 && text.includes(k.toLowerCase()));
+      if (nameHit) {
+        edges.push({ from: e.id, to: `fn:${f.id}`, relation: 'mentions', color: { color: '#B07AA1' }, width: 2 });
+      } else if (kwHits.length >= 2) {
+        edges.push({
+          from: e.id, to: `fn:${f.id}`, relation: 'related', sharedTerms: kwHits.slice(0, 5),
+          color: { color: '#3a3a5e' }, width: Math.min(3, 1 + kwHits.length * 0.4), dashes: [4, 4],
+        });
+      }
+    }
+  }
+
+  return { nodes, edges, categories: [...kbCats, FN_CAT], colorOf };
+}
+
 const GRAPH_TABS = [
   { id: 'kb', label: 'Knowledge Base' },
+  { id: 'functions', label: 'Function Registry' },
+  { id: 'kb-functions', label: 'KB ↔ Functions' },
   { id: 'customizer-core', label: 'Customizer' },
   { id: 'qstrike-builder', label: 'QStrike Builder' },
 ];
@@ -185,15 +303,19 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
   const [graphTab, setGraphTab] = useState('kb');          // 'kb' | 'customizer-core' | 'qstrike-builder'
   const [repoGraphs, setRepoGraphs] = useState({});        // key -> { status, data, error }
 
-  // Fetch a repo code-graph the first time its tab is opened
+  // The combined KB↔Functions view reuses the function-registry data cache
+  const dataKey = graphTab === 'kb-functions' ? 'functions' : graphTab;
+
+  // Fetch a repo code-graph / the function registry the first time its tab is opened
   useEffect(() => {
-    if (graphTab === 'kb' || repoGraphs[graphTab]) return;
-    setRepoGraphs(p => ({ ...p, [graphTab]: { status: 'loading' } }));
-    fetch(`/api/code-graph/${graphTab}`)
+    if (graphTab === 'kb' || repoGraphs[dataKey]) return;
+    setRepoGraphs(p => ({ ...p, [dataKey]: { status: 'loading' } }));
+    const url = dataKey === 'functions' ? '/api/style-features' : `/api/code-graph/${dataKey}`;
+    fetch(url)
       .then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error || r.statusText); return d; })
-      .then(d => setRepoGraphs(p => ({ ...p, [graphTab]: { status: 'ready', data: d } })))
-      .catch(e => setRepoGraphs(p => ({ ...p, [graphTab]: { status: 'error', error: e.message } })));
-  }, [graphTab, repoGraphs]);
+      .then(d => setRepoGraphs(p => ({ ...p, [dataKey]: { status: 'ready', data: d } })))
+      .catch(e => setRepoGraphs(p => ({ ...p, [dataKey]: { status: 'error', error: e.message } })));
+  }, [graphTab, dataKey, repoGraphs]);
 
   // Clear selection/filters when switching between the three graphs
   useEffect(() => {
@@ -202,10 +324,14 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
 
   const graph = useMemo(() => {
     if (graphTab === 'kb') return buildGraph(entries);
-    const rg = repoGraphs[graphTab];
-    if (rg?.status === 'ready') return buildRepoGraph(rg.data);
+    const rg = repoGraphs[dataKey];
+    if (rg?.status === 'ready') {
+      if (graphTab === 'functions') return buildFunctionGraph(Array.isArray(rg.data) ? rg.data : []);
+      if (graphTab === 'kb-functions') return buildKBFunctionGraph(entries, Array.isArray(rg.data) ? rg.data : []);
+      return buildRepoGraph(rg.data);
+    }
     return { nodes: [], edges: [], categories: [], colorOf: {} };
-  }, [entries, graphTab, repoGraphs]);
+  }, [entries, graphTab, dataKey, repoGraphs]);
   const entriesById = useMemo(() => new Map(entries.map(e => [e.id, e])), [entries]);
 
   // (re)build the network when data or category filter changes
@@ -377,9 +503,11 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
   const selectedDetail = selected?.detail || null;
   const entryCount = graph.nodes.filter(n => n.kind === 'entry').length;
   const relEdgeCount = graph.edges.filter(e => e.relation !== 'contains').length;
-  const repoState = isKB ? null : repoGraphs[graphTab];
-  const unitWord = isKB ? 'entries' : 'files';
-  const groupWord = isKB ? 'categories' : 'communities';
+  const repoState = isKB ? null : repoGraphs[dataKey];
+  const isFunctions = graphTab === 'functions';
+  const isCombined = graphTab === 'kb-functions';
+  const unitWord = isKB ? 'entries' : isFunctions ? 'functions' : isCombined ? 'nodes' : 'files';
+  const groupWord = isKB ? 'categories' : isFunctions ? 'tabs' : isCombined ? 'groups' : 'communities';
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-3">
@@ -467,7 +595,7 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
             <p className="text-xs italic" style={{ color: '#555' }}>Click a node to inspect it.</p>
           ) : (
             <div className="text-[13px] leading-relaxed" style={{ color: '#ccc' }}>
-              <div className="mb-1 break-words"><b style={{ color: '#e0e0e0' }}>{selected.kind === 'category' ? `${isKB ? 'Category' : 'Community'}: ${selected.category}` : (selectedDetail ? selectedDetail.title : entriesById.get(selected.id)?.title)}</b></div>
+              <div className="mb-1 break-words"><b style={{ color: '#e0e0e0' }}>{selected.kind === 'category' ? `${isKB ? 'Category' : isFunctions ? 'Tab' : 'Community'}: ${selected.category}` : (selectedDetail ? selectedDetail.title : entriesById.get(selected.id)?.title)}</b></div>
               {selectedDetail && (
                 <>
                   <div className="mb-1 text-xs">
@@ -517,7 +645,7 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
         {/* Legend */}
         <div className="flex-1 overflow-y-auto p-3">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[11px] uppercase tracking-wider" style={{ color: '#aaa' }}>{isKB ? 'Categories' : 'Communities'}</h3>
+            <h3 className="text-[11px] uppercase tracking-wider" style={{ color: '#aaa' }}>{isKB ? 'Categories' : isFunctions ? 'Builder Tabs' : isCombined ? 'Groups' : 'Communities'}</h3>
             <label className="flex items-center gap-1.5 text-[11px] cursor-pointer" style={{ color: '#888' }}>
               <input type="checkbox" checked={physics} onChange={(e) => setPhysics(e.target.checked)} />
               physics
@@ -540,6 +668,18 @@ export default function KnowledgeGraphView({ entries, onOpenEntry }) {
               <span style={{ color: '#B07AA1' }}>━</span> mentions &nbsp;
               <span style={{ color: '#3a3a5e' }}>╌</span> related (shared terms) &nbsp;
               ◆ category hub. Click a category to hide/show it.
+            </p>
+          ) : isFunctions ? (
+            <p className="mt-3 text-[11px] leading-relaxed" style={{ color: '#555' }}>
+              One dot per builder function, sized by keyword count. ◆ builder-tab hub;
+              dashed edges connect functions sharing keywords. Click a tab to hide/show it.
+            </p>
+          ) : isCombined ? (
+            <p className="mt-3 text-[11px] leading-relaxed" style={{ color: '#555' }}>
+              ● KB entries (by category) · ■ builder functions.&nbsp;
+              <span style={{ color: '#B07AA1' }}>━</span> entry names the function &nbsp;
+              <span style={{ color: '#3a3a5e' }}>╌</span> entry text shares 2+ of its keywords.
+              Functions with no edges have no KB coverage yet.
             </p>
           ) : (
             <p className="mt-3 text-[11px] leading-relaxed" style={{ color: '#555' }}>

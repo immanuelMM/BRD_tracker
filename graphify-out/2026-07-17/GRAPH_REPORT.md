@@ -1,16 +1,16 @@
-# Graph Report - BRD_tracker  (2026-07-17)
+# Graph Report - BRD_tracker  (2026-07-16)
 
 ## Corpus Check
-- 42 files · ~90,429 words
+- 42 files · ~89,502 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 540 nodes · 976 edges · 50 communities (28 shown, 22 thin omitted)
+- 537 nodes · 972 edges · 44 communities (21 shown, 23 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 11 edges (avg confidence: 0.78)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1d3e13b0`
+- Built from commit: `3559b228`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,7 +31,6 @@
 - CriteriaSettings.jsx
 - Social Icon Sprite Sheet
 - Dev Member Settings
-- NV
 - Document Export Subsystem
 - In-Browser SQLite
 - Vite Config
@@ -56,11 +55,6 @@
 - React Logo Asset
 - Vite Logo Asset
 - CLAUDE.md
-- graphSourceByKey
-- localAnalyzeAffectedModules
-- keyStatus
-- callProvider
-- getGoogleAccessToken
 
 ## God Nodes (most connected - your core abstractions)
 1. `call()` - 53 edges
@@ -95,19 +89,19 @@
 - **LocalStorage Backup and Migration Flow** — backup_localstorage_html_getdata, backup_localstorage_html_downloadbackup, backup_localstorage_html_uploadtodatabase, backup_localstorage_html_api_migrate_endpoint, docs_architecture_sync_local_backup, docs_architecture_brd_local_backup_json [INFERRED 0.75]
 - **Social Platform Icon Group (Bluesky, Discord, GitHub, X)** — public_icons_svg_bluesky_icon, public_icons_svg_discord_icon, public_icons_svg_github_icon, public_icons_svg_x_icon [INFERRED 0.75]
 
-## Communities (50 total, 22 thin omitted)
+## Communities (44 total, 23 thin omitted)
 
 ### Community 0 - "BRD Form & BA Page"
-Cohesion: 0.08
-Nodes (50): useTheme(), BA_COLORS, BAPage(), BRDForm(), empty, parseExtendedQuarters(), parseTickets(), Avatar() (+42 more)
+Cohesion: 0.07
+Nodes (61): useTheme(), BA_COLORS, BAPage(), SeverityBadge(), BRDForm(), empty, parseExtendedQuarters(), parseTickets() (+53 more)
 
 ### Community 1 - "App Shell & Navigation"
 Cohesion: 0.07
-Nodes (63): App(), NAV, PAGE_TITLES, ThemeContext, BRDDetail(), CriteriaSettings(), slugify(), API() (+55 more)
+Nodes (67): App(), NAV, PAGE_TITLES, ThemeContext, BRDDetail(), bugStatusCls(), bugStatusLabel(), criteriaConfig (+59 more)
 
 ### Community 2 - "AI Analysis Backend"
-Cohesion: 0.08
-Nodes (15): AI_PROVIDER, app, CRITICAL_FILES, CUSTOMIZER_GRAPH_PATH, CUSTOMIZER_REPO, customizerContext, [DB_HOST, DB_INSTANCE], GEMINI_FALLBACK_MODELS (+7 more)
+Cohesion: 0.05
+Nodes (54): AI_PROVIDER, analyzeWithAnthropic(), analyzeWithGemini(), analyzeWithOpenAI(), app, buildContentToScan(), buildCustomizerContext(), callGeminiModel() (+46 more)
 
 ### Community 3 - "Build & Lint Tooling"
 Cohesion: 0.05
@@ -149,10 +143,6 @@ Nodes (41): 1. Overview, 2. Tech Stack, 3. Repository Layout, 4. Data Model (SQL
 Cohesion: 0.32
 Nodes (8): Garment3DView.jsx (Three.js), GarmentZoneSimulator.jsx (PixiJS), @qstrike/builder package, PixiJS 7 (+ legacy), PixiJS pinned to v7, @qstrike/builder (local dep), Three.js, Three.js lazy import
 
-### Community 13 - "CriteriaSettings.jsx"
-Cohesion: 0.14
-Nodes (17): bugStatusCls(), bugStatusLabel(), criteriaConfig, EXPERTISE_OPTIONS, parseTickets(), SeverityBadge(), severityConfig, BUG_STATUS (+9 more)
-
 ### Community 14 - "Social Icon Sprite Sheet"
 Cohesion: 0.43
 Nodes (7): Bluesky Icon Symbol, Discord Icon Symbol, Documentation Icon Symbol, GitHub Icon Symbol, Social (Community) Icon Symbol, public/icons.svg Sprite Sheet, X (Twitter) Icon Symbol
@@ -160,10 +150,6 @@ Nodes (7): Bluesky Icon Symbol, Discord Icon Symbol, Documentation Icon Symbol, 
 ### Community 15 - "Dev Member Settings"
 Cohesion: 0.67
 Nodes (3): DevMemberSettings(), TEAM_COLORS, teamColor()
-
-### Community 16 - "NV"
-Cohesion: 0.28
-Nodes (9): dbConfig(), getCachedAnalysis(), init(), _insertBRD(), _insertBug(), NV(), saveCachedAnalysis(), seedStyleFeatures() (+1 more)
 
 ### Community 17 - "Document Export Subsystem"
 Cohesion: 0.67
@@ -173,45 +159,25 @@ Nodes (3): Document export subsystem (PDF/Word/Tech Spec), src/utils/pdfGenerato
 Cohesion: 0.33
 Nodes (10): buildFunctionGraph(), buildGraph(), buildKBFunctionGraph(), buildRepoGraph(), extractTerms(), GRAPH_TABS, KnowledgeGraphView(), lighten() (+2 more)
 
-### Community 45 - "graphSourceByKey"
-Cohesion: 0.32
-Nodes (8): buildCustomizerContext(), CUSTOMIZER_MODULES, extractCodeBlock(), GRAPH_SOURCES, graphSourceByKey(), lookupGraphSourceLine(), readAffectedCodeBlocks(), readRepoFile()
-
-### Community 46 - "localAnalyzeAffectedModules"
-Cohesion: 0.29
-Nodes (7): buildContentToScan(), findMentionedSymbols(), GRAPH_TRAVERSAL_RELATIONS, localAnalyzeAffectedModules(), matchCustomizerModules(), mentionedInContent(), queryCustomizerGraphNeighborhood()
-
-### Community 47 - "keyStatus"
-Cohesion: 0.29
-Nodes (7): keyStatus(), localReasonForProvider(), normalizeUsage(), PLACEHOLDER_API_KEYS, resolveAIProvider(), resolveProviderChain(), runAnalysisWithFallback()
-
-### Community 48 - "callProvider"
-Cohesion: 0.33
-Nodes (6): analyzeWithAnthropic(), analyzeWithGemini(), analyzeWithOpenAI(), callGeminiModel(), callProvider(), geminiModelChain()
-
-### Community 49 - "getGoogleAccessToken"
-Cohesion: 0.50
-Nodes (4): fetchGoogleDocText(), getGoogleAccessToken(), refreshGoogleAccessToken(), saveGoogleTokens()
-
 ## Knowledge Gaps
-- **169 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+164 more)
+- **168 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+163 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **22 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **23 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `dependencies` connect `Backend Dependencies` to `Build & Lint Tooling`, `Report Export (PDF/DOCX)`?**
-  _High betweenness centrality (0.144) - this node is a cross-community bridge._
-- **Why does `jspdf` connect `Report Export (PDF/DOCX)` to `Knowledge Base Page`, `Backend Dependencies`, `CriteriaSettings.jsx`?**
-  _High betweenness centrality (0.114) - this node is a cross-community bridge._
+  _High betweenness centrality (0.146) - this node is a cross-community bridge._
+- **Why does `jspdf` connect `Report Export (PDF/DOCX)` to `Knowledge Base Page`, `BRD Form & BA Page`, `Backend Dependencies`?**
+  _High betweenness centrality (0.115) - this node is a cross-community bridge._
 - **Why does `KnowledgeBasePage()` connect `Knowledge Base Page` to `BRD Form & BA Page`, `App Shell & Navigation`, `Report Export (PDF/DOCX)`?**
-  _High betweenness centrality (0.086) - this node is a cross-community bridge._
+  _High betweenness centrality (0.087) - this node is a cross-community bridge._
 - **What connects `name`, `private`, `version` to the rest of the system?**
-  _169 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _168 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `BRD Form & BA Page` be split into smaller, more focused modules?**
-  _Cohesion score 0.08215962441314555 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06750700280112044 - nodes in this community are weakly interconnected._
 - **Should `App Shell & Navigation` be split into smaller, more focused modules?**
-  _Cohesion score 0.07293594964827842 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06783511846802986 - nodes in this community are weakly interconnected._
 - **Should `AI Analysis Backend` be split into smaller, more focused modules?**
-  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05273937532002048 - nodes in this community are weakly interconnected._

@@ -2214,6 +2214,51 @@ const callProvider = (provider, prompt) =>
     : provider === 'openai' ? analyzeWithOpenAI(prompt)
       : analyzeWithGemini(prompt);
 
+// ─── Live analysis progress (SSE mini-terminal) ───────────────────────────────
+// The analyzer POST accepts a client-generated progressId. Every pipeline stage
+// emits a line to any EventSource subscribed on /api/ai/progress/:id so the UI
+// can show a live terminal while the request runs. Events are buffered per
+// channel, so a subscriber that connects a beat late still gets the full log.
+const progressChannels = new Map(); // progressId → { subs: Set<res>, buffer: [] }
+
+app.get('/api/ai/progress/:id', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
+  res.write(': connected\n\n');
+  const { id } = req.params;
+  if (!progressChannels.has(id)) progressChannels.set(id, { subs: new Set(), buffer: [] });
+  const ch = progressChannels.get(id);
+  for (const line of ch.buffer) res.write(`data: ${line}\n\n`);
+  ch.subs.add(res);
+  req.on('close', () => ch.subs.delete(res));
+});
+
+function makeProgressEmitter(progressId) {
+  return (stage, message, extra = {}) => {
+    if (!progressId) return;
+    if (!progressChannels.has(progressId)) progressChannels.set(progressId, { subs: new Set(), buffer: [] });
+    const ch = progressChannels.get(progressId);
+    const line = JSON.stringify({ t: Date.now(), stage, message, ...extra });
+    ch.buffer.push(line);
+    if (ch.buffer.length > 200) ch.buffer.shift();
+    for (const res of ch.subs) { try { res.write(`data: ${line}\n\n`); } catch { /* client gone */ } }
+    if (stage === 'done' || stage === 'error') {
+      setTimeout(() => progressChannels.delete(progressId), 60_000);
+    }
+  };
+}
+
+// Provider usage objects differ per API — normalize to { in, out } for the UI.
+function normalizeUsage(usage) {
+  if (!usage) return null;
+  const inTok = usage.input_tokens ?? usage.promptTokenCount ?? null;
+  const outTok = usage.output_tokens ?? usage.candidatesTokenCount ?? null;
+  return (inTok == null && outTok == null) ? null : { in: inTok, out: outTok };
+}
+
 // ─── AI analysis cache ─────────────────────────────────────────────────────────
 // Deterministic key from everything that affects the output, so the same BRD +
 // same content (bugs, KB, uploaded/fetched doc) always returns the same result.
@@ -2263,29 +2308,39 @@ async function saveCachedAnalysis(cacheKey, endpoint, provider, resultObj) {
 
 // Try each provider in the chain; on failure (quota/error) fall through to the
 // next. Returns { analysis, usage, provider } on success, or { provider: null }.
-async function runAnalysisWithFallback(prompt) {
+async function runAnalysisWithFallback(prompt, onProgress = null) {
+  const emit = onProgress || (() => {});
   const chain = resolveProviderChain();
   console.log(`\n━━━ AI ANALYSIS ━━━ provider chain: ${chain.join(' → ') || '(none)'}`);
   if (!chain.length) {
     console.warn('[AI] no provider with a valid key — using local rule-based analysis');
+    emit('ai', 'No AI provider has a valid key — using local rule-based analysis');
     return { provider: null, reason: 'missing_all_ai_api_keys', tried: [] };
   }
+  emit('ai', `Provider chain: ${chain.join(' → ')}`);
 
   const tried = [];
   for (const provider of chain) {
     console.log(`▶ [AI] attempting provider: ${provider.toUpperCase()}`);
+    emit('ai', `Calling ${provider.toUpperCase()}… (waiting for response)`);
+    const t0 = Date.now();
     try {
       const result = await callProvider(provider, prompt);
       const modelInfo = result.model ? ` (model: ${result.model})` : '';
       console.log(`✅ [AI] SUCCESS via ${provider.toUpperCase()}${modelInfo}${tried.length ? ` — after ${tried.map(t => t.provider).join(', ')} failed` : ''}\n`);
+      const usage = normalizeUsage(result.usage);
+      emit('success', `${provider.toUpperCase()}${modelInfo} responded in ${((Date.now() - t0) / 1000).toFixed(1)}s (${(result.analysis || '').length} chars)`);
+      if (usage) emit('tokens', `Token usage — input: ${usage.in ?? '?'} · output: ${usage.out ?? '?'} · total: ${(usage.in || 0) + (usage.out || 0)}`, { usage });
       return { ...result, provider, reason: null, tried };
     } catch (e) {
       const msg = (e?.message || String(e)).slice(0, 160);
       console.warn(`❌ [AI] ${provider.toUpperCase()} failed: ${msg} — trying next provider`);
+      emit('warn', `${provider.toUpperCase()} failed after ${((Date.now() - t0) / 1000).toFixed(1)}s: ${msg} — trying next provider`);
       tried.push({ provider, error: msg });
     }
   }
   console.error(`⛔ [AI] ALL providers failed (${tried.map(t => t.provider).join(', ')}) — falling back to local analysis\n`);
+  emit('warn', `All providers failed (${tried.map(t => t.provider).join(', ')}) — falling back to local rule-based analysis`);
   return { provider: null, reason: 'all_ai_providers_failed', tried };
 }
 
@@ -3728,15 +3783,21 @@ app.get('/api/affected-modules-prompt-template', (_req, res) => {
 // ─── Post Affected Modules Endpoint ──────────────────────────────────────────
 app.post('/api/ai/analyze-affected-modules', async (req, res) => {
   try {
-    const { brd, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent: uploadedDoc, customInstructions } = req.body;
+    const { brd, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent: uploadedDoc, customInstructions, progressId } = req.body;
+    const emit = makeProgressEmitter(progressId);
+    emit('start', `Analysis started — "${brd.title || 'Untitled'}" (${bugs.length} bug${bugs.length === 1 ? '' : 's'}, ${knowledgeBase.length} KB entr${knowledgeBase.length === 1 ? 'y' : 'ies'})`);
 
     let docContent = uploadedDoc || null;
+    if (docContent) emit('info', `Using uploaded document (${docContent.length.toLocaleString()} chars)`);
     if (!docContent && brd.googleDocsLink) {
+      emit('info', 'Fetching Google Doc specification…');
       const { text } = await fetchGoogleDocText(brd.googleDocsLink);
       docContent = text;
+      emit('info', docContent ? `Google Doc fetched (${docContent.length.toLocaleString()} chars)` : 'Google Doc could not be fetched — continuing without it');
     }
 
     // ── Cache: identical BRD + content ⇒ identical stored output ──────────
+    emit('cache', 'Checking analysis cache…');
     const cacheKey = computeCacheKey('affected-modules-v4', { brd, bugs, techLeads, devAssignees, knowledgeBase, docContent });
     let cachedResult = await getCachedAnalysis(cacheKey);
     if (!cachedResult) {
@@ -3749,13 +3810,18 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
     }
     if (cachedResult) {
       console.log(`💾 [cache] HIT for /analyze-affected-modules (${cacheKey.slice(0, 12)}…) — returning stored result`);
+      emit('cache', `Cache HIT (${cacheKey.slice(0, 12)}…) — returning stored result, no AI call or tokens spent`);
+      emit('done', 'Finished (served from cache)');
       return res.json({ ...cachedResult, cached: true });
     }
+    emit('cache', `Cache MISS (${cacheKey.slice(0, 12)}…) — running fresh analysis`);
 
     // If no AI provider has a valid key, go straight to the local scanner
     const styleFeatures = await loadStyleFeatures();
     if (resolveProviderChain().length === 0) {
+      emit('warn', 'No AI provider keys configured — using local rule-based scanner');
       const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, styleFeatures });
+      emit('done', 'Finished (local rule-based analysis)');
       return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'missing_all_ai_api_keys', docFetched: !!docContent });
     }
 
@@ -3774,9 +3840,13 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
     // that the hand-tagged keyword registry above has no way to see.
     const contentToScanForGraph = buildContentToScan({ brd, bugs, docContent });
     const graphSeedPaths = matchCustomizerModules(contentToScanForGraph).map(m => m.mod.path);
+    emit('graph', `Matched ${graphSeedPaths.length} seed module(s) in the ${CUSTOMIZER_MODULES.length}-module registry`);
     const graphHits = graphAvailable
       ? queryCustomizerGraphNeighborhood(contentToScanForGraph, graphSeedPaths, { maxHops: 2, maxFiles: 20 })
       : [];
+    emit('graph', graphAvailable
+      ? `Knowledge graph walk: ${graphHits.length} dependent file(s) found via call/import edges`
+      : 'Knowledge graph not built — skipping graph walk');
     const graphSection = !graphAvailable
       ? '(Knowledge graph not built — run graphify on the customizer-core and/or qstrike-builder repos to enable this section.)'
       : graphHits.length
@@ -3795,6 +3865,7 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
       ).join('\n')
       : '(No exact code symbol names were found verbatim in the BRD text or document.)';
     if (mentionedSymbols.length) console.log(`🎯 [mention] ${mentionedSymbols.length} symbol(s) named verbatim in BRD/doc content`);
+    emit('graph', `${mentionedSymbols.length} code symbol(s) named verbatim in the BRD/spec`);
 
     // Live file snippets from the actual repo
     const snippetSection = repoAvailable
@@ -3896,16 +3967,20 @@ ${styleFeatureIndex}
 
 ${instructions}`;
 
+    emit('info', `Prompt assembled: ${prompt.length.toLocaleString()} chars (~${Math.round(prompt.length / 4).toLocaleString()} tokens estimated)`);
+
     // Try configured provider → fall back through the others on quota/error
-    const r = await runAnalysisWithFallback(prompt);
+    const r = await runAnalysisWithFallback(prompt, emit);
     if (!r.provider) {
       const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, styleFeatures });
+      emit('done', 'Finished (local rule-based analysis — all AI providers failed)');
       return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'all_ai_providers_failed', docFetched: !!docContent });
     }
     const result = r;
     const usedProvider = r.provider;
     const fellBack = r.tried.length ? `fell_back_from_${r.tried.map(t => t.provider).join('_')}` : null;
 
+    emit('info', 'Parsing AI response JSON…');
     let parsedJson = null;
     try {
       let clean = (result.analysis || '').replace(/```json/g, '').replace(/```/g, '').trim();
@@ -3918,7 +3993,9 @@ ${instructions}`;
     } catch (parseErr) {
       console.error(`⛔ [AI] ${usedProvider.toUpperCase()} returned unparseable JSON — falling back to local. Parse error: ${parseErr.message}`);
       console.error(`   Raw response (first 500 chars): ${(result.analysis || '').slice(0, 500)}`);
+      emit('warn', `${usedProvider.toUpperCase()} returned unparseable JSON — falling back to local analysis`);
       const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent, styleFeatures });
+      emit('done', 'Finished (local rule-based analysis — AI response unparseable)');
       return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'ai_parse_error', docFetched: !!docContent });
     }
 
@@ -3931,16 +4008,20 @@ ${instructions}`;
     });
 
     // Read actual code blocks from the local repos for each affected module
+    emit('info', `${(parsedJson.affectedModules || []).length} affected module(s) identified — reading code blocks from local repos…`);
     const affectedCodeBlocks = readAffectedCodeBlocks(parsedJson.affectedModules);
 
     const payload = { ...parsedJson, affectedCodeBlocks, mentionedSymbols, mode: 'ai', provider: usedProvider, model: r.model || null, modeReason: fellBack, docFetched: !!docContent };
     // Persist so the same BRD + content returns the same output next time
     await saveCachedAnalysis(cacheKey, 'affected-modules', usedProvider, payload);
+    emit('info', 'Result cached — identical BRD + context will return instantly next time');
+    emit('done', `Finished — impact score ${parsedJson.impactScore ?? '?'}, ${(parsedJson.affectedModules || []).length} module(s), ${affectedCodeBlocks.length} code block(s)`);
     return res.json(payload);
 
   } catch (e) {
     try {
-      const { brd, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent: uploadedDoc } = req.body;
+      const { brd, bugs = [], techLeads = [], devAssignees = [], knowledgeBase = [], docContent: uploadedDoc, progressId } = req.body;
+      makeProgressEmitter(progressId)('error', `Analysis error: ${e.message} — attempting local fallback`);
       const sfFallback = await loadStyleFeatures().catch(() => STYLE_FEATURES_SEED);
       const localResult = localAnalyzeAffectedModules({ brd, bugs, techLeads, devAssignees, knowledgeBase, docContent: uploadedDoc, styleFeatures: sfFallback });
       return res.json({ ...localResult, mode: 'local', provider: 'local', modeReason: 'error_fallback', docFetched: !!uploadedDoc });

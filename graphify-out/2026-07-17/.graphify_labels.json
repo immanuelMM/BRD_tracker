@@ -15,7 +15,6 @@
   "13": "CriteriaSettings.jsx",
   "14": "Social Icon Sprite Sheet",
   "15": "Dev Member Settings",
-  "16": "NV",
   "17": "Document Export Subsystem",
   "18": "Garment Builder Stub",
   "19": "In-Browser SQLite",
@@ -43,10 +42,5 @@
   "41": "Hero Brand Graphic",
   "42": "React Logo Asset",
   "43": "Vite Logo Asset",
-  "44": "CLAUDE.md",
-  "45": "graphSourceByKey",
-  "46": "localAnalyzeAffectedModules",
-  "47": "keyStatus",
-  "48": "callProvider",
-  "49": "getGoogleAccessToken"
+  "44": "CLAUDE.md"
 }

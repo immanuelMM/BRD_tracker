@@ -1050,6 +1050,13 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
   const [error, setError]                 = useState('');
   const [progress, setProgress]           = useState(0);
 
+  // Live mini-terminal: server-sent progress lines streamed while a scan runs
+  const [termLines, setTermLines] = useState([]);
+  const termRef = useRef(null);
+  useEffect(() => {
+    if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight;
+  }, [termLines]);
+
   // Simulated 1→100% progress bar while a scan is running. Real analysis is a
   // single async request with no progress events, so we ease toward 95% and
   // snap to 100% the moment the result arrives.
@@ -1173,6 +1180,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
     setError('');
     setAnalysis(null);
     setCheckedRecs({});
+    setTermLines([]);
 
     // When using a selected BRD, pass the full record (including googleDocsLink so
     // the server can fetch the Google Doc spec).  When using an uploaded doc, send
@@ -1183,6 +1191,16 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
       description: '',
     };
 
+    // Subscribe to the server's live progress stream before firing the request
+    // so the mini-terminal shows every stage (cache check, graph walk, AI call,
+    // token usage) as it happens.
+    const progressId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const es = new EventSource(`/api/ai/progress/${progressId}`);
+    es.onmessage = (ev) => {
+      try { setTermLines((ls) => [...ls, JSON.parse(ev.data)].slice(-200)); } catch { /* ignore malformed line */ }
+    };
+    await new Promise((resolve) => { es.onopen = resolve; setTimeout(resolve, 400); });
+
     try {
       const result = await analyzeAffectedModules({
         brd: brdPayload,
@@ -1190,6 +1208,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
         techLeads,
         devAssignees,
         knowledgeBase: kbEntries,
+        progressId,
         // Always send uploaded doc as docContent (not crammed into description)
         ...(localDocText ? { docContent: localDocText } : {}),
         // Send custom instructions only if the editor is open and has content
@@ -1211,6 +1230,8 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
     } catch (err) {
       setError(err.message || 'Affected module analysis failed.');
       setAnalyzing(false);
+    } finally {
+      es.close();
     }
   };
 
@@ -1412,6 +1433,47 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                 </>
               )}
             </button>
+
+            {/* Live mini-terminal: streamed server progress (cache, graph, AI, tokens) */}
+            {(analyzing || termLines.length > 0) && (
+              <div className="mt-3 rounded-2xl bg-slate-950 border border-slate-800 shadow-inner overflow-hidden">
+                <div className="flex items-center gap-2 px-3.5 py-2 border-b border-slate-800/80 bg-slate-900/60">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                  <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono">analysis log</span>
+                  {analyzing && (
+                    <span className="ml-auto flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      live
+                    </span>
+                  )}
+                </div>
+                <div ref={termRef} className="px-3.5 py-2.5 max-h-48 overflow-y-auto font-mono text-[10.5px] leading-[1.7]">
+                  {termLines.length === 0 && (
+                    <div className="text-slate-500">Connecting to analysis stream…</div>
+                  )}
+                  {termLines.map((l, i) => (
+                    <div key={i} className="flex gap-2 whitespace-pre-wrap break-words">
+                      <span className="text-slate-600 shrink-0">{new Date(l.t).toLocaleTimeString([], { hour12: false })}</span>
+                      <span className={
+                        l.stage === 'error' ? 'text-red-400'
+                          : l.stage === 'warn' ? 'text-orange-400'
+                            : l.stage === 'done' ? 'text-emerald-400 font-semibold'
+                              : l.stage === 'success' ? 'text-emerald-300'
+                                : l.stage === 'tokens' ? 'text-cyan-300'
+                                  : l.stage === 'cache' ? 'text-amber-300'
+                                    : l.stage === 'graph' ? 'text-sky-300'
+                                      : l.stage === 'ai' ? 'text-blue-300'
+                                        : l.stage === 'start' ? 'text-violet-300'
+                                          : 'text-slate-300'
+                      }>{l.message}</span>
+                    </div>
+                  ))}
+                  {analyzing && <span className="inline-block w-1.5 h-3 bg-emerald-400 animate-pulse align-middle" />}
+                </div>
+              </div>
+            )}
 
           </div>
 

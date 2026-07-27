@@ -6,6 +6,7 @@ import { config as dotenv } from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { join, resolve, dirname } from 'path';
+import { execFileSync } from 'child_process';
 
 dotenv(); // must run before any process.env reads below
 
@@ -266,6 +267,38 @@ function matchCustomizerModules(contentToScan) {
     .filter(m => m.matchedKws.length > 0);
 }
 
+const KB_MATCH_STOPWORDS = new Set([
+  'this', 'that', 'with', 'from', 'have', 'has', 'been', 'were', 'will', 'shall',
+  'their', 'they', 'them', 'your', 'you', 'can', 'not', 'all', 'any', 'each',
+  'which', 'where', 'how', 'via', 'per', 'use', 'used', 'using', 'when', 'what',
+  'into', 'onto', 'the', 'and', 'for',
+]);
+
+function tokenizeForKbMatch(str) {
+  return (str || '').toLowerCase().match(/[a-z][a-z0-9-]{3,}/g) || [];
+}
+
+// Filters KB entries down to those sharing meaningful keyword overlap with the
+// scanned BRD content — unlike CUSTOMIZER_MODULES, KB entries have no hand-tagged
+// keywords array, so overlap is derived from each entry's own title/content.
+// Falls back to the full KB list when fewer than `fallbackMin` entries match, so
+// a vaguely-worded BRD doesn't lose KB context entirely.
+function filterRelevantKbEntries(knowledgeBase, contentToScan, fallbackMin) {
+  const brdTokens = new Set(tokenizeForKbMatch(contentToScan).filter(t => !KB_MATCH_STOPWORDS.has(t)));
+  const scored = knowledgeBase.map(entry => {
+    const entryTokens = new Set(tokenizeForKbMatch(`${entry.title} ${entry.content}`).filter(t => !KB_MATCH_STOPWORDS.has(t)));
+    let score = 0;
+    for (const t of entryTokens) if (brdTokens.has(t)) score++;
+    return { entry, score };
+  });
+  // Domain vocabulary overlaps heavily between any BRD and any KB entry (both
+  // describe the same platform), so a bare score > 0 barely filters anything —
+  // require a minimum overlap strength before counting an entry as "matched".
+  const KB_MIN_SCORE = 3;
+  const matched = scored.filter(s => s.score >= KB_MIN_SCORE).sort((a, b) => b.score - a.score).map(s => s.entry);
+  return matched.length >= fallbackMin ? matched : knowledgeBase;
+}
+
 // Finds code symbols (functions/classes/methods) whose exact name appears
 // verbatim in the BRD text or uploaded spec document. A direct mention is the
 // strongest possible impact signal — stronger than keyword or graph proximity.
@@ -329,7 +362,7 @@ function lookupGraphSourceLine(relPath, symbolName, sourceKey = 'customizer-core
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 const DB_SERVER = process.env.DB_SERVER || 'localhost';
 const DB_PORT = parseInt(process.env.DB_PORT) || 1433;
@@ -3425,6 +3458,74 @@ function extractCodeBlock(relPath, symbolName, contextLines = 40, sourceKey = 'c
   };
 }
 
+// ─── Git blame (GitLens-style attribution) ────────────────────────────────────
+// Parses `git blame --line-porcelain` output. Per git's format, a commit's full
+// metadata (author, time, summary…) is only printed the first time that commit
+// appears in the range — later lines from the same commit just repeat its sha —
+// so metadata is cached per-sha as it's first seen and reused for repeats.
+function parseGitBlamePorcelain(output) {
+  const lines = output.split('\n');
+  const commits = new Map();
+  const shaPerLine = [];
+  let i = 0;
+  while (i < lines.length) {
+    const header = /^([0-9a-f]{40}) (\d+) (\d+)(?: (\d+))?$/.exec(lines[i]);
+    if (!header) { i++; continue; }
+    const sha = header[1];
+    i++;
+    const commit = commits.get(sha) || {};
+    while (i < lines.length && !lines[i].startsWith('\t')) {
+      const line = lines[i];
+      if (line.startsWith('author-mail ')) commit.authorMail = line.slice(12).replace(/^<|>$/g, '');
+      else if (line.startsWith('author-time ')) commit.authorTime = parseInt(line.slice(12), 10);
+      else if (line.startsWith('summary ')) commit.summary = line.slice(8);
+      else if (line.startsWith('author ')) commit.author = line.slice(7);
+      i++;
+    }
+    commits.set(sha, commit);
+    shaPerLine.push(sha);
+    if (i < lines.length && lines[i].startsWith('\t')) i++; // skip the blamed content line
+  }
+  return { commits, shaPerLine };
+}
+
+// Runs `git blame` on a line range and returns who last touched it — the most
+// recent commit's author/date/message, plus a breakdown of every author who
+// has lines in that range (GitLens-style attribution). Returns null for
+// untracked files, non-git repos, or if git isn't installed — blame is a
+// nice-to-have, never a reason to fail the affected-code extraction.
+function getGitBlame(relPath, lineStart, lineEnd, repoRoot) {
+  try {
+    const output = execFileSync(
+      'git', ['blame', '-L', `${lineStart},${lineEnd}`, '--line-porcelain', '--', relPath],
+      { cwd: repoRoot, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }
+    );
+    const { commits, shaPerLine } = parseGitBlamePorcelain(output);
+    if (!shaPerLine.length) return null;
+
+    const authorLineCounts = new Map();
+    let latestSha = null, latestTime = -Infinity;
+    for (const sha of shaPerLine) {
+      const c = commits.get(sha);
+      if (!c) continue;
+      authorLineCounts.set(c.author, (authorLineCounts.get(c.author) || 0) + 1);
+      if ((c.authorTime ?? -Infinity) > latestTime) { latestTime = c.authorTime; latestSha = sha; }
+    }
+    if (!latestSha) return null;
+    const latest = commits.get(latestSha);
+    return {
+      lastAuthor: latest.author || 'Unknown',
+      lastAuthorEmail: latest.authorMail || null,
+      lastCommitDate: latest.authorTime ? new Date(latest.authorTime * 1000).toISOString() : null,
+      lastCommitMessage: latest.summary || null,
+      lastCommitHash: latestSha.slice(0, 7),
+      authors: [...authorLineCounts.entries()].sort((a, b) => b[1] - a[1]).map(([name, lines]) => ({ name, lines })),
+    };
+  } catch {
+    return null;
+  }
+}
+
 // Reads affected code blocks for a list of modules + function names
 function readAffectedCodeBlocks(affectedModules) {
   const blocks = [];
@@ -3452,7 +3553,8 @@ function readAffectedCodeBlocks(affectedModules) {
     for (const fn of candidates) {
       const block = extractCodeBlock(mod.path, fn, 40, source.key);
       if (block && block.code.trim().length > 10) {
-        fileBlocks.push({ functionName: fn, ...block });
+        const blame = getGitBlame(mod.path, block.lineStart, block.lineEnd, source.repoPath);
+        fileBlocks.push({ functionName: fn, ...block, blame });
       }
     }
 
@@ -3826,21 +3928,36 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
     }
 
     // ── Build full codebase-aware AI prompt ───────────────────────────────
-    const kbSections = knowledgeBase.length
-      ? knowledgeBase.map(k => `### ${k.category}: ${k.title}\n${k.content}`).join('\n\n')
-      : '';
+    // Relevance signal computed up front so KB / module-index / snippet sections
+    // below can be filtered to what's actually relevant to this BRD instead of
+    // dumping every entry into the prompt on every request.
+    const contentToScanForGraph = buildContentToScan({ brd, bugs, docContent });
 
-    // Module index: all 60+ modules as a compact table
-    const moduleIndex = CUSTOMIZER_MODULES.map(m =>
+    const matchedModules = matchCustomizerModules(contentToScanForGraph);
+    const graphSeedPaths = matchedModules.map(m => m.mod.path);
+    emit('graph', `Matched ${graphSeedPaths.length} seed module(s) in the ${CUSTOMIZER_MODULES.length}-module registry`);
+
+    // KB entries: filter to entries with keyword overlap against the BRD — fall
+    // back to the full KB when too few match (vague BRD), so context isn't lost.
+    const KB_MATCH_FALLBACK = 5;
+    const kbEntriesForPrompt = filterRelevantKbEntries(knowledgeBase, contentToScanForGraph, KB_MATCH_FALLBACK);
+    const kbSections = kbEntriesForPrompt.length
+      ? kbEntriesForPrompt.map(k => `### ${k.category}: ${k.title}\n${k.content}`).join('\n\n')
+      : '';
+    emit('info', `KB entries: ${kbEntriesForPrompt.length}/${knowledgeBase.length} included` +
+      (kbEntriesForPrompt.length < knowledgeBase.length ? ' (keyword-filtered)' : knowledgeBase.length ? ' (full KB — few keyword matches)' : ''));
+
+    // Module index: filter to keyword-matched modules — fall back to the full
+    // registry when too few match (vague BRD), so coverage isn't lost.
+    const MODULE_MATCH_FALLBACK = 2;
+    const modulesForPrompt = matchedModules.length >= MODULE_MATCH_FALLBACK
+      ? matchedModules.map(m => m.mod)
+      : CUSTOMIZER_MODULES;
+    const moduleIndex = modulesForPrompt.map(m =>
       `• [${m.domain}] ${m.name} — ${m.path}\n  Role: ${m.role}\n  Key exports: ${m.keyExports.join(', ')}`
     ).join('\n\n');
-
-    // Knowledge-graph neighborhood: real extracted call/import/inherit edges from
-    // the customizer-core graphify graph — surfaces dependents of matched modules
-    // that the hand-tagged keyword registry above has no way to see.
-    const contentToScanForGraph = buildContentToScan({ brd, bugs, docContent });
-    const graphSeedPaths = matchCustomizerModules(contentToScanForGraph).map(m => m.mod.path);
-    emit('graph', `Matched ${graphSeedPaths.length} seed module(s) in the ${CUSTOMIZER_MODULES.length}-module registry`);
+    emit('info', `Module index: ${modulesForPrompt.length}/${CUSTOMIZER_MODULES.length} included` +
+      (modulesForPrompt.length < CUSTOMIZER_MODULES.length ? ' (keyword-filtered)' : ' (full registry — few keyword matches)'));
     const graphHits = graphAvailable
       ? queryCustomizerGraphNeighborhood(contentToScanForGraph, graphSeedPaths, { maxHops: 2, maxFiles: 20 })
       : [];
@@ -3867,9 +3984,17 @@ app.post('/api/ai/analyze-affected-modules', async (req, res) => {
     if (mentionedSymbols.length) console.log(`🎯 [mention] ${mentionedSymbols.length} symbol(s) named verbatim in BRD/doc content`);
     emit('graph', `${mentionedSymbols.length} code symbol(s) named verbatim in the BRD/spec`);
 
-    // Live file snippets from the actual repo
+    // Live file snippets from the actual repo — filter to snippets whose file
+    // was keyword-matched above, falling back to the full critical-file set
+    // when too few matched (vague BRD), so baseline context isn't lost.
+    const SNIPPET_MATCH_FALLBACK = 1;
+    const matchedSnippetPaths = new Set(graphSeedPaths);
+    const matchedSnippets = customizerContext.snippets.filter(s => matchedSnippetPaths.has(s.path));
+    const snippetsForPrompt = matchedSnippets.length >= SNIPPET_MATCH_FALLBACK ? matchedSnippets : customizerContext.snippets;
+    emit('info', `Code snippets: ${snippetsForPrompt.length}/${customizerContext.snippets.length} included` +
+      (snippetsForPrompt.length < customizerContext.snippets.length ? ' (keyword-filtered)' : ' (full set — few keyword matches)'));
     const snippetSection = repoAvailable
-      ? customizerContext.snippets.map(s =>
+      ? snippetsForPrompt.map(s =>
         `### ${s.path}\n\`\`\`\n${s.snippet}\n\`\`\``
       ).join('\n\n')
       : '(Repository not accessible — using module index only)';
@@ -3936,7 +4061,7 @@ ${kbSections || 'No KB entries.'}
 
 ═══════════════════════════════════════════════════════
 SECTION 3 — CODEBASE MODULE INDEX (read third — map BRD + KB findings to real files)
-Using the requirement (Section 1) and the KB context (Section 2), identify which of the ${CUSTOMIZER_MODULES.length} modules below are affected. Use exact file names and paths. Do not include files that are unrelated to the requirement.
+Using the requirement (Section 1) and the KB context (Section 2), identify which of the ${modulesForPrompt.length} modules below are affected. Use exact file names and paths. Do not include files that are unrelated to the requirement.
 ═══════════════════════════════════════════════════════
 ${moduleIndex}
 

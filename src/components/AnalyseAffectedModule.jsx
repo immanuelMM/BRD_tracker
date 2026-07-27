@@ -1041,6 +1041,21 @@ const ZONE_DETAILS = {
   }
 };
 
+// GitLens-style relative time ("3d ago", "2mo ago") for git blame timestamps
+const timeAgo = (isoDate) => {
+  if (!isoDate) return '';
+  const seconds = Math.max(0, (Date.now() - new Date(isoDate).getTime()) / 1000);
+  const units = [
+    ['y', 31536000], ['mo', 2592000], ['w', 604800],
+    ['d', 86400], ['h', 3600], ['m', 60],
+  ];
+  for (const [label, secs] of units) {
+    const n = Math.floor(seconds / secs);
+    if (n >= 1) return `${n}${label} ago`;
+  }
+  return 'just now';
+};
+
 export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntries, notify }) {
   const [selectedBRDId, setSelectedBRDId] = useState('');
   const [localDocText, setLocalDocText]   = useState(null);
@@ -2036,6 +2051,21 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                                     <div className="flex items-center gap-3 px-4 py-2 bg-slate-700 dark:bg-slate-900/80">
                                       <span className="text-[10px] font-mono font-bold text-yellow-400">{fn.functionName}</span>
                                       <span className="text-[10px] text-slate-400 font-mono">lines {fn.lineStart}–{fn.lineEnd}</span>
+                                      {fn.blame && (
+                                        <span
+                                          className="ml-auto flex items-center gap-1.5 text-[10px] text-slate-300 truncate max-w-[60%]"
+                                          title={`${fn.blame.lastAuthor} · ${fn.blame.lastCommitMessage || 'no commit message'}${fn.blame.authors?.length > 1 ? `\n\nAlso edited by: ${fn.blame.authors.slice(1).map(a => `${a.name} (${a.lines} line${a.lines === 1 ? '' : 's'})`).join(', ')}` : ''}`}
+                                        >
+                                          <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                          </svg>
+                                          <span className="font-semibold truncate">{fn.blame.lastAuthor}</span>
+                                          <span className="text-slate-500 flex-shrink-0">· {timeAgo(fn.blame.lastCommitDate)}</span>
+                                          {fn.blame.authors?.length > 1 && (
+                                            <span className="flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-slate-600/60 text-slate-300">+{fn.blame.authors.length - 1}</span>
+                                          )}
+                                        </span>
+                                      )}
                                     </div>
                                     {/* Code */}
                                     <pre className="p-4 overflow-x-auto text-[11px] leading-relaxed bg-[#1e1e1e] text-[#d4d4d4] font-mono">

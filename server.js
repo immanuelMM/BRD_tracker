@@ -2226,9 +2226,10 @@ function resolveAIProvider() {
 
 // Ordered list of providers to try: the configured provider first, then every
 // other provider with a valid key — enables automatic fallback when the primary
-// one fails (e.g. Gemini 429 quota → OpenAI → Anthropic).
+// one fails. Anthropic is the default main AI whenever its key is present
+// (e.g. Gemini key removed/invalid → Anthropic → OpenAI).
 function resolveProviderChain() {
-  const DEFAULT_ORDER = ['gemini', 'openai', 'anthropic'];
+  const DEFAULT_ORDER = ['anthropic', 'openai', 'gemini'];
   const keys = { gemini: GEMINI_API_KEY, openai: OPENAI_API_KEY, anthropic: ANTHROPIC_API_KEY };
   const ok = (p) => keyStatus(keys[p]) === 'ok';
 
@@ -2435,7 +2436,12 @@ async function analyzeWithAnthropic(prompt) {
   const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
   const message = await client.messages.create({
     model: ANTHROPIC_MODEL,
-    max_tokens: 2048,
+    // The affected-modules prompt asks for a large structured JSON object
+    // (affectedModules[], affectedStyleFeatures[], recommendations[], each with
+    // prose explanations) — 2048 truncated it mid-array on anything but the
+    // smallest BRDs, producing invalid JSON ("Expected ',' or ']' after array
+    // element") and forcing a fallback to the local analyzer.
+    max_tokens: 8192,
     messages: [{ role: 'user', content: prompt }],
   });
   const analysis = message.content.find((c) => c.type === 'text')?.text || '';
@@ -2452,7 +2458,7 @@ async function analyzeWithOpenAI(prompt) {
     body: JSON.stringify({
       model: OPENAI_MODEL,
       input: prompt,
-      max_output_tokens: 2048,
+      max_output_tokens: 8192,
     }),
   });
 
@@ -3847,7 +3853,14 @@ RULES:
 - Do NOT include files or functions that are not touched by this specific requirement
 - Do NOT invent paths, function names, or KB entries — only use what is in Sections 1–5
 - If the KB (Section 2) contains a hardcoded rule directly related to the BRD, it MUST appear in your verdict and relevant explanations
-- impactScore 0-100: reflects actual code surface area affected (High severity files raise the score)
+- impactScore 0-100: score the TOTAL surface area affected — weigh both severity AND how many files/domains are touched. Do not default to a high score just because one High-severity file appears; a single isolated file, even High severity, is still a narrow change.
+  Use this rubric as your anchor:
+    0-15   → only Low-severity file(s), 1-2 files total, no core logic touched
+    16-35  → only Low/Medium files, or a single Medium-severity file in isolation
+    36-55  → exactly one High-severity file touched in isolation, OR 2-3 Medium-severity files across different modules
+    56-75  → 2-3 High-severity files, or one High-severity file plus several Medium/Low files spanning multiple domains
+    76-100 → 4+ High-severity files, a core engine/store rewrite, or changes cutting across many concepts/domains simultaneously
+  Justify the number against this rubric in your verdict — do not round up to 100 by default.
 
 Output ONLY a single valid JSON object — no markdown, no text outside the JSON:
 

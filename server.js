@@ -456,6 +456,7 @@ async function init() {
       anciliaryTicket    NVARCHAR(MAX),
       rndTicket          NVARCHAR(MAX),
       devAssignee        NVARCHAR(MAX),
+      meetings           NVARCHAR(MAX),
       createdAt          BIGINT,
       updatedAt          BIGINT
     )
@@ -478,6 +479,11 @@ async function init() {
   await pool.request().query(`
     IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='brds' AND COLUMN_NAME='devAssignee')
       ALTER TABLE brds ADD devAssignee NVARCHAR(MAX)
+  `);
+  // Migrate: add meetings column if it doesn't exist yet
+  await pool.request().query(`
+    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='brds' AND COLUMN_NAME='meetings')
+      ALTER TABLE brds ADD meetings NVARCHAR(MAX)
   `);
   // Migrate: widen devAssignee to MAX if it was created as NVARCHAR(255)
   await pool.request().query(`
@@ -875,16 +881,17 @@ async function _insertBRD(b) {
     .input('anciliaryTicket', NV(), b.anciliaryTicket || null)
     .input('rndTicket', NV(), b.rndTicket || null)
     .input('devAssignee', NV(), b.devAssignee || '')
+    .input('meetings', NV(), b.meetings || null)
     .input('createdAt', BIG, b.createdAt)
     .input('updatedAt', BIG, b.updatedAt)
     .query(`INSERT INTO brds
       (id,title,description,quarter,year,sprintStart,sprintEnd,status,
        googleDocsLink,jiraLink,bugLogLink,baName,techLead,tshirtSize,extendedQuarters,
-       beTicket,feTicket,anciliaryTicket,rndTicket,devAssignee,createdAt,updatedAt)
+       beTicket,feTicket,anciliaryTicket,rndTicket,devAssignee,meetings,createdAt,updatedAt)
       VALUES
       (@id,@title,@description,@quarter,@year,@sprintStart,@sprintEnd,@status,
        @googleDocsLink,@jiraLink,@bugLogLink,@baName,@techLead,@tshirtSize,@extendedQuarters,
-       @beTicket,@feTicket,@anciliaryTicket,@rndTicket,@devAssignee,@createdAt,@updatedAt)`);
+       @beTicket,@feTicket,@anciliaryTicket,@rndTicket,@devAssignee,@meetings,@createdAt,@updatedAt)`);
 }
 
 async function _insertBug(bug) {
@@ -960,6 +967,7 @@ app.put('/api/brds/:id', async (req, res) => {
       .input('anciliaryTicket', NV(), b.anciliaryTicket || null)
       .input('rndTicket', NV(), b.rndTicket || null)
       .input('devAssignee', NV(), b.devAssignee || '')
+      .input('meetings', NV(), b.meetings || null)
       .input('updatedAt', BIG, now)
       .query(`UPDATE brds SET
         title=@title, description=@description, quarter=@quarter, year=@year,
@@ -969,6 +977,7 @@ app.put('/api/brds/:id', async (req, res) => {
         extendedQuarters=@extendedQuarters,
         beTicket=@beTicket, feTicket=@feTicket, anciliaryTicket=@anciliaryTicket, rndTicket=@rndTicket,
         devAssignee=@devAssignee,
+        meetings=@meetings,
         updatedAt=@updatedAt
         WHERE id=@id`);
     res.json({ id: req.params.id, ...b, updatedAt: now });
@@ -1509,17 +1518,18 @@ app.post('/api/import', async (req, res) => {
           .input('anciliaryTicket', NV(), b.anciliaryTicket || '')
           .input('rndTicket', NV(), b.rndTicket || '')
           .input('devAssignee', NV(), b.devAssignee || '')
+          .input('meetings', NV(), b.meetings || '')
           .input('createdAt', BIG, b.createdAt || Date.now())
           .input('updatedAt', BIG, b.updatedAt || Date.now())
           .query(`INSERT INTO brds
             (id,title,description,quarter,year,sprintStart,sprintEnd,status,
              googleDocsLink,jiraLink,bugLogLink,baName,techLead,tshirtSize,
-             extendedQuarters,beTicket,feTicket,anciliaryTicket,rndTicket,devAssignee,
+             extendedQuarters,beTicket,feTicket,anciliaryTicket,rndTicket,devAssignee,meetings,
              createdAt,updatedAt)
             VALUES
             (@id,@title,@description,@quarter,@year,@sprintStart,@sprintEnd,@status,
              @googleDocsLink,@jiraLink,@bugLogLink,@baName,@techLead,@tshirtSize,
-             @extendedQuarters,@beTicket,@feTicket,@anciliaryTicket,@rndTicket,@devAssignee,
+             @extendedQuarters,@beTicket,@feTicket,@anciliaryTicket,@rndTicket,@devAssignee,@meetings,
              @createdAt,@updatedAt)`);
       }
       for (const bug of bugs) {

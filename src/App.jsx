@@ -17,6 +17,8 @@ import TeamLeadSettings from './components/TeamLeadSettings';
 import TShirtSizeSettings from './components/TShirtSizeSettings';
 import DevMemberSettings from './components/DevMemberSettings';
 import KnowledgeBasePage from './components/KnowledgeBasePage';
+import KnowledgeGraphView from './components/KnowledgeGraphView';
+import TestScenarioPage from './components/TestScenarioPage';
 import AnalyseAffectedModule from './components/AnalyseAffectedModule';
 import GoogleSettings from './components/GoogleSettings';
 
@@ -129,6 +131,28 @@ const NAV = [
           </svg>
         ),
       },
+      {
+        id: 'kb_graph', label: 'Knowledge Graph',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="5" cy="6" r="2" strokeWidth={1.8}/>
+            <circle cx="19" cy="6" r="2" strokeWidth={1.8}/>
+            <circle cx="12" cy="18" r="2" strokeWidth={1.8}/>
+            <circle cx="12" cy="10" r="2.4" strokeWidth={1.8}/>
+            <path strokeLinecap="round" strokeWidth={1.6} d="M6.7 7.2l3.3 1.7m4-1.7l-3.3 1.7M12 12.4v3.2"/>
+          </svg>
+        ),
+      },
+      {
+        id: 'test_scenarios', label: 'Test Scenarios',
+        badge: 'DEV',
+        tooltip: 'Under development & assessment — behaviour may change. Register test case documents (.md / .docx / Excel) and generate BRD-based test scenarios.',
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 8l2 2 4-4"/>
+          </svg>
+        ),
+      },
     ],
   },
   {
@@ -151,7 +175,7 @@ const NAV = [
   },
 ];
 
-const PAGE_TITLES = { dashboard: 'Dashboard', brds: 'BRD Tracker', report: 'Reports', tshirt: 'T-Shirt Sizes', quarters: 'Quarter View', ba: 'BA View', pmnotes: 'PM Notes', workflow: 'Workflow', kb: 'AI Knowledge Base', affected_module: 'Analyse Affected Module', sql: 'SQL Explorer', settings: 'Settings' };
+const PAGE_TITLES = { dashboard: 'Dashboard', brds: 'BRD Tracker', report: 'Reports', tshirt: 'T-Shirt Sizes', quarters: 'Quarter View', ba: 'BA View', pmnotes: 'PM Notes', workflow: 'Workflow', kb: 'AI Knowledge Base', affected_module: 'Analyse Affected Module', kb_graph: 'Knowledge Graph', test_scenarios: 'Test Scenarios', sql: 'SQL Explorer', settings: 'Settings' };
 
 
 function Notification({ msg, type }) {
@@ -376,6 +400,8 @@ export default function App() {
         devMembers={devMembers} notify={notify}
       />
     );
+    if (activeTab === 'kb_graph') return <KnowledgeGraphView entries={kbEntries} />;
+    if (activeTab === 'test_scenarios') return <TestScenarioPage brds={brds} bugs={bugs} kbEntries={kbEntries} notify={notify} />;
     if (activeTab === 'sql') return <SQLExplorer />;
     if (activeTab === 'settings') return (
       <div className="space-y-8">
@@ -484,11 +510,32 @@ export default function App() {
                           <button
                             key={child.id}
                             onClick={() => navigate(child.id)}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer
+                            title={child.tooltip || undefined}
+                            className={`relative overflow-hidden w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer
                               ${activeTab === child.id ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'}`}
                           >
-                            {child.icon}
+                            <span className="relative flex-shrink-0">
+                              {child.icon}
+                              {child.badge && (
+                                <span
+                                  className="absolute -top-2 -right-2 inline-flex items-center px-1 rounded-md text-[7px] font-bold uppercase tracking-wide text-amber-950 shadow-sm border border-amber-300 dark:border-amber-600 pointer-events-none"
+                                  style={{
+                                    backgroundColor: '#fbbf24',
+                                    backgroundImage: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.25) 0 3px, transparent 3px 6px)',
+                                    animation: 'kbFloat 2.4s ease-in-out infinite, kbStripes 1.1s linear infinite',
+                                  }}
+                                >
+                                  {child.badge}
+                                </span>
+                              )}
+                            </span>
                             {child.label}
+                            {child.badge && (
+                              <span aria-hidden="true" className="inline-block ml-1.5 text-[12px] leading-none select-none flex-shrink-0"
+                                style={{ animation: 'kbFloat 2.4s ease-in-out infinite' }}>
+                                🚧
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>

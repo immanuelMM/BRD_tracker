@@ -33,7 +33,14 @@ RULES:
 - Do NOT include files or functions that are not touched by this specific requirement
 - Do NOT invent paths, function names, or KB entries — only use what is in Sections 1–5
 - If the KB (Section 2) contains a hardcoded rule directly related to the BRD, it MUST appear in your verdict and relevant explanations
-- impactScore 0-100: reflects actual code surface area affected (High severity files raise the score)
+- impactScore 0-100: score the TOTAL surface area affected — weigh both severity AND how many files/domains are touched. Do not default to a high score just because one High-severity file appears; a single isolated file, even High severity, is still a narrow change.
+  Use this rubric as your anchor:
+    0-15   → only Low-severity file(s), 1-2 files total, no core logic touched
+    16-35  → only Low/Medium files, or a single Medium-severity file in isolation
+    36-55  → exactly one High-severity file touched in isolation, OR 2-3 Medium-severity files across different modules
+    56-75  → 2-3 High-severity files, or one High-severity file plus several Medium/Low files spanning multiple domains
+    76-100 → 4+ High-severity files, a core engine/store rewrite, or changes cutting across many concepts/domains simultaneously
+  Justify the number against this rubric in your verdict — do not round up to 100 by default.
 
 Output ONLY a single valid JSON object — no markdown, no text outside the JSON:
 
@@ -170,9 +177,10 @@ function downloadResultsPDF(analysis, brd) {
 
     y += 7;
 
-    // Path
-    txt(mod.path || '', 7.5, 'normal', [100,116,139]);
-    doc.text(doc.splitTextToSize(mod.path || '', CW - 4)[0], ML + 2, y);
+    // Path (with source attribution when present)
+    const pathLine = (mod.path || '') + (mod.sourceLabel ? `   [${mod.sourceLabel}]` : '');
+    txt(pathLine, 7.5, 'normal', [100,116,139]);
+    doc.text(doc.splitTextToSize(pathLine, CW - 4)[0], ML + 2, y);
     y += 5;
 
     // Role
@@ -442,6 +450,7 @@ function downloadResultsDocx(analysis, brd) {
       style="padding:7px 9px;border:1px solid #cbd5e1;">
     <p style="margin:0;font-size:10.5pt;font-weight:bold;color:#0f172a;">${m.name}</p>
     <p style="margin:2px 0 0;font-size:7.5pt;font-family:Courier New,monospace;color:#64748b;">${m.path}</p>
+    ${m.sourceLabel ? `<p style="margin:2px 0 0;font-size:7.5pt;color:${m.source === 'qstrike-builder' ? '#7c3aed' : '#0284c7'};font-weight:bold;">${m.sourceLabel}</p>` : ''}
     ${m.role ? `<p style="margin:3px 0 0;font-size:8.5pt;color:#475569;font-style:italic;">${m.role}</p>` : ''}
   </td>
   <td bgcolor="${rowBg(i)}" valign="top"
@@ -1039,6 +1048,21 @@ const ZONE_DETAILS = {
   }
 };
 
+// GitLens-style relative time ("3d ago", "2mo ago") for git blame timestamps
+const timeAgo = (isoDate) => {
+  if (!isoDate) return '';
+  const seconds = Math.max(0, (Date.now() - new Date(isoDate).getTime()) / 1000);
+  const units = [
+    ['y', 31536000], ['mo', 2592000], ['w', 604800],
+    ['d', 86400], ['h', 3600], ['m', 60],
+  ];
+  for (const [label, secs] of units) {
+    const n = Math.floor(seconds / secs);
+    if (n >= 1) return `${n}${label} ago`;
+  }
+  return 'just now';
+};
+
 export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntries, notify }) {
   const [selectedBRDId, setSelectedBRDId] = useState('');
   const [localDocText, setLocalDocText]   = useState(null);
@@ -1047,6 +1071,13 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
   const [analysis, setAnalysis]           = useState(null);
   const [error, setError]                 = useState('');
   const [progress, setProgress]           = useState(0);
+
+  // Live mini-terminal: server-sent progress lines streamed while a scan runs
+  const [termLines, setTermLines] = useState([]);
+  const termRef = useRef(null);
+  useEffect(() => {
+    if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight;
+  }, [termLines]);
 
   // Simulated 1→100% progress bar while a scan is running. Real analysis is a
   // single async request with no progress events, so we ease toward 95% and
@@ -1171,6 +1202,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
     setError('');
     setAnalysis(null);
     setCheckedRecs({});
+    setTermLines([]);
 
     // When using a selected BRD, pass the full record (including googleDocsLink so
     // the server can fetch the Google Doc spec).  When using an uploaded doc, send
@@ -1181,6 +1213,16 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
       description: '',
     };
 
+    // Subscribe to the server's live progress stream before firing the request
+    // so the mini-terminal shows every stage (cache check, graph walk, AI call,
+    // token usage) as it happens.
+    const progressId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const es = new EventSource(`/api/ai/progress/${progressId}`);
+    es.onmessage = (ev) => {
+      try { setTermLines((ls) => [...ls, JSON.parse(ev.data)].slice(-200)); } catch { /* ignore malformed line */ }
+    };
+    await new Promise((resolve) => { es.onopen = resolve; setTimeout(resolve, 400); });
+
     try {
       const result = await analyzeAffectedModules({
         brd: brdPayload,
@@ -1188,6 +1230,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
         techLeads,
         devAssignees,
         knowledgeBase: kbEntries,
+        progressId,
         // Always send uploaded doc as docContent (not crammed into description)
         ...(localDocText ? { docContent: localDocText } : {}),
         // Send custom instructions only if the editor is open and has content
@@ -1209,6 +1252,8 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
     } catch (err) {
       setError(err.message || 'Affected module analysis failed.');
       setAnalyzing(false);
+    } finally {
+      es.close();
     }
   };
 
@@ -1410,6 +1455,47 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                 </>
               )}
             </button>
+
+            {/* Live mini-terminal: streamed server progress (cache, graph, AI, tokens) */}
+            {(analyzing || termLines.length > 0) && (
+              <div className="mt-3 rounded-2xl bg-slate-950 border border-slate-800 shadow-inner overflow-hidden">
+                <div className="flex items-center gap-2 px-3.5 py-2 border-b border-slate-800/80 bg-slate-900/60">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400/80" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                  <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 font-mono">analysis log</span>
+                  {analyzing && (
+                    <span className="ml-auto flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      live
+                    </span>
+                  )}
+                </div>
+                <div ref={termRef} className="px-3.5 py-2.5 max-h-48 overflow-y-auto font-mono text-[10.5px] leading-[1.7]">
+                  {termLines.length === 0 && (
+                    <div className="text-slate-500">Connecting to analysis stream…</div>
+                  )}
+                  {termLines.map((l, i) => (
+                    <div key={i} className="flex gap-2 whitespace-pre-wrap break-words">
+                      <span className="text-slate-600 shrink-0">{new Date(l.t).toLocaleTimeString([], { hour12: false })}</span>
+                      <span className={
+                        l.stage === 'error' ? 'text-red-400'
+                          : l.stage === 'warn' ? 'text-orange-400'
+                            : l.stage === 'done' ? 'text-emerald-400 font-semibold'
+                              : l.stage === 'success' ? 'text-emerald-300'
+                                : l.stage === 'tokens' ? 'text-cyan-300'
+                                  : l.stage === 'cache' ? 'text-amber-300'
+                                    : l.stage === 'graph' ? 'text-sky-300'
+                                      : l.stage === 'ai' ? 'text-blue-300'
+                                        : l.stage === 'start' ? 'text-violet-300'
+                                          : 'text-slate-300'
+                      }>{l.message}</span>
+                    </div>
+                  ))}
+                  {analyzing && <span className="inline-block w-1.5 h-3 bg-emerald-400 animate-pulse align-middle" />}
+                </div>
+              </div>
+            )}
 
           </div>
 
@@ -1736,6 +1822,7 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                       </span>
                     )}
                   </button>
+
                 </div>
 
                 {/* TAB WINDOW CONTENT */}
@@ -1751,11 +1838,20 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">{mod.name}</h5>
                                 <span className={`text-[10px] font-bold px-2 py-0.5 border rounded-full uppercase ${getSeverityStyle(mod.severity)}`}>
                                   {mod.severity} Impact
                                 </span>
+                                {mod.source && (
+                                  <span className={`text-[10px] font-semibold px-2 py-0.5 border rounded-full ${
+                                    mod.source === 'qstrike-builder'
+                                      ? 'bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-900/50 text-violet-600 dark:text-violet-300'
+                                      : 'bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-900/50 text-sky-600 dark:text-sky-300'
+                                  }`} title={mod.sourceLabel || mod.source}>
+                                    {mod.sourceLabel || mod.source}
+                                  </span>
+                                )}
                               </div>
                               <p className="text-[10px] font-mono text-slate-400 select-all cursor-copy" title="Copy Path">
                                 {mod.path}
@@ -1933,6 +2029,11 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
                                 </svg>
                                 <span className="text-[11px] font-mono text-emerald-400 truncate">{block.path}</span>
+                                {block.sourceLabel && (
+                                  <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                                    block.source === 'qstrike-builder' ? 'bg-violet-500/20 text-violet-300' : 'bg-sky-500/20 text-sky-300'
+                                  }`}>{block.sourceLabel}</span>
+                                )}
                               </div>
                               <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ml-2 ${
                                 block.severity === 'High' ? 'bg-red-500/20 text-red-400' :
@@ -1957,6 +2058,21 @@ export default function AnalyseAffectedModule({ brds, bugs, brdTechLeads, kbEntr
                                     <div className="flex items-center gap-3 px-4 py-2 bg-slate-700 dark:bg-slate-900/80">
                                       <span className="text-[10px] font-mono font-bold text-yellow-400">{fn.functionName}</span>
                                       <span className="text-[10px] text-slate-400 font-mono">lines {fn.lineStart}–{fn.lineEnd}</span>
+                                      {fn.blame && (
+                                        <span
+                                          className="ml-auto flex items-center gap-1.5 text-[10px] text-slate-300 truncate max-w-[60%]"
+                                          title={`${fn.blame.lastAuthor} · ${fn.blame.lastCommitMessage || 'no commit message'}${fn.blame.authors?.length > 1 ? `\n\nAlso edited by: ${fn.blame.authors.slice(1).map(a => `${a.name} (${a.lines} line${a.lines === 1 ? '' : 's'})`).join(', ')}` : ''}`}
+                                        >
+                                          <svg className="w-3 h-3 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                          </svg>
+                                          <span className="font-semibold truncate">{fn.blame.lastAuthor}</span>
+                                          <span className="text-slate-500 flex-shrink-0">· {timeAgo(fn.blame.lastCommitDate)}</span>
+                                          {fn.blame.authors?.length > 1 && (
+                                            <span className="flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-slate-600/60 text-slate-300">+{fn.blame.authors.length - 1}</span>
+                                          )}
+                                        </span>
+                                      )}
                                     </div>
                                     {/* Code */}
                                     <pre className="p-4 overflow-x-auto text-[11px] leading-relaxed bg-[#1e1e1e] text-[#d4d4d4] font-mono">

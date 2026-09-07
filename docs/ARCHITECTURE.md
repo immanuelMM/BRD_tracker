@@ -206,6 +206,30 @@ End-User, and more — plus **live source snippets** read from the local
 customizer-core repo (`CUSTOMIZER_REPO_PATH`). It also extracts the actual code
 blocks for the affected functions so the report shows real source.
 
+**Knowledge-graph augmentation:** the analyzer walks up to two `graphify`-built
+knowledge graphs, defined in `GRAPH_SOURCES`:
+- **customizer-core** (this repo's target codebase) — `CUSTOMIZER_GRAPH_PATH`,
+  defaults to `<CUSTOMIZER_REPO_PATH>/graphify-out/graph.json`
+- **qstrike-builder** (the package app) — `QSTRIKE_BUILDER_GRAPH_PATH`, defaults
+  to `<QSTRIKE_BUILDER_REPO_PATH>/graphify-out/graph.json`
+
+Each is loaded once at startup (`loadKnowledgeGraph`) into an in-memory node/edge
+index. `queryCustomizerGraphNeighborhood` seeds from modules the keyword registry
+already matched (customizer-core) and from graph-label matches against the BRD
+text (both sources), then walks real `calls`/`imports`/`inherits`/`method` edges
+1-2 hops out to surface actual dependents the static registry can't see. Hits
+from the two graphs are round-robin merged so the larger customizer-core graph
+can't crowd out qstrike-builder results. Every affected module and extracted
+code block carries `source` (`customizer-core` | `qstrike-builder`) and a
+human-readable `sourceLabel` ("this repo (customizer-core)" vs
+"qstrike-builder (package app)") — shown as badges in the UI, tagged per entry
+in **Section 3B** of the AI prompt, and requested back from the model in the
+output JSON schema. Code-block extraction reads from the matching repo root and
+prefers the graph's exact `source_location` for a symbol over the regex-based
+line search (`extractCodeBlock`) when available. This is entirely optional —
+the analyzer falls back to registry + regex behaviour unchanged if no graph is
+present.
+
 ### 5.2 Garment Simulator (PixiJS) & 3D View (Three.js)
 - `GarmentZoneSimulator.jsx` loads a real brand-style uniform via `@qstrike/builder`,
   renders all perspectives (front/back/left/right) on a PixiJS canvas, and exposes

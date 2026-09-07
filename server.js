@@ -7,6 +7,18 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { execFileSync } from 'child_process';
+import { BrdRepository } from './repositories/BrdRepository.js';
+import { BugRepository } from './repositories/BugRepository.js';
+import { CriteriaRepository } from './repositories/CriteriaRepository.js';
+import { TeamLeadRepository } from './repositories/TeamLeadRepository.js';
+import { DevMemberRepository } from './repositories/DevMemberRepository.js';
+import { BrdTechLeadRepository } from './repositories/BrdTechLeadRepository.js';
+import { TShirtSizeRepository } from './repositories/TShirtSizeRepository.js';
+import { PmNoteRepository } from './repositories/PmNoteRepository.js';
+import { KnowledgeBaseRepository } from './repositories/KnowledgeBaseRepository.js';
+import { TestScenarioKbRepository } from './repositories/TestScenarioKbRepository.js';
+import { StyleFeatureRepository } from './repositories/StyleFeatureRepository.js';
+import { NV, INT, BIG } from './repositories/sqlTypes.js';
 
 dotenv(); // must run before any process.env reads below
 
@@ -386,13 +398,21 @@ const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-i
 // SQL Server Browser resolves the port automatically (do NOT hard-code port).
 const [DB_HOST, DB_INSTANCE] = DB_SERVER.split('\\');
 
-// ─── Type shortcuts ───────────────────────────────────────────────────────────
-const NV = (n) => sql.NVarChar(n || sql.MAX);
-const INT = sql.Int;
-const BIG = sql.BigInt;
-
 let pool;
+const getPool = () => pool;
 
+// ─── Repositories ─────────────────────────────────────────────────────────────
+const brdRepo = new BrdRepository(getPool);
+const bugRepo = new BugRepository(getPool);
+const criteriaRepo = new CriteriaRepository(getPool);
+const teamLeadRepo = new TeamLeadRepository(getPool);
+const devMemberRepo = new DevMemberRepository(getPool);
+const brdTechLeadRepo = new BrdTechLeadRepository(getPool);
+const tshirtSizeRepo = new TShirtSizeRepository(getPool);
+const pmNoteRepo = new PmNoteRepository(getPool);
+const knowledgeBaseRepo = new KnowledgeBaseRepository(getPool);
+const testScenarioKbRepo = new TestScenarioKbRepository(getPool);
+const styleFeatureRepo = new StyleFeatureRepository(getPool);
 
 const dbConfig = (database) => {
   const base = {
@@ -848,67 +868,18 @@ async function seedStyleFeatures() {
   }
 }
 
-// ─── Style Features — load from DB ────────────────────────────────────────────
+// Used by AI-analysis routes elsewhere in this file that need the style feature list.
 async function loadStyleFeatures() {
-  const { recordset } = await pool.request()
-    .query('SELECT * FROM style_features ORDER BY tab ASC, sortOrder ASC');
-  return recordset.map(sf => ({
-    ...sf,
-    keywords: JSON.parse(sf.keywords || '[]'),
-  }));
+  return styleFeatureRepo.list();
 }
 
-// ─── DB helpers ───────────────────────────────────────────────────────────────
+// Used by startup seeding and the legacy /api/migrate merge path.
 async function _insertBRD(b) {
-  await pool.request()
-    .input('id', NV(36), b.id)
-    .input('title', NV(255), b.title || '')
-    .input('description', NV(), b.description || '')
-    .input('quarter', NV(5), b.quarter || 'Q1')
-    .input('year', INT, b.year || new Date().getFullYear())
-    .input('sprintStart', NV(20), b.sprintStart || '')
-    .input('sprintEnd', NV(20), b.sprintEnd || '')
-    .input('status', NV(50), b.status || 'planning')
-    .input('googleDocsLink', NV(), b.googleDocsLink || '')
-    .input('jiraLink', NV(), b.jiraLink || '')
-    .input('bugLogLink', NV(), b.bugLogLink || '')
-    .input('baName', NV(255), b.baName || '')
-    .input('techLead', NV(255), b.techLead || '')
-    .input('tshirtSize', NV(10), b.tshirtSize || '')
-    .input('extendedQuarters', NV(), b.extendedQuarters || null)
-    .input('beTicket', NV(), b.beTicket || null)
-    .input('feTicket', NV(), b.feTicket || null)
-    .input('anciliaryTicket', NV(), b.anciliaryTicket || null)
-    .input('rndTicket', NV(), b.rndTicket || null)
-    .input('devAssignee', NV(), b.devAssignee || '')
-    .input('meetings', NV(), b.meetings || null)
-    .input('createdAt', BIG, b.createdAt)
-    .input('updatedAt', BIG, b.updatedAt)
-    .query(`INSERT INTO brds
-      (id,title,description,quarter,year,sprintStart,sprintEnd,status,
-       googleDocsLink,jiraLink,bugLogLink,baName,techLead,tshirtSize,extendedQuarters,
-       beTicket,feTicket,anciliaryTicket,rndTicket,devAssignee,meetings,createdAt,updatedAt)
-      VALUES
-      (@id,@title,@description,@quarter,@year,@sprintStart,@sprintEnd,@status,
-       @googleDocsLink,@jiraLink,@bugLogLink,@baName,@techLead,@tshirtSize,@extendedQuarters,
-       @beTicket,@feTicket,@anciliaryTicket,@rndTicket,@devAssignee,@meetings,@createdAt,@updatedAt)`);
+  return brdRepo.insert(b);
 }
 
 async function _insertBug(bug) {
-  await pool.request()
-    .input('id', NV(36), bug.id)
-    .input('brdId', NV(36), bug.brdId || '')
-    .input('title', NV(255), bug.title || '')
-    .input('criteria', NV(100), bug.criteria || '')
-    .input('severity', NV(50), bug.severity || 'medium')
-    .input('description', NV(), bug.description || '')
-    .input('status', NV(50), bug.status || 'open')
-    .input('jiraLink', NV(), bug.jiraLink || '')
-    .input('rootCause', NV(), bug.rootCause || '')
-    .input('storyTicket', NV(), bug.storyTicket || null)
-    .input('createdAt', BIG, bug.createdAt)
-    .query(`INSERT INTO bugs (id,brdId,title,criteria,severity,description,status,jiraLink,rootCause,storyTicket,createdAt)
-            VALUES (@id,@brdId,@title,@criteria,@severity,@description,@status,@jiraLink,@rootCause,@storyTicket,@createdAt)`);
+  return bugRepo.insert(bug);
 }
 
 // ─── Health ───────────────────────────────────────────────────────────────────
@@ -917,18 +888,14 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', engine: 'MSSQL' })
 // ─── BRDs ─────────────────────────────────────────────────────────────────────
 app.get('/api/brds', async (req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .query('SELECT * FROM brds ORDER BY createdAt DESC');
-    res.json(recordset);
+    res.json(await brdRepo.list());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/brds/:id', async (req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .input('id', NV(36), req.params.id)
-      .query('SELECT * FROM brds WHERE id = @id');
-    recordset.length ? res.json(recordset[0]) : res.status(404).json({ error: 'Not found' });
+    const brd = await brdRepo.getById(req.params.id);
+    brd ? res.json(brd) : res.status(404).json({ error: 'Not found' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -936,7 +903,7 @@ app.post('/api/brds', async (req, res) => {
   try {
     const now = Date.now();
     const id = randomUUID();
-    await _insertBRD({ id, ...req.body, createdAt: now, updatedAt: now });
+    await brdRepo.insert({ id, ...req.body, createdAt: now, updatedAt: now });
     res.json({ id, ...req.body, createdAt: now, updatedAt: now });
     writeBRDLocalBackup(); // fire-and-forget: update local backup file
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -946,40 +913,7 @@ app.put('/api/brds/:id', async (req, res) => {
   try {
     const now = Date.now();
     const b = req.body;
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('title', NV(255), b.title || '')
-      .input('description', NV(), b.description || '')
-      .input('quarter', NV(5), b.quarter || 'Q1')
-      .input('year', INT, b.year || new Date().getFullYear())
-      .input('sprintStart', NV(20), b.sprintStart || '')
-      .input('sprintEnd', NV(20), b.sprintEnd || '')
-      .input('status', NV(50), b.status || 'planning')
-      .input('googleDocsLink', NV(), b.googleDocsLink || '')
-      .input('jiraLink', NV(), b.jiraLink || '')
-      .input('bugLogLink', NV(), b.bugLogLink || '')
-      .input('baName', NV(255), b.baName || '')
-      .input('techLead', NV(255), b.techLead || '')
-      .input('tshirtSize', NV(10), b.tshirtSize || '')
-      .input('extendedQuarters', NV(), b.extendedQuarters || null)
-      .input('beTicket', NV(), b.beTicket || null)
-      .input('feTicket', NV(), b.feTicket || null)
-      .input('anciliaryTicket', NV(), b.anciliaryTicket || null)
-      .input('rndTicket', NV(), b.rndTicket || null)
-      .input('devAssignee', NV(), b.devAssignee || '')
-      .input('meetings', NV(), b.meetings || null)
-      .input('updatedAt', BIG, now)
-      .query(`UPDATE brds SET
-        title=@title, description=@description, quarter=@quarter, year=@year,
-        sprintStart=@sprintStart, sprintEnd=@sprintEnd, status=@status,
-        googleDocsLink=@googleDocsLink, jiraLink=@jiraLink, bugLogLink=@bugLogLink,
-        baName=@baName, techLead=@techLead, tshirtSize=@tshirtSize,
-        extendedQuarters=@extendedQuarters,
-        beTicket=@beTicket, feTicket=@feTicket, anciliaryTicket=@anciliaryTicket, rndTicket=@rndTicket,
-        devAssignee=@devAssignee,
-        meetings=@meetings,
-        updatedAt=@updatedAt
-        WHERE id=@id`);
+    await brdRepo.update(req.params.id, b, now);
     res.json({ id: req.params.id, ...b, updatedAt: now });
     writeBRDLocalBackup(); // fire-and-forget: update local backup file
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -987,8 +921,7 @@ app.put('/api/brds/:id', async (req, res) => {
 
 app.delete('/api/brds/:id', async (req, res) => {
   try {
-    await pool.request().input('id', NV(36), req.params.id)
-      .query('DELETE FROM brds WHERE id = @id');
+    await brdRepo.remove(req.params.id);
     res.json({ ok: true });
     writeBRDLocalBackup(); // fire-and-forget: update local backup file
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -997,18 +930,13 @@ app.delete('/api/brds/:id', async (req, res) => {
 // ─── Bugs ─────────────────────────────────────────────────────────────────────
 app.get('/api/bugs', async (req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .query('SELECT * FROM bugs ORDER BY createdAt DESC');
-    res.json(recordset);
+    res.json(await bugRepo.list());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/bugs/brd/:brdId', async (req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .input('brdId', NV(36), req.params.brdId)
-      .query('SELECT * FROM bugs WHERE brdId = @brdId ORDER BY createdAt DESC');
-    res.json(recordset);
+    res.json(await bugRepo.getByBrd(req.params.brdId));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1016,7 +944,7 @@ app.post('/api/bugs', async (req, res) => {
   try {
     const id = randomUUID();
     const createdAt = Date.now();
-    await _insertBug({ id, ...req.body, createdAt });
+    await bugRepo.insert({ id, ...req.body, createdAt });
     res.json({ id, ...req.body, createdAt });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1024,28 +952,14 @@ app.post('/api/bugs', async (req, res) => {
 app.put('/api/bugs/:id', async (req, res) => {
   try {
     const b = req.body;
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('title', NV(255), b.title || '')
-      .input('criteria', NV(100), b.criteria || '')
-      .input('severity', NV(50), b.severity || 'medium')
-      .input('description', NV(), b.description || '')
-      .input('status', NV(50), b.status || 'open')
-      .input('jiraLink', NV(), b.jiraLink || '')
-      .input('rootCause', NV(), b.rootCause || '')
-      .input('storyTicket', NV(), b.storyTicket || null)
-      .query(`UPDATE bugs SET title=@title, criteria=@criteria, severity=@severity,
-              description=@description, status=@status, jiraLink=@jiraLink, rootCause=@rootCause,
-              storyTicket=@storyTicket
-              WHERE id=@id`);
+    await bugRepo.update(req.params.id, b);
     res.json({ id: req.params.id, ...b });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/bugs/:id', async (req, res) => {
   try {
-    await pool.request().input('id', NV(36), req.params.id)
-      .query('DELETE FROM bugs WHERE id = @id');
+    await bugRepo.remove(req.params.id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1053,65 +967,29 @@ app.delete('/api/bugs/:id', async (req, res) => {
 // ─── Bug Criteria ──────────────────────────────────────────────────────────────
 app.get('/api/criteria', async (req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .query('SELECT * FROM bug_criteria ORDER BY sortOrder ASC, createdAt ASC');
-    res.json(recordset);
+    res.json(await criteriaRepo.list());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/criteria', async (req, res) => {
   try {
-    const { label, value, color, description, sortOrder } = req.body;
+    const { label, value } = req.body;
     if (!label || !value) return res.status(400).json({ error: 'label and value are required' });
-    const id = randomUUID();
-    const createdAt = Date.now();
-    await pool.request()
-      .input('id', NV(36), id)
-      .input('value', NV(100), value)
-      .input('label', NV(255), label)
-      .input('color', NV(20), color || '#3b82f6')
-      .input('description', NV(), description || '')
-      .input('sortOrder', INT, sortOrder ?? 99)
-      .input('createdAt', BIG, createdAt)
-      .query(`INSERT INTO bug_criteria (id,value,label,color,description,sortOrder,createdAt)
-              VALUES (@id,@value,@label,@color,@description,@sortOrder,@createdAt)`);
-    res.json({ id, value, label, color, description, sortOrder, createdAt });
+    res.json(await criteriaRepo.create(req.body));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/criteria/:id', async (req, res) => {
   try {
-    const { label, color, description, sortOrder } = req.body;
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('label', NV(255), label || '')
-      .input('color', NV(20), color || '#3b82f6')
-      .input('description', NV(), description || '')
-      .input('sortOrder', INT, sortOrder ?? 0)
-      .query(`UPDATE bug_criteria SET label=@label, color=@color,
-              description=@description, sortOrder=@sortOrder WHERE id=@id`);
+    await criteriaRepo.update(req.params.id, req.body);
     res.json({ id: req.params.id, ...req.body });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/criteria/:id', async (req, res) => {
   try {
-    const { recordset: rows } = await pool.request()
-      .input('id', NV(36), req.params.id)
-      .query('SELECT value FROM bug_criteria WHERE id = @id');
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-
-    const { value } = rows[0];
-    const { recordset: [{ bugCount }] } = await pool.request()
-      .input('criteria', NV(100), value)
-      .query('SELECT COUNT(*) AS bugCount FROM bugs WHERE criteria = @criteria');
-
-    if (bugCount > 0) {
-      return res.status(409).json({ error: `Cannot delete: ${bugCount} bug(s) use this criterion`, bugCount });
-    }
-
-    await pool.request().input('id', NV(36), req.params.id)
-      .query('DELETE FROM bug_criteria WHERE id = @id');
+    const guard = await criteriaRepo.remove(req.params.id);
+    if (guard) return res.status(guard.status).json(guard.body);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1119,59 +997,29 @@ app.delete('/api/criteria/:id', async (req, res) => {
 // ─── Team Leads ────────────────────────────────────────────────────────────────
 app.get('/api/teamleads', async (req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .query('SELECT * FROM team_leads ORDER BY sortOrder ASC, createdAt ASC');
-    res.json(recordset);
+    res.json(await teamLeadRepo.list());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/teamleads', async (req, res) => {
   try {
-    const { name, sortOrder } = req.body;
+    const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
-    const id = randomUUID();
-    const createdAt = Date.now();
-    await pool.request()
-      .input('id', NV(36), id)
-      .input('name', NV(255), name)
-      .input('sortOrder', INT, sortOrder ?? 99)
-      .input('createdAt', BIG, createdAt)
-      .query(`INSERT INTO team_leads (id,name,sortOrder,createdAt)
-              VALUES (@id,@name,@sortOrder,@createdAt)`);
-    res.json({ id, name, sortOrder, createdAt });
+    res.json(await teamLeadRepo.create(req.body));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/teamleads/:id', async (req, res) => {
   try {
-    const { name, sortOrder } = req.body;
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('name', NV(255), name || '')
-      .input('sortOrder', INT, sortOrder ?? 0)
-      .query(`UPDATE team_leads SET name=@name, sortOrder=@sortOrder WHERE id=@id`);
+    await teamLeadRepo.update(req.params.id, req.body);
     res.json({ id: req.params.id, ...req.body });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/teamleads/:id', async (req, res) => {
   try {
-    const { recordset: rows } = await pool.request()
-      .input('id', NV(36), req.params.id)
-      .query('SELECT name FROM team_leads WHERE id = @id');
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-
-    const { name } = rows[0];
-    const { recordset: [{ brdCount }] } = await pool.request()
-      .input('teamLeadId', NV(36), req.params.id)
-      .query('SELECT COUNT(*) AS brdCount FROM brd_tech_leads WHERE teamLeadId = @teamLeadId');
-
-    if (brdCount > 0) {
-      return res.status(409).json({ error: `Cannot delete: ${brdCount} BRD(s) use this tech lead`, brdCount });
-    }
-
-    await pool.request().input('id', NV(36), req.params.id)
-      .query('DELETE FROM team_leads WHERE id = @id');
+    const guard = await teamLeadRepo.remove(req.params.id);
+    if (guard) return res.status(guard.status).json(guard.body);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1187,40 +1035,22 @@ app.get('/api/dev-members', async (_req, res) => {
 
 app.post('/api/dev-members', async (req, res) => {
   try {
-    const { name, team, sortOrder } = req.body;
+    const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
-    const id = randomUUID();
-    const createdAt = Date.now();
-    await pool.request()
-      .input('id', NV(36), id)
-      .input('name', NV(255), name)
-      .input('team', NV(50), team || 'FE')
-      .input('sortOrder', INT, sortOrder ?? 99)
-      .input('createdAt', BIG, createdAt)
-      .query(`INSERT INTO dev_members (id,name,team,sortOrder,createdAt)
-              VALUES (@id,@name,@team,@sortOrder,@createdAt)`);
-    res.json({ id, name, team: team || 'FE', sortOrder, createdAt });
+    res.json(await devMemberRepo.create(req.body));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/dev-members/:id', async (req, res) => {
   try {
-    const { name, team, sortOrder } = req.body;
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('name', NV(255), name || '')
-      .input('team', NV(50), team || 'FE')
-      .input('sortOrder', INT, sortOrder ?? 0)
-      .query(`UPDATE dev_members SET name=@name, team=@team, sortOrder=@sortOrder WHERE id=@id`);
+    await devMemberRepo.update(req.params.id, req.body);
     res.json({ id: req.params.id, ...req.body });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/dev-members/:id', async (req, res) => {
   try {
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .query('DELETE FROM dev_members WHERE id = @id');
+    await devMemberRepo.remove(req.params.id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1228,60 +1058,28 @@ app.delete('/api/dev-members/:id', async (req, res) => {
 // ─── BRD Tech Leads ────────────────────────────────────────────────────────────
 app.get('/api/brd-tech-leads', async (_req, res) => {
   try {
-    const { recordset } = await pool.request().query(`
-      SELECT btl.id, btl.brdId, btl.teamLeadId, tl.name, btl.expertise, btl.sortOrder, btl.createdAt
-      FROM brd_tech_leads btl
-      JOIN team_leads tl ON btl.teamLeadId = tl.id
-      ORDER BY btl.brdId, btl.sortOrder ASC
-    `);
-    res.json(recordset);
+    res.json(await brdTechLeadRepo.list());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/brd-tech-leads/:brdId', async (req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .input('brdId', NV(36), req.params.brdId)
-      .query(`
-        SELECT btl.id, btl.brdId, btl.teamLeadId, tl.name, btl.expertise, btl.sortOrder, btl.createdAt
-        FROM brd_tech_leads btl
-        JOIN team_leads tl ON btl.teamLeadId = tl.id
-        WHERE btl.brdId = @brdId
-        ORDER BY btl.sortOrder ASC
-      `);
-    res.json(recordset);
+    res.json(await brdTechLeadRepo.getForBrd(req.params.brdId));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ─── T-Shirt Sizes ────────────────────────────────────────────────────────────
 app.get('/api/tshirt-sizes', async (req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .query('SELECT * FROM tshirt_sizes ORDER BY sortOrder ASC');
-    res.json(recordset);
+    res.json(await tshirtSizeRepo.list());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/tshirt-sizes', async (req, res) => {
   try {
-    const { value, label, minDays, maxDays, description, risk, color, sortOrder } = req.body;
+    const { value, label } = req.body;
     if (!value || !label) return res.status(400).json({ error: 'value and label are required' });
-    const id = randomUUID();
-    const createdAt = Date.now();
-    await pool.request()
-      .input('id', NV(36), id)
-      .input('value', NV(10), value)
-      .input('label', NV(50), label)
-      .input('minDays', INT, minDays ?? null)
-      .input('maxDays', INT, maxDays ?? null)
-      .input('description', NV(), description || '')
-      .input('risk', NV(50), risk || '')
-      .input('color', NV(7), color || '#3b82f6')
-      .input('sortOrder', INT, sortOrder ?? 0)
-      .input('createdAt', BIG, createdAt)
-      .query(`INSERT INTO tshirt_sizes (id,value,label,minDays,maxDays,description,risk,color,sortOrder,createdAt)
-              VALUES (@id,@value,@label,@minDays,@maxDays,@description,@risk,@color,@sortOrder,@createdAt)`);
-    res.json({ id, value, label, minDays, maxDays, description, risk, color, sortOrder, createdAt });
+    res.json(await tshirtSizeRepo.create(req.body));
   } catch (e) {
     if (e.message.includes('UQ_tshirt_sizes_value')) return res.status(409).json({ error: 'A size with this value already exists' });
     res.status(500).json({ error: e.message });
@@ -1290,41 +1088,15 @@ app.post('/api/tshirt-sizes', async (req, res) => {
 
 app.put('/api/tshirt-sizes/:id', async (req, res) => {
   try {
-    const { label, minDays, maxDays, description, risk, color, sortOrder } = req.body;
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('label', NV(50), label)
-      .input('minDays', INT, minDays ?? null)
-      .input('maxDays', INT, maxDays ?? null)
-      .input('description', NV(), description || '')
-      .input('risk', NV(50), risk || '')
-      .input('color', NV(7), color || '#3b82f6')
-      .input('sortOrder', INT, sortOrder ?? 0)
-      .query(`UPDATE tshirt_sizes SET label=@label, minDays=@minDays, maxDays=@maxDays,
-              description=@description, risk=@risk, color=@color, sortOrder=@sortOrder
-              WHERE id=@id`);
+    await tshirtSizeRepo.update(req.params.id, req.body);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/tshirt-sizes/:id', async (req, res) => {
   try {
-    const { recordset: rows } = await pool.request()
-      .input('id', NV(36), req.params.id)
-      .query('SELECT value FROM tshirt_sizes WHERE id = @id');
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-
-    const { value } = rows[0];
-    const { recordset: [{ brdCount }] } = await pool.request()
-      .input('tshirtSize', NV(10), value)
-      .query('SELECT COUNT(*) AS brdCount FROM brds WHERE tshirtSize = @tshirtSize');
-
-    if (brdCount > 0) {
-      return res.status(409).json({ error: `Cannot delete: ${brdCount} BRD(s) use this size`, brdCount });
-    }
-
-    await pool.request().input('id', NV(36), req.params.id)
-      .query('DELETE FROM tshirt_sizes WHERE id = @id');
+    const guard = await tshirtSizeRepo.remove(req.params.id);
+    if (guard) return res.status(guard.status).json(guard.body);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1332,108 +1104,47 @@ app.delete('/api/tshirt-sizes/:id', async (req, res) => {
 // ─── PM Notes ─────────────────────────────────────────────────────────────────
 app.get('/api/pm-notes', async (req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .query('SELECT * FROM pm_notes ORDER BY createdAt DESC');
-    res.json(recordset);
+    res.json(await pmNoteRepo.list());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/pm-notes', async (req, res) => {
   try {
-    const { title, content, quarter, year, sprint, priority, status, brdId } = req.body;
-    const id = randomUUID();
-    const now = Date.now();
-    await pool.request()
-      .input('id', NV(36), id)
-      .input('title', NV(255), title || '')
-      .input('content', NV(), content || '')
-      .input('quarter', NV(5), quarter || null)
-      .input('year', INT, year || new Date().getFullYear())
-      .input('sprint', NV(20), sprint || null)
-      .input('priority', NV(20), priority || 'medium')
-      .input('status', NV(20), status || 'todo')
-      .input('brdId', NV(), brdId || null)
-      .input('createdAt', BIG, now)
-      .input('updatedAt', BIG, now)
-      .query(`INSERT INTO pm_notes (id,title,content,quarter,year,sprint,priority,status,brdId,createdAt,updatedAt)
-              VALUES (@id,@title,@content,@quarter,@year,@sprint,@priority,@status,@brdId,@createdAt,@updatedAt)`);
-    res.json({ id, title, content, quarter, year, sprint, priority, status, brdId, createdAt: now, updatedAt: now });
+    res.json(await pmNoteRepo.create(req.body));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/pm-notes/:id', async (req, res) => {
   try {
-    const { title, content, quarter, year, sprint, priority, status, brdId } = req.body;
-    const updatedAt = Date.now();
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('title', NV(255), title || '')
-      .input('content', NV(), content || '')
-      .input('quarter', NV(5), quarter || null)
-      .input('year', INT, year || new Date().getFullYear())
-      .input('sprint', NV(20), sprint || null)
-      .input('priority', NV(20), priority || 'medium')
-      .input('status', NV(20), status || 'todo')
-      .input('brdId', NV(), brdId || null)
-      .input('updatedAt', BIG, updatedAt)
-      .query(`UPDATE pm_notes SET title=@title,content=@content,quarter=@quarter,year=@year,
-              sprint=@sprint,priority=@priority,status=@status,brdId=@brdId,updatedAt=@updatedAt
-              WHERE id=@id`);
+    await pmNoteRepo.update(req.params.id, req.body);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/pm-notes/:id', async (req, res) => {
   try {
-    await pool.request().input('id', NV(36), req.params.id)
-      .query('DELETE FROM pm_notes WHERE id = @id');
+    await pmNoteRepo.remove(req.params.id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/brd-tech-leads', async (req, res) => {
   try {
-    const { brdId, teamLeadId, expertise } = req.body;
-    const id = randomUUID();
-    const createdAt = Date.now();
-
-    // Get max sortOrder for this BRD
-    const { recordset: [{ maxSort }] } = await pool.request()
-      .input('brdId', NV(36), brdId)
-      .query('SELECT ISNULL(MAX(sortOrder), -1) AS maxSort FROM brd_tech_leads WHERE brdId = @brdId');
-
-    const sortOrder = maxSort + 1;
-
-    await pool.request()
-      .input('id', NV(36), id)
-      .input('brdId', NV(36), brdId)
-      .input('teamLeadId', NV(36), teamLeadId)
-      .input('expertise', NV(255), expertise || '')
-      .input('sortOrder', INT, sortOrder)
-      .input('createdAt', BIG, createdAt)
-      .query(`INSERT INTO brd_tech_leads (id, brdId, teamLeadId, expertise, sortOrder, createdAt)
-              VALUES (@id, @brdId, @teamLeadId, @expertise, @sortOrder, @createdAt)`);
-
-    res.json({ id, brdId, teamLeadId, expertise, sortOrder, createdAt });
+    res.json(await brdTechLeadRepo.create(req.body));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/brd-tech-leads/:id', async (req, res) => {
   try {
     const { expertise } = req.body;
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('expertise', NV(255), expertise || '')
-      .query('UPDATE brd_tech_leads SET expertise = @expertise WHERE id = @id');
+    await brdTechLeadRepo.update(req.params.id, req.body);
     res.json({ id: req.params.id, expertise });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/brd-tech-leads/:id', async (req, res) => {
   try {
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .query('DELETE FROM brd_tech_leads WHERE id = @id');
+    await brdTechLeadRepo.remove(req.params.id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1441,12 +1152,7 @@ app.delete('/api/brd-tech-leads/:id', async (req, res) => {
 app.put('/api/brd-tech-leads/reorder/:brdId', async (req, res) => {
   try {
     const { order } = req.body; // [{id, sortOrder}, ...]
-    for (const item of order) {
-      await pool.request()
-        .input('id', NV(36), item.id)
-        .input('sortOrder', INT, item.sortOrder)
-        .query('UPDATE brd_tech_leads SET sortOrder = @sortOrder WHERE id = @id');
-    }
+    await brdTechLeadRepo.reorder(order);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1642,54 +1348,28 @@ app.post('/api/migrate', async (req, res) => {
 // ─── Knowledge Base ────────────────────────────────────────────────────────────
 app.get('/api/knowledge-base', async (_req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .query('SELECT * FROM knowledge_base ORDER BY category ASC, sortOrder ASC, createdAt ASC');
-    res.json(recordset);
+    res.json(await knowledgeBaseRepo.list());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/knowledge-base', async (req, res) => {
   try {
-    const { title, category, content, sortOrder } = req.body;
+    const { title, content } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'title and content are required' });
-    const id = randomUUID();
-    const now = Date.now();
-    await pool.request()
-      .input('id', NV(36), id)
-      .input('title', NV(255), title)
-      .input('category', NV(100), category || 'General')
-      .input('content', NV(), content)
-      .input('sortOrder', INT, sortOrder ?? 99)
-      .input('createdAt', BIG, now)
-      .input('updatedAt', BIG, now)
-      .query(`INSERT INTO knowledge_base (id,title,category,content,sortOrder,createdAt,updatedAt)
-              VALUES (@id,@title,@category,@content,@sortOrder,@createdAt,@updatedAt)`);
-    res.json({ id, title, category: category || 'General', content, sortOrder, createdAt: now, updatedAt: now });
+    res.json(await knowledgeBaseRepo.create(req.body));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/knowledge-base/:id', async (req, res) => {
   try {
-    const { title, category, content, sortOrder } = req.body;
-    const now = Date.now();
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('title', NV(255), title || '')
-      .input('category', NV(100), category || 'General')
-      .input('content', NV(), content || '')
-      .input('sortOrder', INT, sortOrder ?? 0)
-      .input('updatedAt', BIG, now)
-      .query(`UPDATE knowledge_base SET title=@title, category=@category, content=@content,
-              sortOrder=@sortOrder, updatedAt=@updatedAt WHERE id=@id`);
-    res.json({ id: req.params.id, ...req.body, updatedAt: now });
+    const updatedAt = await knowledgeBaseRepo.update(req.params.id, req.body);
+    res.json({ id: req.params.id, ...req.body, updatedAt });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/knowledge-base/:id', async (req, res) => {
   try {
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .query('DELETE FROM knowledge_base WHERE id = @id');
+    await knowledgeBaseRepo.remove(req.params.id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1745,56 +1425,28 @@ app.get('/api/code-graph/:key', (req, res) => {
 // used by the Test Scenarios page — independent from the AI knowledge base.
 app.get('/api/test-scenario-kb', async (_req, res) => {
   try {
-    const { recordset } = await pool.request()
-      .query('SELECT * FROM test_scenario_kb ORDER BY createdAt DESC');
-    res.json(recordset);
+    res.json(await testScenarioKbRepo.list());
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/test-scenario-kb', async (req, res) => {
   try {
-    const { title, category, content, fileName, sortOrder } = req.body;
+    const { title, content } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'title and content are required' });
-    const id = randomUUID();
-    const now = Date.now();
-    await pool.request()
-      .input('id', NV(36), id)
-      .input('title', NV(255), title)
-      .input('category', NV(100), category || 'General')
-      .input('fileName', NV(255), fileName || null)
-      .input('content', NV(), content)
-      .input('sortOrder', INT, sortOrder ?? 0)
-      .input('createdAt', BIG, now)
-      .input('updatedAt', BIG, now)
-      .query(`INSERT INTO test_scenario_kb (id,title,category,fileName,content,sortOrder,createdAt,updatedAt)
-              VALUES (@id,@title,@category,@fileName,@content,@sortOrder,@createdAt,@updatedAt)`);
-    res.json({ id, title, category: category || 'General', fileName: fileName || null, content, sortOrder: sortOrder ?? 0, createdAt: now, updatedAt: now });
+    res.json(await testScenarioKbRepo.create(req.body));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/test-scenario-kb/:id', async (req, res) => {
   try {
-    const { title, category, content, fileName, sortOrder } = req.body;
-    const now = Date.now();
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('title', NV(255), title || '')
-      .input('category', NV(100), category || 'General')
-      .input('fileName', NV(255), fileName || null)
-      .input('content', NV(), content || '')
-      .input('sortOrder', INT, sortOrder ?? 0)
-      .input('updatedAt', BIG, now)
-      .query(`UPDATE test_scenario_kb SET title=@title, category=@category, fileName=@fileName,
-              content=@content, sortOrder=@sortOrder, updatedAt=@updatedAt WHERE id=@id`);
-    res.json({ id: req.params.id, ...req.body, updatedAt: now });
+    const updatedAt = await testScenarioKbRepo.update(req.params.id, req.body);
+    res.json({ id: req.params.id, ...req.body, updatedAt });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/test-scenario-kb/:id', async (req, res) => {
   try {
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .query('DELETE FROM test_scenario_kb WHERE id = @id');
+    await testScenarioKbRepo.remove(req.params.id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1898,50 +1550,23 @@ app.get('/api/style-features', async (_req, res) => {
 
 app.post('/api/style-features', async (req, res) => {
   try {
-    const { feature, tab, status, keywords, sortOrder } = req.body;
+    const { feature } = req.body;
     if (!feature) return res.status(400).json({ error: 'feature is required' });
-    const id = randomUUID();
-    const now = Date.now();
-    const keywordsJson = JSON.stringify(Array.isArray(keywords) ? keywords : []);
-    await pool.request()
-      .input('id', NV(36), id)
-      .input('feature', NV(255), feature)
-      .input('tab', NV(100), tab || 'General')
-      .input('status', NV(50), status || 'stable')
-      .input('keywords', NV(), keywordsJson)
-      .input('sortOrder', INT, sortOrder ?? 99)
-      .input('createdAt', BIG, now)
-      .input('updatedAt', BIG, now)
-      .query(`INSERT INTO style_features (id,feature,tab,status,keywords,sortOrder,createdAt,updatedAt)
-              VALUES (@id,@feature,@tab,@status,@keywords,@sortOrder,@createdAt,@updatedAt)`);
-    res.json({ id, feature, tab: tab || 'General', status: status || 'stable', keywords: Array.isArray(keywords) ? keywords : [], sortOrder, createdAt: now, updatedAt: now });
+    res.json(await styleFeatureRepo.create(req.body));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/style-features/:id', async (req, res) => {
   try {
     const { feature, tab, status, keywords, sortOrder } = req.body;
-    const now = Date.now();
-    const keywordsJson = JSON.stringify(Array.isArray(keywords) ? keywords : []);
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .input('feature', NV(255), feature || '')
-      .input('tab', NV(100), tab || 'General')
-      .input('status', NV(50), status || 'stable')
-      .input('keywords', NV(), keywordsJson)
-      .input('sortOrder', INT, sortOrder ?? 0)
-      .input('updatedAt', BIG, now)
-      .query(`UPDATE style_features SET feature=@feature, tab=@tab, status=@status,
-              keywords=@keywords, sortOrder=@sortOrder, updatedAt=@updatedAt WHERE id=@id`);
-    res.json({ id: req.params.id, feature, tab, status, keywords: Array.isArray(keywords) ? keywords : [], sortOrder, updatedAt: now });
+    const updatedAt = await styleFeatureRepo.update(req.params.id, req.body);
+    res.json({ id: req.params.id, feature, tab, status, keywords: Array.isArray(keywords) ? keywords : [], sortOrder, updatedAt });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/style-features/:id', async (req, res) => {
   try {
-    await pool.request()
-      .input('id', NV(36), req.params.id)
-      .query('DELETE FROM style_features WHERE id = @id');
+    await styleFeatureRepo.remove(req.params.id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

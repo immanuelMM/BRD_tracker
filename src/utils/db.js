@@ -13,6 +13,42 @@ const call = async (method, path, body) => {
   return res.json();
 };
 
+// ─── Repository pattern ─────────────────────────────────────────────────────────
+// A Repository wraps the REST calls for one entity behind a small set of
+// generic verbs. Every exported function below is a thin wrapper delegating
+// to a Repository instance, so existing call sites don't change.
+class Repository {
+  constructor(path) {
+    this.path = path;
+  }
+  list() { return call('GET', this.path); }
+  getById(id) { return call('GET', `${this.path}/${id}`); }
+  create(data) { return call('POST', this.path, data); }
+  update(id, data) { return call('PUT', `${this.path}/${id}`, data); }
+  remove(id) { return call('DELETE', `${this.path}/${id}`); }
+}
+
+class BugRepository extends Repository {
+  getByBrd(brdId) { return call('GET', `${this.path}/brd/${brdId}`); }
+}
+
+class BrdTechLeadRepository extends Repository {
+  getForBrd(brdId) { return call('GET', `${this.path}/${brdId}`); }
+  addTo(brdId, data) { return this.create({ brdId, ...data }); }
+  reorder(brdId, order) { return call('PUT', `${this.path}/reorder/${brdId}`, { order }); }
+}
+
+const brdRepo = new Repository('/brds');
+const bugRepo = new BugRepository('/bugs');
+const criteriaRepo = new Repository('/criteria');
+const teamLeadRepo = new Repository('/teamleads');
+const tshirtSizeRepo = new Repository('/tshirt-sizes');
+const kbRepo = new Repository('/knowledge-base');
+const devMemberRepo = new Repository('/dev-members');
+const brdTechLeadRepo = new BrdTechLeadRepository('/brd-tech-leads');
+const pmNoteRepo = new Repository('/pm-notes');
+const styleFeatureRepo = new Repository('/style-features');
+
 // ─── Init ──────────────────────────────────────────────────────────────────────
 export const initDB = async () => {
   try {
@@ -51,42 +87,42 @@ export const seedSampleData = async () => {
 };
 
 // ─── BRDs ──────────────────────────────────────────────────────────────────────
-export const getAllBRDs    = ()         => call('GET',    '/brds');
-export const getBRDById   = (id)       => call('GET',    `/brds/${id}`);
-export const createBRD    = (data)     => call('POST',   '/brds', data);
-export const updateBRD    = (id, data) => call('PUT',    `/brds/${id}`, data);
-export const deleteBRD    = (id)       => call('DELETE', `/brds/${id}`);
+export const getAllBRDs  = ()         => brdRepo.list();
+export const getBRDById  = (id)       => brdRepo.getById(id);
+export const createBRD   = (data)     => brdRepo.create(data);
+export const updateBRD   = (id, data) => brdRepo.update(id, data);
+export const deleteBRD   = (id)       => brdRepo.remove(id);
 
 // ─── Bugs ──────────────────────────────────────────────────────────────────────
-export const getAllBugs    = ()         => call('GET',    '/bugs');
-export const getBugsByBRD = (brdId)    => call('GET',    `/bugs/brd/${brdId}`);
-export const createBug    = (data)     => call('POST',   '/bugs', data);
-export const updateBug    = (id, data) => call('PUT',    `/bugs/${id}`, data);
-export const deleteBug    = (id)       => call('DELETE', `/bugs/${id}`);
+export const getAllBugs   = ()         => bugRepo.list();
+export const getBugsByBRD = (brdId)    => bugRepo.getByBrd(brdId);
+export const createBug    = (data)     => bugRepo.create(data);
+export const updateBug    = (id, data) => bugRepo.update(id, data);
+export const deleteBug    = (id)       => bugRepo.remove(id);
 
 // ─── Bug Criteria ──────────────────────────────────────────────────────────────
-export const getAllCriteria  = ()         => call('GET',    '/criteria');
-export const createCriteria  = (data)     => call('POST',   '/criteria', data);
-export const updateCriteria  = (id, data) => call('PUT',    `/criteria/${id}`, data);
-export const deleteCriteria  = (id)       => call('DELETE', `/criteria/${id}`);
+export const getAllCriteria = ()         => criteriaRepo.list();
+export const createCriteria = (data)     => criteriaRepo.create(data);
+export const updateCriteria = (id, data) => criteriaRepo.update(id, data);
+export const deleteCriteria = (id)       => criteriaRepo.remove(id);
 
 // ─── Team Leads ────────────────────────────────────────────────────────────────
-export const getAllTeamLeads  = ()         => call('GET',    '/teamleads');
-export const createTeamLead   = (data)     => call('POST',   '/teamleads', data);
-export const updateTeamLead   = (id, data) => call('PUT',    `/teamleads/${id}`, data);
-export const deleteTeamLead   = (id)       => call('DELETE', `/teamleads/${id}`);
+export const getAllTeamLeads = ()         => teamLeadRepo.list();
+export const createTeamLead  = (data)     => teamLeadRepo.create(data);
+export const updateTeamLead  = (id, data) => teamLeadRepo.update(id, data);
+export const deleteTeamLead  = (id)       => teamLeadRepo.remove(id);
 
 // ─── T-Shirt Sizes ─────────────────────────────────────────────────────────────
-export const getAllTShirtSizes  = ()         => call('GET',    '/tshirt-sizes');
-export const createTShirtSize   = (data)     => call('POST',   '/tshirt-sizes', data);
-export const updateTShirtSize   = (id, data) => call('PUT',    `/tshirt-sizes/${id}`, data);
-export const deleteTShirtSize   = (id)       => call('DELETE', `/tshirt-sizes/${id}`);
+export const getAllTShirtSizes = ()         => tshirtSizeRepo.list();
+export const createTShirtSize  = (data)     => tshirtSizeRepo.create(data);
+export const updateTShirtSize  = (id, data) => tshirtSizeRepo.update(id, data);
+export const deleteTShirtSize  = (id)       => tshirtSizeRepo.remove(id);
 
 // ─── Knowledge Base ────────────────────────────────────────────────────────────
-export const getAllKBEntries   = ()         => call('GET',    '/knowledge-base');
-export const createKBEntry     = (data)     => call('POST',   '/knowledge-base', data);
-export const updateKBEntry     = (id, data) => call('PUT',    `/knowledge-base/${id}`, data);
-export const deleteKBEntry     = (id)       => call('DELETE', `/knowledge-base/${id}`);
+export const getAllKBEntries = ()         => kbRepo.list();
+export const createKBEntry   = (data)     => kbRepo.create(data);
+export const updateKBEntry   = (id, data) => kbRepo.update(id, data);
+export const deleteKBEntry   = (id)       => kbRepo.remove(id);
 export const analyzeWithAI          = (data) => call('POST', '/ai/analyze', data);
 export const analyzeAffectedModules = (data) => call('POST', '/ai/analyze-affected-modules', data);
 
@@ -94,30 +130,30 @@ export const analyzeAffectedModules = (data) => call('POST', '/ai/analyze-affect
 export const syncLocalBackup = () => call('POST', '/brd-backup/sync');
 
 // ─── Dev Members ───────────────────────────────────────────────────────────────
-export const getAllDevMembers  = ()         => call('GET',    '/dev-members');
-export const createDevMember   = (data)     => call('POST',   '/dev-members', data);
-export const updateDevMember   = (id, data) => call('PUT',    `/dev-members/${id}`, data);
-export const deleteDevMember   = (id)       => call('DELETE', `/dev-members/${id}`);
+export const getAllDevMembers = ()         => devMemberRepo.list();
+export const createDevMember  = (data)     => devMemberRepo.create(data);
+export const updateDevMember  = (id, data) => devMemberRepo.update(id, data);
+export const deleteDevMember  = (id)       => devMemberRepo.remove(id);
 
 // ─── BRD Tech Leads ────────────────────────────────────────────────────────────
-export const getAllBRDTechLeads     = ()                   => call('GET',    '/brd-tech-leads');
-export const getTeamLeadsForBRD    = (brdId)              => call('GET',    `/brd-tech-leads/${brdId}`);
-export const addBRDTechLead        = (brdId, data)        => call('POST',   '/brd-tech-leads', { brdId, ...data });
-export const updateBRDTechLead     = (id, data)           => call('PUT',    `/brd-tech-leads/${id}`, data);
-export const deleteBRDTechLead     = (id)                 => call('DELETE', `/brd-tech-leads/${id}`);
-export const reorderBRDTechLeads   = (brdId, order)       => call('PUT',    `/brd-tech-leads/reorder/${brdId}`, { order });
+export const getAllBRDTechLeads   = ()             => brdTechLeadRepo.list();
+export const getTeamLeadsForBRD   = (brdId)        => brdTechLeadRepo.getForBrd(brdId);
+export const addBRDTechLead       = (brdId, data)  => brdTechLeadRepo.addTo(brdId, data);
+export const updateBRDTechLead    = (id, data)     => brdTechLeadRepo.update(id, data);
+export const deleteBRDTechLead    = (id)           => brdTechLeadRepo.remove(id);
+export const reorderBRDTechLeads  = (brdId, order) => brdTechLeadRepo.reorder(brdId, order);
 
 // ─── PM Notes ──────────────────────────────────────────────────────────────────
-export const getAllPMNotes  = ()         => call('GET',    '/pm-notes');
-export const createPMNote   = (data)     => call('POST',   '/pm-notes', data);
-export const updatePMNote   = (id, data) => call('PUT',    `/pm-notes/${id}`, data);
-export const deletePMNote   = (id)       => call('DELETE', `/pm-notes/${id}`);
+export const getAllPMNotes = ()         => pmNoteRepo.list();
+export const createPMNote  = (data)     => pmNoteRepo.create(data);
+export const updatePMNote  = (id, data) => pmNoteRepo.update(id, data);
+export const deletePMNote  = (id)       => pmNoteRepo.remove(id);
 
 // ─── Style Features ────────────────────────────────────────────────────────────
-export const getAllStyleFeatures  = ()         => call('GET',    '/style-features');
-export const createStyleFeature   = (data)     => call('POST',   '/style-features', data);
-export const updateStyleFeature   = (id, data) => call('PUT',    `/style-features/${id}`, data);
-export const deleteStyleFeature   = (id)       => call('DELETE', `/style-features/${id}`);
+export const getAllStyleFeatures = ()         => styleFeatureRepo.list();
+export const createStyleFeature  = (data)     => styleFeatureRepo.create(data);
+export const updateStyleFeature  = (id, data) => styleFeatureRepo.update(id, data);
+export const deleteStyleFeature  = (id)       => styleFeatureRepo.remove(id);
 
 // ─── SQL Explorer ──────────────────────────────────────────────────────────────
 export const runQuery = (sql) => call('POST', '/query', { sql });
